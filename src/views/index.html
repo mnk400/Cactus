@@ -1,0 +1,32 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cactus</title>
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
+    <div class="container">
+        <div class="media-container">
+            <div class="media-wrapper" id="media-wrapper">
+                <!-- Media items will be added here dynamically -->
+                <div class="placeholder-message">Loading media files...</div>
+            </div>
+            <div class="navigation">
+                <button id="prev-button" class="nav-button">↑</button>
+                <button id="next-button" class="nav-button">↓</button>
+                <button id="settings-button" class="nav-button">Settings</button>
+                <div id="directory-name" class="directory-name"></div>
+                <div class="settings-panel" id="settings-panel">
+                    <h3>Settings</h3>
+                    <button id="rescan-button" class="nav-button">Rescan Directory</button>
+                    <!-- Future settings will go here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/js/script.js"></script>
+</body>
+</html>
