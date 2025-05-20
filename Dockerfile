@@ -7,4 +7,4 @@ COPY src/ ./src/
 RUN mkdir -p configuration
 EXPOSE 3000
 
-ENTRYPOINT ["node", "src/server.js"]
+ENTRYPOINT ["node", "src/server.js", "-d", "/media"]
