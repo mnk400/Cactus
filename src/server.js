@@ -2,14 +2,16 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const mediaScanner = require('./mediaScanner');
+const minimist = require('minimist');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const argv = minimist(process.argv.slice(2));
 
-const directoryPath = process.argv[2];
+const PORT = argv.p || process.env.PORT || 3000;
+const directoryPath = argv.d;
+
 if (!directoryPath) {
     console.error('Error: Directory path is required');
-    console.error('Usage: node server.js <directory_path>');
     process.exit(1);
 }
 

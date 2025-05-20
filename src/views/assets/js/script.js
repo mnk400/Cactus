@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const directoryNameElement = document.getElementById('directory-name');
     const settingsButton = document.getElementById('settings-button');
     const settingsPanel = document.getElementById('settings-panel');
+    const fullscreenButton = document.getElementById('fullscreen-button');
     
     // Create video progress bar elements
     const videoProgressContainer = document.createElement('div');
@@ -122,9 +123,11 @@ document.addEventListener('DOMContentLoaded', () => {
             img.src = `/media?path=${encodeURIComponent(mediaFile)}`;
             img.alt = 'Media content';
             mediaItem.appendChild(img);
-            
+
             // Hide video progress bar when showing images
             hideVideoProgressBar();
+            // Hide fullscreen button for images
+            fullscreenButton.style.display = 'none';
         } else if (isVideo(mediaFile)) {
             const video = document.createElement('video');
             video.src = `/media?path=${encodeURIComponent(mediaFile)}`;
@@ -133,9 +136,11 @@ document.addEventListener('DOMContentLoaded', () => {
             video.loop = true;
             video.setAttribute('playsinline', ''); // Prevent fullscreen on iOS
             mediaItem.appendChild(video);
-            
+
             // Setup custom video controls
             setupVideoControls(video, mediaItem);
+            // Show fullscreen button for videos
+            fullscreenButton.style.display = 'block';
         }
 
         mediaWrapper.appendChild(mediaItem);
@@ -269,6 +274,22 @@ document.addEventListener('DOMContentLoaded', () => {
     function hideVideoProgressBar() {
         videoProgressContainer.style.display = 'none';
     }
+
+    // Add event listener for fullscreen button
+    fullscreenButton.addEventListener('click', () => {
+        const videoElement = mediaWrapper.querySelector('video');
+        if (videoElement) {
+            if (videoElement.requestFullscreen) {
+                videoElement.requestFullscreen();
+            } else if (videoElement.webkitRequestFullscreen) { /* Safari */
+                videoElement.webkitRequestFullscreen();
+            } else if (videoElement.msRequestFullscreen) { /* IE11 */
+                videoElement.msRequestFullscreen();
+            } else if (videoElement.webkitEnterFullscreen) { /* iOS Safari fallback */
+                videoElement.webkitEnterFullscreen();
+            }
+        }
+    });
 
     // fisher-yates shuffle algorithm to randomize media files
     function shuffleArray(array) {

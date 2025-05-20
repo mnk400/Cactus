@@ -6,8 +6,8 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    background-color: #121212; /* Darker, more modern background */
-    color: #e0e0e0; /* Softer white for text */
+    background-color: #121212;
+    color: #e0e0e0;
     height: 100vh;
     overflow: hidden;
     display: flex;
@@ -19,17 +19,17 @@ body {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    width: 100%; /* Ensure container takes full width */
-    max-width: 100%; /* Max width for a phone-like view, adjust as needed */
-    box-shadow: 0 0 20px rgba(0,0,0,0.5); /* Subtle shadow for depth */
-    overflow: hidden; /* Important for rounded corners with children */
+    width: 100%;
+    max-width: 100%;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    overflow: hidden;
 }
 
 .media-container {
     flex: 1;
     position: relative;
     overflow: hidden;
-    background-color: #000; /* Keep media background black for focus */
+    background-color: #000;
 }
 
 .media-wrapper {
@@ -40,7 +40,7 @@ body {
 }
 
 .media-item {
-    position: relative; /* Needed for absolute positioning of the overlay */
+    position: relative;
     height: 100%;
     width: 100%;
     display: flex;
@@ -67,17 +67,17 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.3); /* Semi-transparent black for dimming */
-    display: flex; /* This is used by JS to show the overlay and center its content. JS sets display:none to hide. */
+    background-color: rgba(0, 0, 0, 0.3);
+    display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 10; /* Ensure it's above the video but below controls */
+    z-index: 10;
     cursor: pointer;
 }
 
 .pause-icon {
-    font-size: 60px; /* Adjust size as needed */
-    color: rgba(255, 255, 255, 0.8); /* White, slightly transparent */
+    font-size: 60px;
+    color: rgba(255, 255, 255, 0.8);
     text-shadow: 0 0 10px rgba(0,0,0,0.5);
 }
 
@@ -87,11 +87,11 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    color: #888; /* Softer placeholder text color */
+    color: #888;
     font-size: 16px;
     text-align: center;
     padding: 20px;
-    position: absolute; /* Ensure it behaves like before if it was absolutely positioned */
+    position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
@@ -99,38 +99,38 @@ body {
 
 .navigation {
     position: absolute;
-    bottom: 15px; /* Adjusted position */
+    bottom: 25px;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
-    align-items: center; /* Align items vertically */
-    justify-content: flex-end; /* Align items to the right */
-    gap: 15px; /* Increased gap for better spacing */
+    align-items: center;
+    justify-content: flex-end;
+    gap: 15px;
     z-index: 20;
     padding: 8px;
-    background-color: rgba(30, 30, 30, 0.8); /* Semi-transparent background */
-    border-radius: 25px; /* Pill shape */
-    width: 90%; /* Give it a width to align content within */
-    max-width: 600px; /* Max width for larger screens */
+    background-color: rgba(30, 30, 30, 0.8);
+    border-radius: 25px;
+    width: 90%;
+    max-width: 600px;
     backdrop-filter: blur(15px);
 }
 
 .directory-name {
     color: #e0e0e0;
     font-size: 16px;
-    margin-left: auto; /* Push the directory name to the left, effectively right-aligning buttons */
+    margin-left: auto;
     padding: 0 15px;
-    white-space: nowrap; /* Prevent wrapping */
+    white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis; /* Add ellipsis for long names */
+    text-overflow: ellipsis;
 }
 
 .nav-button {
-    background-color: #333; /* Darker button background */
+    background-color: #333;
     color: #e0e0e0;
     border: none;
     padding: 10px 15px;
-    border-radius: 20px; /* More rounded */
+    border-radius: 20px;
     cursor: pointer;
     font-size: 16px;
     transition: background-color 0.2s ease, transform 0.1s ease;
@@ -141,7 +141,7 @@ body {
 }
 
 .nav-button:hover {
-    background-color: #444; /* Lighter on hover */
+    background-color: #444;
 }
 
 .error-message {
@@ -169,17 +169,17 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black for dimming */
-    display: flex; /* This is used by JS to show the overlay and center its content. JS sets display:none to hide. */
+    background-color: rgba(0, 0, 0, 0.5); 
+    display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 10; /* Ensure it's above the video but below controls */
+    z-index: 10;
     cursor: pointer;
 }
 
 .pause-icon {
-    font-size: 60px; /* Adjust size as needed */
-    color: rgba(255, 255, 255, 0.8); /* White, slightly transparent */
+    font-size: 60px;
+    color: rgba(255, 255, 255, 0.8);
     text-shadow: 0 0 10px rgba(0,0,0,0.5);
 }
 
@@ -193,19 +193,19 @@ body {
 }
 
 .settings-panel {
-    background-color: rgba(30, 30, 30, 0.95); /* Slightly more opaque background */
+    background-color: rgba(30, 30, 30, 0.95); 
     border-radius: 25px;
     padding: 15px;
     color: #e0e0e0;
-    z-index: 15; /* Below navigation but above media */
-    display: none; /* Hidden by default */
-    flex-direction: column; /* Stack items vertically */
-    gap: 10px; /* Space between settings items */
-    width: 100%; /* Take full width of parent */
-    box-sizing: border-box; /* Include padding in width */
+    z-index: 15;
+    display: none; 
+    flex-direction: column;
+    gap: 10px;
+    width: 100%; 
+    box-sizing: border-box; 
     text-align: center;
-    position: absolute; /* Keep absolute positioning for now */
-    bottom: 60px; /* Position above the navigation bar */
+    position: absolute;
+    bottom: 65px;
     left: 0;
     transform: none;
 }
@@ -218,30 +218,30 @@ body {
 }
 
 .settings-panel .nav-button {
-    width: 100%; /* Make buttons take full width */
+    width: 100%;
     justify-content: center;
 }
 
 /* Video progress bar styles */
 .video-progress-container {
     position: absolute;
-    bottom: 75px; /* Position above the navigation bar */
+    bottom: 90px;
     left: 50%;
     transform: translateX(-50%);
     width: 90%;
-    max-width: 600px;
-    height: 30px;
-    background-color: rgba(30, 30, 30, 0.8); /* Match navigation bar */
-    border-radius: 25px; /* Pill shape like navigation */
+    max-width: 590px;
+    height: 20px;
+    background-color: rgba(30, 30, 30, 0.8);
+    border-radius: 25px;
     overflow: hidden;
-    z-index: 19; /* Below navigation but above other content */
+    z-index: 19;
     backdrop-filter: blur(15px);
 }
 
 .video-progress-bar {
     height: 100%;
-    width: 0; /* Will be updated by JavaScript */
-    background-color: rgba(255, 255, 255, 0.7);
+    width: 0;
+    background-color: rgba(255, 255, 255, 0.8);
     border-radius: 25px;
     transition: width 0.1s linear;
 }
