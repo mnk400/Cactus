@@ -17,6 +17,10 @@ let directoryPath = process.argv[2];
 let cacheFileName;
 let CACHE_FILE_PATH;
 
+// Define media type extensions
+const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
+const VIDEO_EXTENSIONS = ['.mp4', '.MP4', '.webm', '.mov', '.avi', '.mkv', '.ogg'];
+
 function initializeScanner(dirPath) {
     directoryPath = dirPath;
     cacheFileName = `.${crypto.createHash('md5').update(directoryPath).digest('hex')}_media_cache.json`;
@@ -25,13 +29,22 @@ function initializeScanner(dirPath) {
     console.log(`Cache file name and path: ${CACHE_FILE_PATH}`);
 }
 
+// Function to check if a file is an image
+function isImage(filePath) {
+    const ext = path.extname(filePath).toLowerCase();
+    return IMAGE_EXTENSIONS.includes(ext);
+}
+
+// Function to check if a file is a video
+function isVideo(filePath) {
+    const ext = path.extname(filePath).toLowerCase();
+    return VIDEO_EXTENSIONS.includes(ext);
+}
+
 // Function to recursively scan directory for media files
 async function scanDirectory(directoryPath) {
     const mediaFiles = [];
-    const supportedExtensions = [
-        '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp',
-        '.mp4', '.MP4', '.webm', '.mov', '.avi', '.mkv'
-    ];
+    const supportedExtensions = [...IMAGE_EXTENSIONS, ...VIDEO_EXTENSIONS];
 
     async function scan(dir) {
         try {
@@ -64,6 +77,7 @@ async function scanDirectory(directoryPath) {
 }
 
 let scannedMediaFiles = [];
+let allMediaFiles = []; // Store all media files before filtering
 
 // Function to load media files from cache or scan directory
 async function loadMediaFiles() {
@@ -79,8 +93,14 @@ async function loadMediaFiles() {
             // check if the cached directory path matches the current one
             // if not, scan the new directory
             if (cachedData.directoryPath === directoryPath) {
-                scannedMediaFiles = cachedData.files;
-                console.log(`Loaded ${scannedMediaFiles.length} media files from cache.`);
+                allMediaFiles = cachedData.files;
+                scannedMediaFiles = [...allMediaFiles]; // Create a fresh copy to avoid reference issues
+                
+                // Log media type counts
+                const imageCount = allMediaFiles.filter(file => isImage(file)).length;
+                const videoCount = allMediaFiles.filter(file => isVideo(file)).length;
+                console.log(`Loaded ${allMediaFiles.length} media files from cache (${imageCount} images, ${videoCount} videos).`);
+                
                 return scannedMediaFiles;
             }
             console.log('Cache is for a different directory. Re-scanning.');
@@ -91,14 +111,56 @@ async function loadMediaFiles() {
     }
 
     console.log(`Scanning directory: ${directoryPath}`);
-    scannedMediaFiles = await scanDirectory(directoryPath);
-    console.log(`Found ${scannedMediaFiles.length} media files after scan.`);
+    allMediaFiles = await scanDirectory(directoryPath);
+    scannedMediaFiles = [...allMediaFiles]; // Create a fresh copy to avoid reference issues
+    
+    // Log media type counts
+    const imageCount = allMediaFiles.filter(file => isImage(file)).length;
+    const videoCount = allMediaFiles.filter(file => isVideo(file)).length;
+    console.log(`Found ${allMediaFiles.length} media files after scan.`);
     try {
-        await writeFile(CACHE_FILE_PATH, JSON.stringify({ directoryPath, files: scannedMediaFiles }, null, 2));
+        await writeFile(CACHE_FILE_PATH, JSON.stringify({ directoryPath, files: allMediaFiles }, null, 2));
         console.log(`Cache saved to ${CACHE_FILE_PATH}`);
     } catch (error) {
         console.error('Error writing to cache file:', error);
     }
+    return scannedMediaFiles;
+}
+
+// Function to filter media files by type
+function filterMediaByType(mediaType) {
+    if (!allMediaFiles || allMediaFiles.length === 0) {
+        console.error('No media files loaded to filter');
+        return [];
+    }
+
+    console.log(`Filtering media by type: ${mediaType}`);
+    console.log(`Total media files before filtering: ${allMediaFiles.length}`);
+    
+    const imageCount = allMediaFiles.filter(file => isImage(file)).length;
+    const videoCount = allMediaFiles.filter(file => isVideo(file)).length;
+    console.log(`Available media: ${imageCount} images, ${videoCount} videos`);
+    
+    let filteredFiles;
+    
+    switch (mediaType) {
+        case 'photos':
+            filteredFiles = allMediaFiles.filter(file => isImage(file));
+            console.log(`Selected ${filteredFiles.length} photos`);
+            break;
+        case 'videos':
+            filteredFiles = allMediaFiles.filter(file => isVideo(file));
+            console.log(`Selected ${filteredFiles.length} videos`);
+            break;
+        case 'all':
+        default:
+            // Create a fresh copy of all media files
+            filteredFiles = [...allMediaFiles];
+            console.log(`Selected all ${filteredFiles.length} media files`);
+            break;
+    }
+    
+    scannedMediaFiles = filteredFiles;
     return scannedMediaFiles;
 }
 
@@ -122,7 +184,9 @@ async function rescanDirectory() {
                 // Continue with scan even if cache deletion fails
             }
         }
-        return await loadMediaFiles();
+        
+        const files = await loadMediaFiles();
+        return files;
     } catch (error) {
         console.error('Error during rescan:', error);
         throw new Error('Failed to rescan directory');
@@ -133,5 +197,6 @@ module.exports = {
     initializeScanner,
     loadMediaFiles,
     rescanDirectory,
+    filterMediaByType,
     get scannedMediaFiles() { return scannedMediaFiles; }
 };

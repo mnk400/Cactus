@@ -38,7 +38,38 @@ app.use(express.json());
 
 // API endpoint to get media files
 app.get('/get-media-files', (req, res) => {
-    res.json({ files: mediaScanner.scannedMediaFiles });
+    const mediaType = req.query.type || 'all';
+    console.log(`GET /get-media-files - Requested media type: ${mediaType}`);
+    
+    try {
+        // Always explicitly filter by the requested type
+        const files = mediaScanner.filterMediaByType(mediaType);
+        console.log(`Returning ${files.length} ${mediaType} files to client`);
+        res.json({ files: files });
+    } catch (error) {
+        console.error('Error getting media files:', error);
+        res.status(500).json({ error: 'Failed to get media files' });
+    }
+});
+
+// API endpoint to filter media files by type
+app.get('/filter-media', (req, res) => {
+    const { type } = req.query;
+    
+    if (!type || !['all', 'photos', 'videos'].includes(type)) {
+        return res.status(400).json({ error: 'Invalid media type. Use "all", "photos", or "videos".' });
+    }
+    
+    try {
+        const filteredFiles = mediaScanner.filterMediaByType(type);
+        res.json({ 
+            files: filteredFiles, 
+            message: `Filtered to ${filteredFiles.length} ${type} files.` 
+        });
+    } catch (error) {
+        console.error('Error filtering media:', error);
+        res.status(500).json({ error: 'Failed to filter media files' });
+    }
 });
 
 // API endpoint to trigger a rescan of the directory

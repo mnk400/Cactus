@@ -7,6 +7,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsButton = document.getElementById('settings-button');
     const settingsPanel = document.getElementById('settings-panel');
     const fullscreenButton = document.getElementById('fullscreen-button');
+    const allMediaBtn = document.getElementById('all-media-btn');
+    const photosBtn = document.getElementById('photos-btn');
+    const videosBtn = document.getElementById('videos-btn');
     
     // Create video progress bar elements
     const videoProgressContainer = document.createElement('div');
@@ -21,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let mediaFiles = [];
     let currentIndex = 0;
+    let currentMediaType = 'all'; // Default media type
 
     prevButton.style.display = 'none';
     nextButton.style.display = 'none';
@@ -42,11 +46,78 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const data = await response.json();
             console.log(data.message);
-            await fetchMediaFiles(); 
+            
+            console.log(`Applying current media type filter: ${currentMediaType}`);
+            await handleMediaTypeChange(currentMediaType);
         } catch (error) {
             showError(`Rescan failed: ${error.message}`);
         } finally {
             hideLoading(); 
+        }
+    }
+    
+    // Function to handle media type selection
+    async function handleMediaTypeChange(mediaType) {
+        console.log(`Changing media type from ${currentMediaType} to ${mediaType}`);
+        
+        if (mediaType === currentMediaType) {
+            console.log('Media type unchanged, skipping');
+            return;
+        }
+        
+        // Update active button styling
+        [allMediaBtn, photosBtn, videosBtn].forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        switch (mediaType) {
+            case 'photos':
+                photosBtn.classList.add('active');
+                break;
+            case 'videos':
+                videosBtn.classList.add('active');
+                break;
+            default:
+                allMediaBtn.classList.add('active');
+                mediaType = 'all'; // Ensure we use 'all' as the value
+                break;
+        }
+        
+        // Update the current media type AFTER validation
+        currentMediaType = mediaType;
+        
+        try {
+            showLoading(`Loading ${mediaType} files...`);
+            
+            // Make a direct API call to filter media
+            const response = await fetch(`/filter-media?type=${mediaType}`);
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `Failed to filter ${mediaType}`);
+            }
+            
+            const data = await response.json();
+            console.log(`Filter response: ${data.message}`);
+            
+            if (!data.files || data.files.length === 0) {
+                showError(`No ${mediaType} files found in the specified directory`);
+                return;
+            }
+            
+            // Update media files and reset index
+            mediaFiles = shuffleArray(data.files);
+            currentIndex = 0;
+            
+            // Load the first media file
+            loadMediaFile(currentIndex);
+            
+            // Close the settings panel after selection
+            settingsPanel.style.display = 'none';
+        } catch (error) {
+            showError(`Failed to load ${mediaType}: ${error.message}`);
+        } finally {
+            hideLoading();
         }
     }
 
@@ -58,9 +129,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const isHidden = settingsPanel.style.display === 'none' || settingsPanel.style.display === '';
         settingsPanel.style.display = isHidden ? 'flex' : 'none';
     });
+    
     prevButton.addEventListener('click', () => {navigateMedia(-1)});
     nextButton.addEventListener('click', () => {navigateMedia(1)});
     rescanButton.addEventListener('click', handleRescan);
+    
+    allMediaBtn.addEventListener('click', () => handleMediaTypeChange('all'));
+    photosBtn.addEventListener('click', () => handleMediaTypeChange('photos'));
+    videosBtn.addEventListener('click', () => handleMediaTypeChange('videos'));
 
     // keyboard navigation support
     document.addEventListener('keydown', (e) => {
@@ -75,13 +151,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Media management functions
     ///////////////////////////////
 
-    fetchMediaFiles();
+    fetchMediaFiles('all'); // Start with all media types
 
-    async function fetchMediaFiles() {
+    async function fetchMediaFiles(mediaType = 'all') {
+        console.log(`Fetching ${mediaType} media files...`);
+        
         try {
-            showLoading();
+            showLoading(`Loading ${mediaType} media...`);
             
-            const response = await fetch('/get-media-files');
+            // Always specify the media type in the request
+            const response = await fetch(`/get-media-files?type=${mediaType}`);
 
             if (!response.ok) {
                 const errorData = await response.json();
@@ -89,9 +168,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const data = await response.json();
+            console.log(`Received ${data.files ? data.files.length : 0} files from server`);
             
             if (!data.files || data.files.length === 0) {
-                showError('No media files found in the specified directory');
+                showError(`No ${mediaType} files found in the specified directory`);
                 return;
             }
 

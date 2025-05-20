@@ -222,6 +222,46 @@ body {
     justify-content: center;
 }
 
+.setting-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.setting-group label {
+    font-size: 14px;
+    color: #bbb;
+    text-align: left;
+}
+
+.media-type-selector {
+    display: flex;
+    gap: 5px;
+    justify-content: space-between;
+}
+
+.media-type-btn {
+    flex: 1;
+    background-color: #333;
+    color: #e0e0e0;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 15px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s ease;
+}
+
+.media-type-btn:hover {
+    background-color: #444;
+}
+
+.media-type-btn.active {
+    background-color: #555;
+    font-weight: bold;
+}
+
 /* Video progress bar styles */
 .video-progress-container {
     position: absolute;
