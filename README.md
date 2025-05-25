@@ -1,16 +1,19 @@
-# Cactus Style Media Viewer
+# Cactus
+```
+    ,*-.
+    |  |
+,.  |  |
+| |_|  | ,.
+`---.  |_| |
+    |  .--`
+    |  |
+    |  | 
 
-A web application that allows you to browse images and videos from a local directory in a one-by-one interface in a completely random order
+```
 
-## Features
+Extemely minimal randomized order media reviewer
 
-- Recursively scans directories for media files (images and videos)
-- Displays media in a randomized order
-- Supports keyboard, button, and swipe navigation
-- Works with common image formats (jpg, jpeg, png, gif, bmp, webp)
-- Works with common video formats (mp4, webm, ogg, mov, avi, mkv)
-
-## How to Use
+## Usage
 
 1. Install dependencies:
    ```
@@ -19,11 +22,11 @@ A web application that allows you to browse images and videos from a local direc
 
 2. Start the server with a directory path:
    ```
-   npm start -- /path/to/your/media/directory
+   npm start -- -d /path/to/your/media/directory -p 3000
    ```
    Or directly using node:
    ```
-   node server.js /path/to/your/media/directory
+   node server.js -d /path/to/your/media/directory -p 3000
    ```
 
 3. Open your browser and go to http://localhost:3000
@@ -32,10 +35,13 @@ A web application that allows you to browse images and videos from a local direc
 
 5. Navigate through the media using:
    - Up/Down arrow keys
-   - Navigation buttons on the right side
-   - Swipe up/down on touch devices
+   - Navigation buttons on the bottom
 
-## Supported Media Types
+## Docker
+Can also be deployed through docker using the included dockerfile, something like: 
 
-- Images: jpg, jpeg, png, gif, bmp, webp
-- Videos: mp4, webm, ogg, mov, avi, mkv
+```
+docker build -t cactus-media-server .
+
+docker run -p 3000:3000 -v /path/to/your/media/directory:/media cactus-media-server
+```
