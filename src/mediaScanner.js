@@ -9,7 +9,7 @@ const writeFile = promisify(fs.writeFile);
 const readFile = promisify(fs.readFile);
 
 // Get directory path from command line arguments
-let directoryPath = process.argv[2];
+let directoryPath;
 
 // Cache file path - generate a unique name based on the directory path
 // Used to create a unique cache file for input directory to decrease

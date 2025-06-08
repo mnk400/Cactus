@@ -10,17 +10,66 @@ document.addEventListener('DOMContentLoaded', () => {
     const allMediaBtn = document.getElementById('all-media-btn');
     const photosBtn = document.getElementById('photos-btn');
     const videosBtn = document.getElementById('videos-btn');
+    const navigationContainer = document.getElementById('navigation-container');
     
     // Create video progress bar elements
     const videoProgressContainer = document.createElement('div');
-    videoProgressContainer.className = 'video-progress-container';
+    videoProgressContainer.className = 'video-progress-container absolute bottom-[90px] left-1/2 transform -translate-x-1/2 w-11/12 max-w-[570px] h-5 bg-black-shades-900 bg-opacity-80 backdrop-blur-md rounded-lg overflow-hidden z-[19] backdrop-blur-md';
     videoProgressContainer.style.display = 'none';
     
     const videoProgressBar = document.createElement('div');
-    videoProgressBar.className = 'video-progress-bar';
+    videoProgressBar.className = 'video-progress-bar h-full w-0 bg-white rounded-lg transition-width duration-100 linear';
     
     videoProgressContainer.appendChild(videoProgressBar);
     document.querySelector('.media-container').appendChild(videoProgressContainer);
+
+    // iOS Safari bottom bar detection
+    let lastWindowHeight = window.innerHeight;
+    let isBottomBarVisible = false;
+    
+    // Function to handle iOS Safari bottom bar
+    function handleIOSBottomBar() {
+        // Only apply this on iOS devices
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        if (!isIOS) return;
+        
+        const currentWindowHeight = window.innerHeight;
+        
+        // If the window height decreased significantly, the bottom bar is likely showing
+        if (currentWindowHeight < lastWindowHeight - 50) {
+            isBottomBarVisible = true;
+            navigationContainer.classList.add('bottom-30'); // Move navigation up
+            navigationContainer.classList.remove('bottom-6');
+            
+            // Also adjust video progress bar if it's visible
+            if (videoProgressContainer.style.display !== 'none') {
+                videoProgressContainer.classList.add('bottom-[150px]');
+                videoProgressContainer.classList.remove('bottom-[90px]');
+            }
+        } else if (currentWindowHeight >= lastWindowHeight - 10 || currentWindowHeight > lastWindowHeight) {
+            isBottomBarVisible = false;
+            navigationContainer.classList.remove('bottom-20');
+            navigationContainer.classList.add('bottom-6');
+            
+            // Reset video progress bar position
+            if (videoProgressContainer.style.display !== 'none') {
+                videoProgressContainer.classList.remove('bottom-[150px]');
+                videoProgressContainer.classList.add('bottom-[90px]');
+            }
+        }
+        
+        lastWindowHeight = currentWindowHeight;
+    }
+    
+    // Listen for resize and scroll events to detect iOS bottom bar
+    window.addEventListener('resize', handleIOSBottomBar);
+    window.addEventListener('scroll', handleIOSBottomBar);
+    
+    // Also check when orientation changes
+    window.addEventListener('orientationchange', () => {
+        // Wait for the orientation change to complete
+        setTimeout(handleIOSBottomBar, 300);
+    });
 
     let mediaFiles = [];
     let currentIndex = 0;
@@ -67,18 +116,22 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Update active button styling
         [allMediaBtn, photosBtn, videosBtn].forEach(btn => {
-            btn.classList.remove('active');
+            btn.classList.remove('bg-black-shades-700', 'font-bold');
+            btn.classList.add('bg-black-shades-800');
         });
         
         switch (mediaType) {
             case 'photos':
-                photosBtn.classList.add('active');
+                photosBtn.classList.remove('bg-black-shades-800');
+                photosBtn.classList.add('bg-black-shades-700', 'font-bold');
                 break;
             case 'videos':
-                videosBtn.classList.add('active');
+                videosBtn.classList.remove('bg-black-shades-800');
+                videosBtn.classList.add('bg-black-shades-700', 'font-bold');
                 break;
             default:
-                allMediaBtn.classList.add('active');
+                allMediaBtn.classList.remove('bg-black-shades-800');
+                allMediaBtn.classList.add('bg-black-shades-700', 'font-bold');
                 mediaType = 'all'; // Ensure we use 'all' as the value
                 break;
         }
@@ -196,12 +249,13 @@ document.addEventListener('DOMContentLoaded', () => {
         mediaWrapper.innerHTML = '';
 
         const mediaItem = document.createElement('div');
-        mediaItem.className = 'media-item';
+        mediaItem.className = 'media-item relative h-full w-full flex justify-center items-center absolute top-0 left-0';
 
         if (isImage(mediaFile)) {
             const img = document.createElement('img');
             img.src = `/media?path=${encodeURIComponent(mediaFile)}`;
             img.alt = 'Media content';
+            img.classList.add('max-h-full', 'max-w-full', 'object-fill');
             mediaItem.appendChild(img);
 
             // Hide video progress bar when showing images
@@ -215,6 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
             video.autoplay = true;
             video.loop = true;
             video.setAttribute('playsinline', ''); // Prevent fullscreen on iOS
+            video.classList.add('max-h-full', 'max-w-full', 'object-fill');
             mediaItem.appendChild(video);
 
             // Setup custom video controls
@@ -255,11 +310,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const errorElement = document.createElement('div');
-        errorElement.className = 'error-message';
+        errorElement.className = 'error-message text-red-500 p-2.5 text-center bg-red-500 bg-opacity-10 rounded mt-2.5';
         errorElement.textContent = message;
 
-        const inputSection = document.querySelector('.input-section');
-        inputSection.appendChild(errorElement);
+        // Assuming mediaWrapper is the correct parent for error messages as inputSection is not in the HTML
+        mediaWrapper.appendChild(errorElement);
 
         // Clear placeholder if it exists
         const placeholder = document.querySelector('.placeholder-message');
@@ -269,7 +324,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function showLoading(message = 'Loading media files...') {
-        mediaWrapper.innerHTML = `<div class="placeholder-message">${message}</div>`;
+        mediaWrapper.innerHTML = `<div class="placeholder-message h-full w-full flex justify-center items-center text-gray-500 text-base text-center p-5 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">${message}</div>`;
     }
 
     function hideLoading() {
@@ -282,11 +337,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Video controls functions
     function setupVideoControls(video, mediaItem) {
         const videoOverlay = document.createElement('div');
-        videoOverlay.className = 'video-overlay';
+        videoOverlay.className = 'video-overlay absolute top-0 left-0 w-full h-full bg-black bg-opacity-30 flex justify-center items-center z-10 cursor-pointer';
         videoOverlay.style.display = 'none'; // Initially hidden
 
         const pauseIcon = document.createElement('div');
-        pauseIcon.className = 'pause-icon';
+        pauseIcon.className = 'pause-icon text-6xl text-white text-opacity-80 text-shadow'; // text-shadow can be a custom utility or a plugin
         // You can use an SVG or a character for the pause icon
         pauseIcon.innerHTML = '&#9616;&#9616;'; // Unicode for pause symbol
 
@@ -297,10 +352,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const toggleOverlay = () => {
             if (video.paused) {
                 videoOverlay.style.display = 'flex';
-                video.classList.add('video-paused'); // For dimming effect via CSS
+                video.classList.add('filter', 'brightness-50'); // For dimming effect via CSS
             } else {
                 videoOverlay.style.display = 'none';
-                video.classList.remove('video-paused');
+                video.classList.remove('filter', 'brightness-50');
             }
         };
 
@@ -349,6 +404,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const pos = (e.clientX - rect.left) / rect.width;
             video.currentTime = pos * video.duration;
         });
+        
+        // Apply the correct position based on iOS bottom bar state
+        if (isBottomBarVisible) {
+            videoProgressContainer.classList.add('bottom-[150px]');
+            videoProgressContainer.classList.remove('bottom-[90px]');
+        } else {
+            videoProgressContainer.classList.remove('bottom-[150px]');
+            videoProgressContainer.classList.add('bottom-[90px]');
+        }
     }
     
     function hideVideoProgressBar() {
@@ -369,6 +433,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 videoElement.webkitEnterFullscreen();
             }
         }
+    });
+    
+    // Check for iOS bottom bar visibility when user taps on screen
+    document.addEventListener('touchend', () => {
+        // Delay check to allow iOS UI to show/hide
+        setTimeout(handleIOSBottomBar, 300);
     });
 
     // fisher-yates shuffle algorithm to randomize media files
@@ -394,3 +464,10 @@ if ('serviceWorker' in navigator) {
       });
   });
 }
+
+// Initial check for iOS bottom bar on page load
+setTimeout(() => {
+  if (typeof handleIOSBottomBar === 'function') {
+    handleIOSBottomBar();
+  }
+}, 500);

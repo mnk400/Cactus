@@ -6,30 +6,30 @@
     <link rel="stylesheet" href="assets/css/styles.css">
     <link rel="manifest" href="manifest.json">
 </head>
-<body>
-    <div class="container">
-        <div class="media-container">
-            <div class="media-wrapper" id="media-wrapper">
+<body class="bg-black-shades-900 text-gray-200 h-screen overflow-hidden flex justify-center items-center">
+    <div class="container flex flex-col h-screen w-full max-w-full shadow-2xl overflow-hidden">
+        <div class="media-container flex-1 relative overflow-hidden bg-black">
+            <div class="media-wrapper h-full w-full relative transition-transform duration-500 ease-in-out" id="media-wrapper">
                 <!-- Media items will be added here dynamically -->
-                <div class="placeholder-message">Loading media files...</div>
+                <div class="placeholder-message h-full w-full flex justify-center items-center text-gray-500 text-base text-center p-5 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">Loading media files...</div>
             </div>
-            <div class="navigation">
-                <button id="prev-button" class="nav-button">↑</button>
-                <button id="next-button" class="nav-button">↓</button>
-                <button id="settings-button" class="nav-button">⋯</button>
-                <button id="fullscreen-button" class="nav-button" style="display: none;">⛶</button>
-                <div id="directory-name" class="directory-name"></div>
-                <div class="settings-panel" id="settings-panel">
-                    <h3>Settings</h3>
-                    <div class="setting-group">
-                        <label>Media Type:</label>
-                        <div class="media-type-selector">
-                            <button id="all-media-btn" class="media-type-btn active">All</button>
-                            <button id="photos-btn" class="media-type-btn">Photos</button>
-                            <button id="videos-btn" class="media-type-btn">Videos</button>
+            <div id="navigation-container" class="navigation absolute bottom-6 left-1/2 transform -translate-x-1/2 flex items-center justify-end gap-2 z-20 p-2 bg-black-shades-900 bg-opacity-80 rounded-2xl w-11/12 max-w-xl backdrop-blur-md transition-all duration-300">
+                <button id="prev-button" class="nav-button bg-black-shades-700 bg-opacity-80 text-gray-200 border-none p-2 rounded-xl cursor-pointer text-lg transition-colors duration-200 ease-in-out hover:bg-black-shades-500 active:scale-95 w-10">↑</button>
+                <button id="next-button" class="nav-button bg-black-shades-700 bg-opacity-80 text-gray-200 border-none p-2 rounded-xl cursor-pointer text-lg transition-colors duration-200 ease-in-out hover:bg-black-shades-500 active:scale-95 w-10">↓</button>
+                <button id="settings-button" class="nav-button bg-black-shades-700 bg-opacity-80 text-gray-200 border-none p-2 rounded-xl cursor-pointer text-lg transition-colors duration-200 ease-in-out hover:bg-black-shades-500 active:scale-95 w-10">⋯</button>
+                <button id="fullscreen-button" class="nav-button bg-black-shades-700 bg-opacity-80 text-gray-200 border-none p-2 rounded-xl cursor-pointer text-lg transition-colors duration-200 ease-in-out hover:bg-black-shades-500 active:scale-95 w-10" style="display: none;">⛶</button>
+                <div id="directory-name" class="directory-name text-gray-200 text-base ml-auto px-4 whitespace-nowrap overflow-hidden text-ellipsis"></div>
+                <div class="settings-panel absolute bottom-20 left-0 bg-black-shades-900 bg-opacity-90 rounded-3xl p-4 text-gray-200 z-10 backdrop-blur-md flex-col gap-2.5 w-full box-border text-center" id="settings-panel" style="display: none;">
+                    <h3 class="mt-0 text-gray-200 text-lg mb-2.5">Settings</h3>
+                    <div class="setting-group flex flex-col gap-2 mb-2.5">
+                        <label class="text-sm text-gray-400 text-left">Media Type:</label>
+                        <div class="media-type-selector flex gap-1 justify-between">
+                            <button id="all-media-btn" class="media-type-btn flex-1 bg-black-shades-700 text-gray-200 border-none py-2 px-3 rounded-xl cursor-pointer text-sm transition-colors duration-200 ease-in-out hover:bg-black-shades-600 active">All</button>
+                            <button id="photos-btn" class="media-type-btn flex-1 bg-black-shades-700 text-gray-200 border-none py-2 px-3 rounded-xl cursor-pointer text-sm transition-colors duration-200 ease-in-out hover:bg-black-shades-600">Photos</button>
+                            <button id="videos-btn" class="media-type-btn flex-1 bg-black-shades-700 text-gray-200 border-none py-2 px-3 rounded-xl cursor-pointer text-sm transition-colors duration-200 ease-in-out hover:bg-black-shades-600">Videos</button>
                         </div>
                     </div>
-                    <button id="rescan-button" class="nav-button">Rescan Directory</button>
+                    <button id="rescan-button" class="nav-button w-full justify-center bg-black-shades-600 hover:bg-black-shades-500 text-gray-200 border-none p-2 rounded-xl cursor-pointer text-lg transition-colors duration-200 ease-in-out active:scale-95">Rescan Directory</button>
                     <!-- Future settings will go here -->
                 </div>
             </div>
