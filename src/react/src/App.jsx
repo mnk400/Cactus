@@ -3,14 +3,17 @@ import MediaViewer from './components/MediaViewer'
 import Navigation from './components/Navigation'
 import LoadingMessage from './components/LoadingMessage'
 import ErrorMessage from './components/ErrorMessage'
+import DebugInfo from './components/DebugInfo'
 import { useMediaFiles } from './hooks/useMediaFiles'
 import { useKeyboardNavigation } from './hooks/useKeyboardNavigation'
 import { useIOSBottomBar } from './hooks/useIOSBottomBar'
+import { useMobileViewport } from './hooks/useMobileViewport'
 
 function App() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [currentMediaType, setCurrentMediaType] = useState('all')
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [debugMode, setDebugMode] = useState(false)
   
   const {
     mediaFiles,
@@ -23,6 +26,9 @@ function App() {
   } = useMediaFiles()
 
   const { isBottomBarVisible } = useIOSBottomBar()
+  
+  // Handle mobile viewport issues
+  useMobileViewport()
 
   // Initialize media files on mount
   useEffect(() => {
@@ -35,6 +41,17 @@ function App() {
       setCurrentIndex(0)
     }
   }, [mediaFiles, currentIndex])
+
+  // Enable debug mode with URL parameter or localStorage
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const debugParam = urlParams.get('debug')
+    const debugStorage = localStorage.getItem('cactus-debug')
+    
+    if (debugParam === 'true' || debugStorage === 'true') {
+      setDebugMode(true)
+    }
+  }, [])
 
   // Keyboard navigation
   useKeyboardNavigation((direction) => {
@@ -78,7 +95,9 @@ function App() {
     : ''
 
   return (
-    <div className="container flex flex-col h-screen w-full max-w-full shadow-2xl overflow-hidden">
+    <div className="container flex flex-col h-screen w-full max-w-full shadow-2xl overflow-hidden bg-black text-gray-200">
+      <DebugInfo show={debugMode} />
+      
       <div className="media-container flex-1 relative overflow-hidden bg-black">
         {loading && <LoadingMessage message={loading} />}
         {error && <ErrorMessage message={error} />}
@@ -97,6 +116,13 @@ function App() {
             <div>
               <p className="text-lg mb-2">No media files found</p>
               <p className="text-sm">Try rescanning the directory or check if the directory contains supported media files.</p>
+              {debugMode && (
+                <div className="mt-4 text-xs">
+                  <p>Debug Mode Active</p>
+                  <p>Container Height: {window.innerHeight}px</p>
+                  <p>Viewport: {window.innerWidth}x{window.innerHeight}</p>
+                </div>
+              )}
             </div>
           </div>
         )}

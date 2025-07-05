@@ -2,6 +2,52 @@
 @tailwind components;
 @tailwind utilities;
 
+/* CSS Custom Properties for viewport */
+:root {
+  --vh: 1vh;
+  --actual-height: 100vh;
+}
+
+/* Mobile viewport fix */
+html, body {
+  height: 100%;
+  height: calc(var(--vh, 1vh) * 100);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #000;
+}
+
+#root {
+  height: 100%;
+  height: calc(var(--vh, 1vh) * 100);
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #000;
+}
+
+/* Fix for mobile viewport height issues */
+.container {
+  height: 100vh;
+  height: calc(var(--vh, 1vh) * 100);
+  min-height: 100vh;
+  min-height: calc(var(--vh, 1vh) * 100);
+  width: 100%;
+  max-width: 100%;
+  background-color: #000;
+}
+
+/* Ensure media container takes full height */
+.media-container {
+  height: 100%;
+  width: 100%;
+  position: relative;
+  background-color: #000;
+}
+
 /* Custom styles for black shades used in the original app */
 .bg-black-shades-500 {
   background-color: rgba(64, 64, 64, 1);
@@ -46,4 +92,79 @@
   50% {
     opacity: .5;
   }
+}
+
+/* Mobile-specific fixes */
+@media screen and (max-width: 768px) {
+  /* Ensure proper height on mobile */
+  html, body, #root, .container {
+    height: 100vh;
+    height: calc(var(--vh, 1vh) * 100);
+    min-height: 100vh;
+    min-height: calc(var(--vh, 1vh) * 100);
+  }
+  
+  /* Fix for iOS Safari */
+  @supports (-webkit-touch-callout: none) {
+    html, body, #root, .container {
+      height: var(--actual-height, 100vh);
+      min-height: var(--actual-height, 100vh);
+    }
+  }
+  
+  /* Ensure navigation is visible */
+  .navigation {
+    position: fixed;
+    z-index: 1000;
+  }
+}
+
+/* Portrait orientation specific fixes */
+@media screen and (max-width: 768px) and (orientation: portrait) {
+  .container {
+    height: 100vh;
+    height: calc(var(--vh, 1vh) * 100);
+    min-height: 100vh;
+    min-height: calc(var(--vh, 1vh) * 100);
+  }
+  
+  /* Ensure content is visible in portrait */
+  .media-item {
+    min-height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .media-item img,
+  .media-item video {
+    max-height: calc(100vh - 120px); /* Account for navigation */
+    max-height: calc(calc(var(--vh, 1vh) * 100) - 120px);
+    max-width: 100%;
+    object-fit: contain;
+  }
+}
+
+/* Prevent zoom on input focus (mobile) */
+input, select, textarea {
+  font-size: 16px;
+}
+
+/* Loading and error message positioning */
+.placeholder-message,
+.error-message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 50;
+  text-align: center;
+  padding: 20px;
+  max-width: 90%;
+}
+
+/* Debug helper - remove in production */
+.debug-height {
+  border: 2px solid red;
+  background: rgba(255, 0, 0, 0.1);
 }
