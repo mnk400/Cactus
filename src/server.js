@@ -9,7 +9,6 @@ const argv = minimist(process.argv.slice(2));
 
 const PORT = argv.p || process.env.PORT || 3000;
 const directoryPath = argv.d;
-const useReact = argv.react || process.env.USE_REACT === 'true';
 
 // Simple structured logging
 const log = {
@@ -19,7 +18,7 @@ const log = {
 };
 
 if (!directoryPath) {
-    log.error('Directory path is required', { usage: 'node server.js -d /path/to/media -p 3000 [--react]' });
+    log.error('Directory path is required', { usage: 'node server.js -d /path/to/media -p 3000' });
     process.exit(1);
 }
 
@@ -34,25 +33,18 @@ try {
     process.exit(1);
 }
 
-// Serve static files based on version
-if (useReact) {
-    // Check if React build exists
-    const reactBuildPath = path.join(__dirname, '..', 'dist');
-    if (fs.existsSync(reactBuildPath)) {
-        app.use(express.static(reactBuildPath));
-        log.info('Serving React build from dist directory');
-    } else {
-        log.warn('React build not found, falling back to HTML version');
-        app.use(express.static(path.join(__dirname, 'views')));
-    }
+// Serve React build from dist directory
+const reactBuildPath = path.join(__dirname, '..', 'dist');
+if (fs.existsSync(reactBuildPath)) {
+    app.use(express.static(reactBuildPath));
+    log.info('Serving React application from dist directory');
 } else {
-    app.use(express.static(path.join(__dirname, 'views')));
-    log.info('Serving original HTML version');
+    log.error('React build not found. Please run "npm run build" first.');
+    process.exit(1);
 }
 
 app.use(express.json());
 
-// Function to recursively scan directory for media files
 // Initialize and load media files on server startup
 (async () => {
     mediaScanner.initializeScanner(directoryPath);
@@ -129,24 +121,20 @@ app.get('/media', (req, res) => {
     }
 });
 
-// Simply serve index.html for all other routes
+// Serve React app for all other routes (SPA routing)
 app.get('*', (req, res) => {
-    if (useReact) {
-        const reactBuildPath = path.join(__dirname, '..', 'dist');
-        if (fs.existsSync(path.join(reactBuildPath, 'index.html'))) {
-            res.sendFile(path.join(reactBuildPath, 'index.html'));
-        } else {
-            res.sendFile(path.join(__dirname, 'views', 'index.html'));
-        }
+    const indexPath = path.join(reactBuildPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
     } else {
-        res.sendFile(path.join(__dirname, 'views', 'index.html'));
+        res.status(500).send('React build not found. Please run "npm run build" first.');
     }
 });
 
 app.listen(PORT, () => {
     log.info('Cactus media server started', { 
         port: PORT, 
-        directory: directoryPath, 
-        version: useReact ? 'React' : 'HTML' 
+        directory: directoryPath,
+        version: 'React'
     });
 });

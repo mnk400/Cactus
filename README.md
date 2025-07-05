@@ -11,7 +11,7 @@
 
 ```
 
-Extremely minimal randomized order media reviewer
+Extremely minimal randomized order media reviewer built with React
 
 ## Features
 
@@ -25,62 +25,47 @@ Extremely minimal randomized order media reviewer
 - **iOS Safari Support**: Handles iOS bottom bar behavior
 - **Responsive Design**: Works on mobile and desktop
 
-## Usage
+## Quick Start
 
-### Original HTML Version (Default)
-
-1. Install dependencies:
-   ```
+1. **Install dependencies:**
+   ```bash
    npm install
    ```
 
-2. Start the server with a directory path:
-   ```
+2. **Start the application:**
+   ```bash
    npm start -- -d /path/to/your/media/directory -p 3000
    ```
-   Or directly using node:
-   ```
-   node src/server.js -d /path/to/your/media/directory -p 3000
-   ```
 
-3. Open your browser and go to http://localhost:3000
+3. **Open your browser and go to http://localhost:3000**
 
-### React Version (New!)
+## Usage
 
-The application has been migrated to React for better maintainability and component reusability.
+### Production
 
-1. Build the React application:
-   ```
-   npm run build:react
-   ```
+```bash
+# Build and start the server
+npm start -- -d /path/to/your/media/directory -p 3000
+```
 
-2. Start the server with React version:
-   ```
-   npm run start:react -- -d /path/to/your/media/directory -p 3000
-   ```
-   Or directly:
-   ```
-   node src/server.js --react -d /path/to/your/media/directory -p 3000
-   ```
+### Development
 
-3. Open your browser and go to http://localhost:3000
+```bash
+# Start development server with hot reloading
+npm run dev
 
-### Development Mode (React)
+# In another terminal, start the backend
+node src/server.js -d /path/to/your/media/directory -p 3000
 
-For React development with hot reloading:
+# Open http://localhost:3001 for development with hot reloading
+```
 
-1. Start the development server:
-   ```
-   npm run dev:react
-   ```
-   This runs Vite dev server on port 3001 with API proxying to port 3000.
+### Development with test data
 
-2. In another terminal, start the backend server:
-   ```
-   node src/server.js -d /path/to/your/media/directory -p 3000
-   ```
-
-3. Open your browser and go to http://localhost:3001
+```bash
+# Start both frontend and backend for development
+npm run start:dev
+```
 
 ## Navigation
 
@@ -96,50 +81,63 @@ Click the ⋯ button to access:
 
 ## Docker
 
-Can also be deployed through docker using the included dockerfile:
+Deploy using Docker:
 
 ```bash
-# Original HTML version
+# Build the Docker image
 docker build -t cactus-media-server .
-docker run -p 3000:3000 -v /path/to/your/media/directory:/media cactus-media-server
 
-# React version (build first)
-npm run build:react
-docker build -t cactus-media-server .
-docker run -p 3000:3000 -v /path/to/your/media/directory:/media -e USE_REACT=true cactus-media-server
+# Run the container
+docker run -p 3000:3000 -v /path/to/your/media/directory:/media cactus-media-server
 ```
 
-## React Migration
+## Architecture
 
-The React version maintains 100% feature parity with the original HTML version while providing:
+Built with modern React architecture for maintainability and performance:
 
-### Benefits
-- **Component-based architecture**: Reusable UI components
-- **Better state management**: Centralized state with custom hooks
-- **Improved maintainability**: Separated concerns and cleaner code organization
-- **Type safety**: Better development experience with modern tooling
-- **Hot reloading**: Faster development iteration
+### **Components**
+- `App.jsx` - Main application with state management
+- `MediaViewer.jsx` - Media display and touch gesture handling
+- `MediaItem.jsx` - Individual media items with animations
+- `Navigation.jsx` - Bottom navigation bar
+- `SettingsPanel.jsx` - Settings overlay
+- `VideoProgressBar.jsx` - Video progress indicator
 
-### Architecture
-- **Components**: Modular UI components (`MediaViewer`, `Navigation`, `SettingsPanel`, etc.)
-- **Custom Hooks**: Reusable logic (`useMediaFiles`, `useTouchGestures`, `useKeyboardNavigation`, etc.)
-- **Utils**: Helper functions for media type detection and array shuffling
-- **Build System**: Vite for fast development and optimized production builds
+### **Custom Hooks**
+- `useMediaFiles.js` - Media loading, filtering, and rescanning
+- `useTouchGestures.js` - Smooth swipe navigation
+- `useKeyboardNavigation.js` - Arrow key navigation
+- `useIOSBottomBar.js` - iOS Safari bottom bar handling
+- `useMediaPreloader.js` - Adjacent media preloading
+- `useMobileViewport.js` - Mobile viewport optimization
 
-### File Structure
+### **File Structure**
 ```
 src/
-├── react/
-│   ├── src/
-│   │   ├── components/     # React components
-│   │   ├── hooks/          # Custom React hooks
-│   │   ├── utils/          # Utility functions
-│   │   ├── App.jsx         # Main application component
-│   │   └── main.jsx        # React entry point
-│   ├── index.html          # HTML template
-│   └── public/             # Static assets
-├── server.js               # Express server (supports both versions)
-└── views/                  # Original HTML version
+├── components/         # React components
+├── hooks/              # Custom React hooks
+├── utils/              # Utility functions
+├── App.jsx             # Main application
+├── main.jsx            # React entry point
+├── index.html          # HTML template
+├── index.css           # Styles with Tailwind CSS
+├── server.js           # Express server
+└── mediaScanner.js     # Media file scanning logic
 ```
 
-Both versions use the same backend API and media scanning functionality.
+## API Endpoints
+
+- `GET /get-media-files?type=all|photos|videos` - Get filtered media files
+- `GET /filter-media?type=all|photos|videos` - Filter existing media files
+- `POST /rescan-directory` - Rescan directory for new files
+- `GET /media?path=<filepath>` - Serve media files
+
+## Requirements
+
+- Node.js 16.0.0 or higher
+- Modern web browser with ES6+ support
+- Directory with supported media files (jpg, png, gif, mp4, webm, etc.)
+
+## License
+
+MIT

@@ -1,29 +1,34 @@
 {
   "name": "cactus-media-viewer",
-  "version": "1.0.0",
+  "version": "2.0.0",
+  "description": "Extremely minimal randomized order media reviewer built with React",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js -d $@",
-    "start:react": "node src/server.js --react -d $@",
-    "build:css": "tailwindcss -i ./src/input.css -o ./src/views/assets/css/styles.css --watch",
-    "dev": "concurrently \"npm run build:css\" \"npm run dev:react\"",
-    "dev:react": "vite",
-    "build:react": "vite build",
+    "dev": "vite",
+    "build": "vite build",
     "preview": "vite preview",
-    "build": "npm run build:react"
+    "start": "npm run build && node src/server.js -d $@",
+    "start:dev": "concurrently \"npm run dev\" \"node src/server.js -d ./test-media -p 3000\"",
+    "test": "echo \"No tests specified\" && exit 0"
   },
   "bin": {
     "cactus": "./src/server.js"
   },
+  "keywords": [
+    "media",
+    "viewer",
+    "photos",
+    "videos",
+    "react",
+    "random",
+    "slideshow"
+  ],
   "dependencies": {
-    "daisyui": "^5.0.43",
     "express": "^4.18.2",
     "minimist": "^1.2.8",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
-  "author": "",
-  "license": "MIT",
   "devDependencies": {
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
@@ -33,5 +38,10 @@
     "postcss": "^8.5.4",
     "tailwindcss": "^3.4.17",
     "vite": "^5.0.8"
-  }
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "author": "",
+  "license": "MIT"
 }
