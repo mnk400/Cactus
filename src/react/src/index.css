@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles for black shades used in the original app */
+.bg-black-shades-500 {
+  background-color: rgba(64, 64, 64, 1);
+}
+
+.bg-black-shades-600 {
+  background-color: rgba(48, 48, 48, 1);
+}
+
+.bg-black-shades-700 {
+  background-color: rgba(32, 32, 32, 1);
+}
+
+.bg-black-shades-800 {
+  background-color: rgba(16, 16, 16, 1);
+}
+
+/* iOS bottom bar adjustments */
+.bottom-30 {
+  bottom: 7.5rem;
+}
+
+/* Video progress bar styles */
+.video-progress-container {
+  transition: bottom 0.3s ease;
+}
+
+/* Touch feedback styles */
+.media-wrapper {
+  transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+}
+
+/* Animation classes */
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .5;
+  }
+}

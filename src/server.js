@@ -9,6 +9,7 @@ const argv = minimist(process.argv.slice(2));
 
 const PORT = argv.p || process.env.PORT || 3000;
 const directoryPath = argv.d;
+const useReact = argv.react || process.env.USE_REACT === 'true';
 
 // Simple structured logging
 const log = {
@@ -18,7 +19,7 @@ const log = {
 };
 
 if (!directoryPath) {
-    log.error('Directory path is required', { usage: 'node server.js -d /path/to/media -p 3000' });
+    log.error('Directory path is required', { usage: 'node server.js -d /path/to/media -p 3000 [--react]' });
     process.exit(1);
 }
 
@@ -33,7 +34,22 @@ try {
     process.exit(1);
 }
 
-app.use(express.static(path.join(__dirname, 'views')));
+// Serve static files based on version
+if (useReact) {
+    // Check if React build exists
+    const reactBuildPath = path.join(__dirname, '..', 'dist');
+    if (fs.existsSync(reactBuildPath)) {
+        app.use(express.static(reactBuildPath));
+        log.info('Serving React build from dist directory');
+    } else {
+        log.warn('React build not found, falling back to HTML version');
+        app.use(express.static(path.join(__dirname, 'views')));
+    }
+} else {
+    app.use(express.static(path.join(__dirname, 'views')));
+    log.info('Serving original HTML version');
+}
+
 app.use(express.json());
 
 // Function to recursively scan directory for media files
@@ -115,9 +131,22 @@ app.get('/media', (req, res) => {
 
 // Simply serve index.html for all other routes
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'index.html'));
+    if (useReact) {
+        const reactBuildPath = path.join(__dirname, '..', 'dist');
+        if (fs.existsSync(path.join(reactBuildPath, 'index.html'))) {
+            res.sendFile(path.join(reactBuildPath, 'index.html'));
+        } else {
+            res.sendFile(path.join(__dirname, 'views', 'index.html'));
+        }
+    } else {
+        res.sendFile(path.join(__dirname, 'views', 'index.html'));
+    }
 });
 
 app.listen(PORT, () => {
-    log.info('Cactus media server started', { port: PORT, directory: directoryPath });
+    log.info('Cactus media server started', { 
+        port: PORT, 
+        directory: directoryPath, 
+        version: useReact ? 'React' : 'HTML' 
+    });
 });

@@ -4,7 +4,13 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js -d $@",
-    "build:css": "tailwindcss -i ./src/input.css -o ./src/views/assets/css/styles.css --watch"
+    "start:react": "node src/server.js --react -d $@",
+    "build:css": "tailwindcss -i ./src/input.css -o ./src/views/assets/css/styles.css --watch",
+    "dev": "concurrently \"npm run build:css\" \"npm run dev:react\"",
+    "dev:react": "vite",
+    "build:react": "vite build",
+    "preview": "vite preview",
+    "build": "npm run build:react"
   },
   "bin": {
     "cactus": "./src/server.js"
@@ -12,13 +18,20 @@
   "dependencies": {
     "daisyui": "^5.0.43",
     "express": "^4.18.2",
-    "minimist": "^1.2.8"
+    "minimist": "^1.2.8",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.21",
+    "concurrently": "^8.2.2",
     "postcss": "^8.5.4",
-    "tailwindcss": "^3.4.17"
+    "tailwindcss": "^3.4.17",
+    "vite": "^5.0.8"
   }
 }
