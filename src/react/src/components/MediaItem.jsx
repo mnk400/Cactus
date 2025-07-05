@@ -14,6 +14,8 @@ function MediaItem({
   const mediaRef = useRef(null)
 
   useEffect(() => {
+    if (!mediaFile) return // Guard against undefined mediaFile
+    
     setIsTransitioning(true)
     
     // Set initial position based on direction
@@ -38,7 +40,12 @@ function MediaItem({
     }, 50)
 
     return () => clearTimeout(timer)
-  }, [index, direction, setIsTransitioning]) // Changed from mediaFile to index
+  }, [index, direction, setIsTransitioning, mediaFile])
+
+  // Don't render anything if no media file
+  if (!mediaFile) {
+    return null
+  }
 
   const mediaStyle = {
     opacity,
@@ -60,6 +67,10 @@ function MediaItem({
           src={imgSrc}
           alt="Media content"
           className="max-h-full max-w-full object-cover"
+          onError={(e) => {
+            console.error('Failed to load image:', mediaFile)
+            e.target.style.display = 'none'
+          }}
         />
       </div>
     )
@@ -83,7 +94,18 @@ function MediaItem({
     )
   }
 
-  return null
+  // Fallback for unknown media types
+  return (
+    <div 
+      className="media-item relative h-full w-full flex justify-center items-center absolute top-0 left-0"
+      style={mediaStyle}
+    >
+      <div className="text-gray-500 text-center">
+        <p>Unsupported media type</p>
+        <p className="text-sm">{mediaFile}</p>
+      </div>
+    </div>
+  )
 }
 
 const VideoPlayer = React.forwardRef(({ src, mediaFile }, ref) => {
@@ -105,21 +127,29 @@ const VideoPlayer = React.forwardRef(({ src, mediaFile }, ref) => {
       setShowOverlay(true)
     }
 
+    const handleError = () => {
+      console.error('Failed to load video:', mediaFile)
+    }
+
     video.addEventListener('play', handlePlay)
     video.addEventListener('pause', handlePause)
+    video.addEventListener('error', handleError)
 
     return () => {
       video.removeEventListener('play', handlePlay)
       video.removeEventListener('pause', handlePause)
+      video.removeEventListener('error', handleError)
     }
-  }, [])
+  }, [mediaFile])
 
   const togglePlayPause = () => {
     const video = videoRef.current
     if (!video) return
 
     if (video.paused) {
-      video.play()
+      video.play().catch(err => {
+        console.error('Failed to play video:', err)
+      })
     } else {
       video.pause()
     }
@@ -137,6 +167,7 @@ const VideoPlayer = React.forwardRef(({ src, mediaFile }, ref) => {
         playsInline
         className={`max-h-full max-w-full object-cover cursor-pointer ${isPaused ? 'filter brightness-50' : ''}`}
         onClick={togglePlayPause}
+        onError={() => console.error('Video load error:', mediaFile)}
       />
       
       {showOverlay && (

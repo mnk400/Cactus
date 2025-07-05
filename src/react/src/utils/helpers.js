@@ -8,11 +8,17 @@ export function shuffleArray(array) {
 }
 
 export function isImage(filePath) {
+  if (!filePath || typeof filePath !== 'string') {
+    return false
+  }
   const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']
   return imageExtensions.some(ext => filePath.toLowerCase().endsWith(ext))
 }
 
 export function isVideo(filePath) {
+  if (!filePath || typeof filePath !== 'string') {
+    return false
+  }
   const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv']
   return videoExtensions.some(ext => filePath.toLowerCase().endsWith(ext))
 }

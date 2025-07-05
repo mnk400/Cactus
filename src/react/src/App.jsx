@@ -29,6 +29,13 @@ function App() {
     fetchMediaFiles('all')
   }, [])
 
+  // Reset currentIndex when mediaFiles change to prevent out-of-bounds access
+  useEffect(() => {
+    if (mediaFiles.length > 0 && currentIndex >= mediaFiles.length) {
+      setCurrentIndex(0)
+    }
+  }, [mediaFiles, currentIndex])
+
   // Keyboard navigation
   useKeyboardNavigation((direction) => {
     if (mediaFiles.length > 0) {
@@ -61,7 +68,11 @@ function App() {
     setIsSettingsOpen(false)
   }
 
-  const currentMediaFile = mediaFiles[currentIndex]
+  // Safely get current media file and directory name
+  const currentMediaFile = mediaFiles.length > 0 && currentIndex < mediaFiles.length 
+    ? mediaFiles[currentIndex] 
+    : null
+    
   const directoryName = currentMediaFile 
     ? currentMediaFile.split('/').slice(0, -1).pop() || 'Root'
     : ''
@@ -72,13 +83,22 @@ function App() {
         {loading && <LoadingMessage message={loading} />}
         {error && <ErrorMessage message={error} />}
         
-        {!loading && !error && mediaFiles.length > 0 && (
+        {!loading && !error && mediaFiles.length > 0 && currentMediaFile && (
           <MediaViewer
             mediaFiles={mediaFiles}
             currentIndex={currentIndex}
             onNavigate={handleNavigation}
             isBottomBarVisible={isBottomBarVisible}
           />
+        )}
+
+        {!loading && !error && mediaFiles.length === 0 && (
+          <div className="h-full w-full flex justify-center items-center text-gray-500 text-center p-5">
+            <div>
+              <p className="text-lg mb-2">No media files found</p>
+              <p className="text-sm">Try rescanning the directory or check if the directory contains supported media files.</p>
+            </div>
+          </div>
         )}
 
         <Navigation
