@@ -8,6 +8,13 @@ const stat = promisify(fs.stat);
 const writeFile = promisify(fs.writeFile);
 const readFile = promisify(fs.readFile);
 
+// Simple structured logging
+const log = {
+    info: (message, meta = {}) => console.log(JSON.stringify({ level: 'info', message, ...meta, timestamp: new Date().toISOString() })),
+    error: (message, meta = {}) => console.error(JSON.stringify({ level: 'error', message, ...meta, timestamp: new Date().toISOString() })),
+    warn: (message, meta = {}) => console.warn(JSON.stringify({ level: 'warn', message, ...meta, timestamp: new Date().toISOString() }))
+};
+
 // Get directory path from command line arguments
 let directoryPath;
 
@@ -17,6 +24,9 @@ let directoryPath;
 let cacheFileName;
 let CACHE_FILE_PATH;
 
+// Lock file path for preventing concurrent scans
+let LOCK_FILE_PATH;
+
 // Define media type extensions
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
 const VIDEO_EXTENSIONS = ['.mp4', '.MP4', '.webm', '.mov', '.avi', '.mkv', '.ogg'];
@@ -25,8 +35,18 @@ function initializeScanner(dirPath) {
     directoryPath = dirPath;
     cacheFileName = `.${crypto.createHash('md5').update(directoryPath).digest('hex')}_media_cache.json`;
     CACHE_FILE_PATH = path.join(process.cwd(), 'configuration', cacheFileName);
-    console.log(`Initialized media scanner for directory: ${directoryPath}`);
-    console.log(`Cache file name and path: ${CACHE_FILE_PATH}`);
+    
+    // Initialize lock file path
+    const lockFileName = `.${crypto.createHash('md5').update(directoryPath).digest('hex')}_scan.lock`;
+    LOCK_FILE_PATH = path.join(process.cwd(), 'configuration', lockFileName);
+    
+    log.info('Media scanner initialized', { 
+        directory: directoryPath,
+        cacheFile: cacheFileName,
+        cachePath: CACHE_FILE_PATH,
+        lockFile: lockFileName,
+        lockPath: LOCK_FILE_PATH
+    });
 }
 
 // Function to check if a file is an image
@@ -39,6 +59,91 @@ function isImage(filePath) {
 function isVideo(filePath) {
     const ext = path.extname(filePath).toLowerCase();
     return VIDEO_EXTENSIONS.includes(ext);
+}
+
+// Lock management functions
+function createLockFile() {
+    try {
+        const lockData = {
+            pid: process.pid,
+            timestamp: new Date().toISOString(),
+            directory: directoryPath
+        };
+        fs.writeFileSync(LOCK_FILE_PATH, JSON.stringify(lockData, null, 2));
+        log.info('Scan lock file created', { 
+            lockFile: path.basename(LOCK_FILE_PATH),
+            lockPath: LOCK_FILE_PATH,
+            pid: process.pid
+        });
+        return true;
+    } catch (error) {
+        log.error('Failed to create scan lock file', { 
+            lockFile: path.basename(LOCK_FILE_PATH),
+            lockPath: LOCK_FILE_PATH,
+            error: error.message 
+        });
+        return false;
+    }
+}
+
+function removeLockFile() {
+    try {
+        if (fs.existsSync(LOCK_FILE_PATH)) {
+            fs.unlinkSync(LOCK_FILE_PATH);
+            log.info('Scan lock file removed', { 
+                lockFile: path.basename(LOCK_FILE_PATH),
+                lockPath: LOCK_FILE_PATH
+            });
+        }
+    } catch (error) {
+        log.error('Failed to remove scan lock file', { 
+            lockFile: path.basename(LOCK_FILE_PATH),
+            lockPath: LOCK_FILE_PATH,
+            error: error.message 
+        });
+    }
+}
+
+function isLocked() {
+    if (!fs.existsSync(LOCK_FILE_PATH)) {
+        return false;
+    }
+    
+    try {
+        const lockData = JSON.parse(fs.readFileSync(LOCK_FILE_PATH, 'utf-8'));
+        
+        // Check if the lock is stale (older than 5 minutes)
+        const lockTime = new Date(lockData.timestamp);
+        const now = new Date();
+        const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+        
+        if (lockTime < fiveMinutesAgo) {
+            log.warn('Removing stale scan lock file', { 
+                lockFile: path.basename(LOCK_FILE_PATH),
+                lockPath: LOCK_FILE_PATH,
+                lockAge: Math.round((now - lockTime) / 1000) + 's',
+                lockedByPid: lockData.pid
+            });
+            removeLockFile();
+            return false;
+        }
+        
+        log.info('Scan currently locked', {
+            lockFile: path.basename(LOCK_FILE_PATH),
+            lockPath: LOCK_FILE_PATH,
+            lockedByPid: lockData.pid,
+            lockedSince: lockData.timestamp
+        });
+        return true;
+    } catch (error) {
+        log.warn('Corrupted scan lock file detected, removing', { 
+            lockFile: path.basename(LOCK_FILE_PATH),
+            lockPath: LOCK_FILE_PATH,
+            error: error.message 
+        });
+        removeLockFile();
+        return false;
+    }
 }
 
 // Function to recursively scan directory for media files
@@ -62,13 +167,11 @@ async function scanDirectory(directoryPath) {
                     const ext = path.extname(file).toLowerCase();
                     if (supportedExtensions.includes(ext)) {
                         mediaFiles.push(filePath);
-                    } else {
-                        // console.log(`Skipping unsupported file: ${filePath}`);
                     }
                 }
             }
         } catch (error) {
-            console.error(`Error scanning directory ${dir}:`, error);
+            log.error('Failed to scan directory', { directory: dir, error: error.message });
         }
     }
 
@@ -82,81 +185,102 @@ let allMediaFiles = []; // Store all media files before filtering
 // Function to load media files from cache or scan directory
 async function loadMediaFiles() {
     if (!directoryPath) {
-        console.error('Media scanner not initialized. Call initializeScanner first.');
+        log.error('Media scanner not initialized');
         return [];
     }
 
     try {
         if (fs.existsSync(CACHE_FILE_PATH)) {
-            console.log(`Reading from cache: ${CACHE_FILE_PATH}`);
+            log.info('Cache file found, attempting to load', {
+                cacheFile: path.basename(CACHE_FILE_PATH),
+                cachePath: CACHE_FILE_PATH
+            });
+            
             const cachedData = JSON.parse(await readFile(CACHE_FILE_PATH, 'utf-8'));
             // check if the cached directory path matches the current one
-            // if not, scan the new directory
             if (cachedData.directoryPath === directoryPath) {
                 allMediaFiles = cachedData.files;
-                scannedMediaFiles = [...allMediaFiles]; // Create a fresh copy to avoid reference issues
+                scannedMediaFiles = [...allMediaFiles];
                 
-                // Log media type counts
                 const imageCount = allMediaFiles.filter(file => isImage(file)).length;
                 const videoCount = allMediaFiles.filter(file => isVideo(file)).length;
-                console.log(`Loaded ${allMediaFiles.length} media files from cache (${imageCount} images, ${videoCount} videos).`);
+                log.info('Media files loaded from cache', { 
+                    cacheFile: path.basename(CACHE_FILE_PATH),
+                    total: allMediaFiles.length, 
+                    images: imageCount, 
+                    videos: videoCount 
+                });
                 
                 return scannedMediaFiles;
             }
-            console.log('Cache is for a different directory. Re-scanning.');
+            log.info('Cache directory mismatch, performing fresh scan', {
+                cacheFile: path.basename(CACHE_FILE_PATH),
+                cachedDirectory: cachedData.directoryPath,
+                currentDirectory: directoryPath
+            });
+        } else {
+            log.info('No cache file found, performing fresh scan', {
+                expectedCacheFile: path.basename(CACHE_FILE_PATH),
+                expectedCachePath: CACHE_FILE_PATH
+            });
         }
     } catch (error) {
-        console.error('Error reading cache file, re-scanning:', error);
-        // If cache is invalid or unreadable, proceed to scan
+        log.warn('Cache file invalid, performing fresh scan', { 
+            cacheFile: path.basename(CACHE_FILE_PATH),
+            cachePath: CACHE_FILE_PATH,
+            error: error.message 
+        });
     }
 
-    console.log(`Scanning directory: ${directoryPath}`);
+    log.info('Scanning directory for media files', { directory: directoryPath });
     allMediaFiles = await scanDirectory(directoryPath);
-    scannedMediaFiles = [...allMediaFiles]; // Create a fresh copy to avoid reference issues
+    scannedMediaFiles = [...allMediaFiles];
     
-    // Log media type counts
     const imageCount = allMediaFiles.filter(file => isImage(file)).length;
     const videoCount = allMediaFiles.filter(file => isVideo(file)).length;
-    console.log(`Found ${allMediaFiles.length} media files after scan.`);
+    log.info('Media scan completed', { 
+        total: allMediaFiles.length, 
+        images: imageCount, 
+        videos: videoCount 
+    });
+    
     try {
         await writeFile(CACHE_FILE_PATH, JSON.stringify({ directoryPath, files: allMediaFiles }, null, 2));
-        console.log(`Cache saved to ${CACHE_FILE_PATH}`);
+        log.info('Media cache saved successfully', {
+            cacheFile: path.basename(CACHE_FILE_PATH),
+            cachePath: CACHE_FILE_PATH,
+            fileCount: allMediaFiles.length
+        });
     } catch (error) {
-        console.error('Error writing to cache file:', error);
+        log.error('Failed to save media cache', { 
+            cacheFile: path.basename(CACHE_FILE_PATH),
+            cachePath: CACHE_FILE_PATH,
+            error: error.message 
+        });
     }
+    
     return scannedMediaFiles;
 }
 
 // Function to filter media files by type
 function filterMediaByType(mediaType) {
     if (!allMediaFiles || allMediaFiles.length === 0) {
-        console.error('No media files loaded to filter');
+        log.warn('No media files available for filtering');
         return [];
     }
-
-    console.log(`Filtering media by type: ${mediaType}`);
-    console.log(`Total media files before filtering: ${allMediaFiles.length}`);
-    
-    const imageCount = allMediaFiles.filter(file => isImage(file)).length;
-    const videoCount = allMediaFiles.filter(file => isVideo(file)).length;
-    console.log(`Available media: ${imageCount} images, ${videoCount} videos`);
     
     let filteredFiles;
     
     switch (mediaType) {
         case 'photos':
             filteredFiles = allMediaFiles.filter(file => isImage(file));
-            console.log(`Selected ${filteredFiles.length} photos`);
             break;
         case 'videos':
             filteredFiles = allMediaFiles.filter(file => isVideo(file));
-            console.log(`Selected ${filteredFiles.length} videos`);
             break;
         case 'all':
         default:
-            // Create a fresh copy of all media files
             filteredFiles = [...allMediaFiles];
-            console.log(`Selected all ${filteredFiles.length} media files`);
             break;
     }
     
@@ -165,31 +289,52 @@ function filterMediaByType(mediaType) {
 }
 
 // Function to trigger a rescan of the directory
-// deletes the existing cache file and scans the directory again
-// using the loadMediaFiles function
 async function rescanDirectory() {
-    console.log('Rescan request received.');
     if (!directoryPath) {
-        console.error('Media scanner not initialized. Call initializeScanner first.');
-        return [];
+        log.error('Media scanner not initialized');
+        throw new Error('Media scanner not initialized');
     }
+    
+    // Check if a scan is already in progress
+    if (isLocked()) {
+        throw new Error('Scan already in progress');
+    }
+    
+    // Create lock file
+    if (!createLockFile()) {
+        throw new Error('Failed to create lock file');
+    }
+    
     try {
         // Clear existing cache file if it exists
         if (fs.existsSync(CACHE_FILE_PATH)) {
             try {
                 fs.unlinkSync(CACHE_FILE_PATH);
-                console.log(`Cleared cache file: ${CACHE_FILE_PATH}`);
+                log.info('Cache file cleared for rescan', {
+                    cacheFile: path.basename(CACHE_FILE_PATH),
+                    cachePath: CACHE_FILE_PATH
+                });
             } catch (unlinkError) {
-                console.error(`Error clearing cache file ${CACHE_FILE_PATH}:`, unlinkError);
-                // Continue with scan even if cache deletion fails
+                log.warn('Failed to clear cache file', { 
+                    cacheFile: path.basename(CACHE_FILE_PATH),
+                    cachePath: CACHE_FILE_PATH,
+                    error: unlinkError.message 
+                });
             }
+        } else {
+            log.info('No cache file to clear for rescan', {
+                expectedCacheFile: path.basename(CACHE_FILE_PATH),
+                expectedCachePath: CACHE_FILE_PATH
+            });
         }
         
         const files = await loadMediaFiles();
         return files;
     } catch (error) {
-        console.error('Error during rescan:', error);
+        log.error('Directory rescan failed', { error: error.message });
         throw new Error('Failed to rescan directory');
+    } finally {
+        removeLockFile();
     }
 }
 
@@ -200,3 +345,24 @@ module.exports = {
     filterMediaByType,
     get scannedMediaFiles() { return scannedMediaFiles; }
 };
+
+// Cleanup lock file on process exit
+process.on('exit', () => {
+    if (LOCK_FILE_PATH) {
+        removeLockFile();
+    }
+});
+
+process.on('SIGINT', () => {
+    if (LOCK_FILE_PATH) {
+        removeLockFile();
+    }
+    process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+    if (LOCK_FILE_PATH) {
+        removeLockFile();
+    }
+    process.exit(0);
+});

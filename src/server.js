@@ -10,19 +10,26 @@ const argv = minimist(process.argv.slice(2));
 const PORT = argv.p || process.env.PORT || 3000;
 const directoryPath = argv.d;
 
+// Simple structured logging
+const log = {
+    info: (message, meta = {}) => console.log(JSON.stringify({ level: 'info', message, ...meta, timestamp: new Date().toISOString() })),
+    error: (message, meta = {}) => console.error(JSON.stringify({ level: 'error', message, ...meta, timestamp: new Date().toISOString() })),
+    warn: (message, meta = {}) => console.warn(JSON.stringify({ level: 'warn', message, ...meta, timestamp: new Date().toISOString() }))
+};
+
 if (!directoryPath) {
-    console.error('Error: Directory path is required');
+    log.error('Directory path is required', { usage: 'node server.js -d /path/to/media -p 3000' });
     process.exit(1);
 }
 
 try {
     const dirStat = fs.statSync(directoryPath);
     if (!dirStat.isDirectory()) {
-        console.error('Error: The provided path is not a directory');
+        log.error('Provided path is not a directory', { path: directoryPath });
         process.exit(1);
     }
 } catch (error) {
-    console.error('Error: Directory does not exist' + error);
+    log.error('Directory does not exist or is not accessible', { path: directoryPath, error: error.message });
     process.exit(1);
 }
 
@@ -39,15 +46,12 @@ app.use(express.json());
 // API endpoint to get media files
 app.get('/get-media-files', (req, res) => {
     const mediaType = req.query.type || 'all';
-    console.log(`GET /get-media-files - Requested media type: ${mediaType}`);
     
     try {
-        // Always explicitly filter by the requested type
         const files = mediaScanner.filterMediaByType(mediaType);
-        console.log(`Returning ${files.length} ${mediaType} files to client`);
         res.json({ files: files });
     } catch (error) {
-        console.error('Error getting media files:', error);
+        log.error('Failed to retrieve media files', { mediaType, error: error.message });
         res.status(500).json({ error: 'Failed to get media files' });
     }
 });
@@ -67,20 +71,25 @@ app.get('/filter-media', (req, res) => {
             message: `Filtered to ${filteredFiles.length} ${type} files.` 
         });
     } catch (error) {
-        console.error('Error filtering media:', error);
+        log.error('Failed to filter media files', { type, error: error.message });
         res.status(500).json({ error: 'Failed to filter media files' });
     }
 });
 
 // API endpoint to trigger a rescan of the directory
 app.post('/rescan-directory', async (req, res) => {
-    console.log('Rescan request received.');
     try {
         const files = await mediaScanner.rescanDirectory();
+        log.info('Directory rescan completed', { fileCount: files.length });
         res.json({ files: files, message: `Rescan complete. Found ${files.length} files.` });
     } catch (error) {
-        console.error('Error during rescan:', error);
-        res.status(500).json({ error: 'Failed to rescan directory' });
+        log.error('Directory rescan failed', { error: error.message });
+        
+        if (error.message === 'Scan already in progress') {
+            res.status(409).json({ error: 'Scan already in progress. Please wait for the current scan to complete.' });
+        } else {
+            res.status(500).json({ error: error.message || 'Failed to rescan directory' });
+        }
     }
 });
 
@@ -99,7 +108,7 @@ app.get('/media', (req, res) => {
 
         res.sendFile(filePath);
     } catch (error) {
-        console.error('Error serving media file:', error);
+        log.error('Failed to serve media file', { filePath: req.query.path, error: error.message });
         res.status(500).send('Failed to serve media file');
     }
 });
@@ -110,5 +119,5 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
+    log.info('Cactus media server started', { port: PORT, directory: directoryPath });
 });

@@ -64,6 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentMediaType = 'all';
     let preloadedMedia = new Map();
     let isTransitioning = false;
+    let isScanning = false; // Add scanning state flag
 
     let startY = 0;
     let currentY = 0;
@@ -76,25 +77,65 @@ document.addEventListener('DOMContentLoaded', () => {
     nextButton.classList.add('hidden');
 
     async function handleRescan() {
+        // Prevent multiple concurrent scans
+        if (isScanning) {
+            console.log('Scan already in progress, ignoring request');
+            return;
+        }
+        
         try {
-            showLoading('Rescanning directory...');
+            isScanning = true;
+            
+            // Disable the rescan button to provide visual feedback
+            rescanButton.disabled = true;
+            rescanButton.textContent = 'Scanning...';
+            rescanButton.classList.add('opacity-50', 'cursor-not-allowed');
+            
+            // Hide current media and show scanning text to user
+            const currentMediaItem = mediaWrapper.querySelector('.media-item');
+            if (currentMediaItem) {
+                currentMediaItem.style.display = 'none';
+            }
+            
+            // Hide video progress bar if visible
+            hideVideoProgressBar();
+            
+            showLoading('Scanning...');
+            
             const response = await fetch('/rescan-directory', {
                 method: 'POST',
             });
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to rescan directory');
+                
+                // Handle specific error cases
+                if (response.status === 409) {
+                    // Conflict - scan already in progress on server
+                    showError('Scan already in progress. Please wait for the current scan to complete.');
+                } else {
+                    throw new Error(errorData.error || 'Failed to rescan directory');
+                }
+                return;
             }
 
             const data = await response.json();
             console.log(data.message);
             
-            console.log(`Applying current media type filter: ${currentMediaType}`);
-            await handleMediaTypeChange(currentMediaType);
+            // Reload media files with current filter after scanning is complete
+            console.log(`Reloading media files with current filter: ${currentMediaType}`);
+            await fetchMediaFiles(currentMediaType);
+            
+            // Close settings panel after successful rescan
+            settingsPanel.classList.add('hidden');
         } catch (error) {
             showError(`Rescan failed: ${error.message}`);
         } finally {
+            // Always reset the scanning state and button
+            isScanning = false;
+            rescanButton.disabled = false;
+            rescanButton.textContent = 'Rescan Directory';
+            rescanButton.classList.remove('opacity-50', 'cursor-not-allowed');
             hideLoading(); 
         }
     }
@@ -327,7 +368,11 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log(`Fetching ${mediaType} media files...`);
         
         try {
-            showLoading(`Loading ${mediaType} media...`);
+            // Only show loading if there's no existing loading message (to avoid overriding rescan message)
+            const existingLoading = document.querySelector('.placeholder-message');
+            if (!existingLoading) {
+                showLoading(`Loading ${mediaType} media...`);
+            }
             
             const response = await fetch(`/get-media-files?type=${mediaType}`);
 
@@ -354,6 +399,12 @@ document.addEventListener('DOMContentLoaded', () => {
             loadMediaFile(currentIndex);
         } catch (error) {
             showError(error.message);
+        } finally {
+            // Only hide loading if we were the ones who showed it
+            const loadingMessage = document.querySelector('.placeholder-message');
+            if (loadingMessage && loadingMessage.textContent.includes('Loading')) {
+                hideLoading();
+            }
         }
     }
 
@@ -361,6 +412,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (index < 0 || index >= mediaFiles.length || isTransitioning) return;
 
         console.log(`Loading media ${index} with direction ${direction} (${direction > 0 ? 'next/up' : direction < 0 ? 'prev/down' : 'initial'})`);
+        
+        // Reset video progress bar immediately when navigating to any media
+        resetVideoProgressBar();
         
         isTransitioning = true;
         const mediaFile = mediaFiles[index];
@@ -644,6 +698,11 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function hideVideoProgressBar() {
         videoProgressContainer.classList.add('hidden');
+        resetVideoProgressBar();
+    }
+    
+    function resetVideoProgressBar() {
+        videoProgressBar.style.width = '0%';
     }
 
     fullscreenButton.addEventListener('click', () => {
