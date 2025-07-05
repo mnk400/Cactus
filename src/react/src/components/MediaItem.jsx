@@ -9,48 +9,62 @@ function MediaItem({
   setIsTransitioning,
   getPreloadedMedia 
 }) {
-  const [opacity, setOpacity] = useState(0)
-  const [transform, setTransform] = useState('translateY(20px)')
   const mediaRef = useRef(null)
 
   useEffect(() => {
-    if (!mediaFile) return // Guard against undefined mediaFile
+    if (!mediaFile || !mediaRef.current) return
     
+    const mediaItem = mediaRef.current
     setIsTransitioning(true)
     
-    // Set initial position based on direction
+    // Set initial state exactly like original
+    mediaItem.style.opacity = '0'
     if (direction > 0) {
-      setTransform('translateY(40%)')
+      mediaItem.style.transform = 'translateY(40%)'
     } else if (direction < 0) {
-      setTransform('translateY(-40%)')
+      mediaItem.style.transform = 'translateY(-40%)'
     } else {
-      setTransform('translateY(20px)')
+      mediaItem.style.transform = 'translateY(20px)'
     }
-    setOpacity(0)
 
-    // Start animation after a brief delay
-    const timer = setTimeout(() => {
-      setOpacity(1)
-      setTransform('translateY(0)')
+    // Start animation exactly like original
+    const startAnimation = () => {
+      // Force reflow
+      mediaItem.offsetHeight
       
-      // End transition after animation completes
-      setTimeout(() => {
-        setIsTransitioning(false)
-      }, 300)
-    }, 50)
+      requestAnimationFrame(() => {
+        mediaItem.style.transition = 'opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+        mediaItem.style.opacity = '1'
+        mediaItem.style.transform = 'translateY(0)'
+        
+        setTimeout(() => {
+          setIsTransitioning(false)
+          mediaItem.style.transition = ''
+        }, 300)
+      })
+    }
 
+    // Small delay to ensure DOM is ready
+    const timer = setTimeout(startAnimation, 10)
     return () => clearTimeout(timer)
   }, [index, direction, setIsTransitioning, mediaFile])
+
+  // Reset wrapper transform after navigation (like original)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const mediaWrapper = document.querySelector('.media-wrapper')
+      if (mediaWrapper) {
+        mediaWrapper.style.transform = ''
+        mediaWrapper.style.opacity = ''
+        mediaWrapper.style.transition = ''
+      }
+    }, 50)
+    return () => clearTimeout(timer)
+  }, [index])
 
   // Don't render anything if no media file
   if (!mediaFile) {
     return null
-  }
-
-  const mediaStyle = {
-    opacity,
-    transform,
-    transition: 'opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
   }
 
   if (isImage(mediaFile)) {
@@ -59,11 +73,10 @@ function MediaItem({
 
     return (
       <div 
+        ref={mediaRef}
         className="media-item relative h-full w-full flex justify-center items-center absolute top-0 left-0"
-        style={mediaStyle}
       >
         <img
-          ref={mediaRef}
           src={imgSrc}
           alt="Media content"
           className="max-h-full max-w-full object-cover"
@@ -82,11 +95,10 @@ function MediaItem({
 
     return (
       <div 
+        ref={mediaRef}
         className="media-item relative h-full w-full flex justify-center items-center absolute top-0 left-0"
-        style={mediaStyle}
       >
         <VideoPlayer
-          ref={mediaRef}
           src={videoSrc}
           mediaFile={mediaFile}
         />
@@ -97,8 +109,8 @@ function MediaItem({
   // Fallback for unknown media types
   return (
     <div 
+      ref={mediaRef}
       className="media-item relative h-full w-full flex justify-center items-center absolute top-0 left-0"
-      style={mediaStyle}
     >
       <div className="text-gray-500 text-center">
         <p>Unsupported media type</p>

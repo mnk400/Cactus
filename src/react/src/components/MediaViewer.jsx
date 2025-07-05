@@ -45,7 +45,7 @@ function MediaViewer({ mediaFiles, currentIndex, onNavigate, isBottomBarVisible 
 
   return (
     <div 
-      className="media-wrapper h-full w-full relative transition-transform duration-200 ease-out"
+      className="media-wrapper h-full w-full relative"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}

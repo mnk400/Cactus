@@ -45,7 +45,7 @@ export function useTouchGestures(onNavigate) {
       touchState.current.isScrolling = true
       e.preventDefault()
       
-      // Apply visual feedback
+      // Apply visual feedback exactly like original
       const resistance = 0.4
       const maxOffset = 100
       const offset = Math.max(-maxOffset, Math.min(maxOffset, -deltaY * resistance))
@@ -87,7 +87,7 @@ export function useTouchGestures(onNavigate) {
         onNavigate(-1) // Swipe down = previous
       }
     } else if (mediaWrapper) {
-      // Reset visual feedback
+      // Reset visual feedback with exact original timing and easing
       mediaWrapper.style.transition = 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
       mediaWrapper.style.transform = 'translateY(0)'
       mediaWrapper.style.opacity = '1'
