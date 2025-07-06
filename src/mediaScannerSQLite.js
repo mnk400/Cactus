@@ -28,7 +28,7 @@ const VIDEO_EXTENSIONS = ['.mp4', '.MP4', '.webm', '.mov', '.avi', '.mkv', '.ogg
 function initializeScanner(dirPath) {
     directoryPath = dirPath;
     
-    // Create database path based on directory hash (similar to old cache system)
+    // Create database path based on directory hash for unique database per directory
     const dirHash = crypto.createHash('md5').update(directoryPath).digest('hex');
     const dbFileName = `.${dirHash}_media.db`;
     const dbPath = path.join(process.cwd(), 'configuration', dbFileName);

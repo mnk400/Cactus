@@ -133,8 +133,7 @@ src/
 ├── index.html          # HTML template
 ├── index.css           # Styles with Tailwind CSS
 ├── server.js           # Express server
-├── mediaScanner.js     # Legacy media file scanning (deprecated)
-└── mediaScannerSQLite.js # Enhanced SQLite-based media scanner
+└── mediaScannerSQLite.js # SQLite-based media scanner
 ```
 
 ## API Endpoints
@@ -169,10 +168,6 @@ CREATE TABLE media_files (
 - Node.js 16.0.0 or higher
 - Modern web browser with ES6+ support
 - Directory with supported media files (jpg, png, gif, mp4, webm, etc.)
-
-## Migration from JSON Cache
-
-The application automatically migrates from the old JSON cache system to SQLite. Database files are stored in the `configuration/` directory with names based on the media directory path hash.
 
 ## License
 
