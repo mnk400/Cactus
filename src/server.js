@@ -54,6 +54,8 @@ app.use(express.json());
 // Unified API endpoint to get media files with optional filtering
 app.get('/api/media', (req, res) => {
     const mediaType = req.query.type || 'all';
+    const tags = req.query.tags;
+    const excludeTags = req.query['exclude-tags'];
     
     // Validate media type
     if (!['all', 'photos', 'videos'].includes(mediaType)) {
@@ -63,15 +65,256 @@ app.get('/api/media', (req, res) => {
     }
     
     try {
-        const files = mediaScanner.filterMediaByType(mediaType);
+        let files;
+        
+        if (tags || excludeTags) {
+            const tagList = tags ? tags.split(',').map(t => t.trim()).filter(t => t) : [];
+            const excludeTagList = excludeTags ? excludeTags.split(',').map(t => t.trim()).filter(t => t) : [];
+            files = mediaScanner.getDatabase().getMediaByTagsAndType(tagList, excludeTagList, mediaType);
+        } else {
+            files = mediaScanner.filterMediaByType(mediaType);
+        }
+        
         res.json({ 
             files: files,
             count: files.length,
-            type: mediaType
+            type: mediaType,
+            filters: { 
+                tags: tags ? tags.split(',').map(t => t.trim()).filter(t => t) : [],
+                excludeTags: excludeTags ? excludeTags.split(',').map(t => t.trim()).filter(t => t) : []
+            }
         });
     } catch (error) {
-        log.error('Failed to retrieve media files', { mediaType, error: error.message });
+        log.error('Failed to retrieve media files', { mediaType, tags, excludeTags, error: error.message });
         res.status(500).json({ error: 'Failed to get media files' });
+    }
+});
+
+// ===== TAG MANAGEMENT API ENDPOINTS =====
+
+// Get all tags
+app.get('/api/tags', (req, res) => {
+    try {
+        const database = mediaScanner.getDatabase();
+        const tags = database.getAllTags();
+        res.json({ tags });
+    } catch (error) {
+        log.error('Failed to get tags', { error: error.message });
+        res.status(500).json({ error: 'Failed to get tags' });
+    }
+});
+
+// Create a new tag
+app.post('/api/tags', (req, res) => {
+    const { name, color } = req.body;
+    
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+        return res.status(400).json({ error: 'Tag name is required' });
+    }
+    
+    try {
+        const database = mediaScanner.getDatabase();
+        const tag = database.createTag(name, color);
+        log.info('Tag created', { tagId: tag.id, name: tag.name });
+        res.json({ tag });
+    } catch (error) {
+        if (error.message === 'Tag already exists') {
+            res.status(409).json({ error: 'Tag already exists' });
+        } else {
+            log.error('Failed to create tag', { name, error: error.message });
+            res.status(500).json({ error: 'Failed to create tag' });
+        }
+    }
+});
+
+// Update a tag
+app.put('/api/tags/:id', (req, res) => {
+    const { id } = req.params;
+    const { name, color } = req.body;
+    
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+        return res.status(400).json({ error: 'Tag name is required' });
+    }
+    
+    try {
+        const database = mediaScanner.getDatabase();
+        const tag = database.updateTag(parseInt(id), name, color);
+        log.info('Tag updated', { tagId: id, name: tag.name });
+        res.json({ tag });
+    } catch (error) {
+        if (error.message === 'Tag not found') {
+            res.status(404).json({ error: 'Tag not found' });
+        } else if (error.message === 'Tag name already exists') {
+            res.status(409).json({ error: 'Tag name already exists' });
+        } else {
+            log.error('Failed to update tag', { id, name, error: error.message });
+            res.status(500).json({ error: 'Failed to update tag' });
+        }
+    }
+});
+
+// Delete a tag
+app.delete('/api/tags/:id', (req, res) => {
+    const { id } = req.params;
+    
+    try {
+        const database = mediaScanner.getDatabase();
+        const deleted = database.deleteTag(parseInt(id));
+        log.info('Tag deleted', { tagId: id });
+        res.json({ message: 'Tag deleted successfully' });
+    } catch (error) {
+        if (error.message === 'Tag not found') {
+            res.status(404).json({ error: 'Tag not found' });
+        } else {
+            log.error('Failed to delete tag', { id, error: error.message });
+            res.status(500).json({ error: 'Failed to delete tag' });
+        }
+    }
+});
+
+// ===== MEDIA TAGGING API ENDPOINTS =====
+
+// Get tags for a specific media file
+app.get('/api/media/:fileHash/tags', (req, res) => {
+    const { fileHash } = req.params;
+    
+    try {
+        const database = mediaScanner.getDatabase();
+        const tags = database.getMediaTags(fileHash);
+        res.json({ tags });
+    } catch (error) {
+        log.error('Failed to get media tags', { fileHash, error: error.message });
+        res.status(500).json({ error: 'Failed to get media tags' });
+    }
+});
+
+// Add tag(s) to a media file
+app.post('/api/media/:fileHash/tags', (req, res) => {
+    const { fileHash } = req.params;
+    const { tagIds, tagNames } = req.body;
+    
+    if ((!tagIds || !Array.isArray(tagIds)) && (!tagNames || !Array.isArray(tagNames))) {
+        return res.status(400).json({ error: 'tagIds or tagNames array is required' });
+    }
+    
+    try {
+        const database = mediaScanner.getDatabase();
+        const results = [];
+        
+        // Handle tag IDs
+        if (tagIds && Array.isArray(tagIds)) {
+            for (const tagId of tagIds) {
+                const added = database.addTagToMedia(fileHash, parseInt(tagId));
+                results.push({ tagId: parseInt(tagId), added });
+            }
+        }
+        
+        // Handle tag names (create if they don't exist)
+        if (tagNames && Array.isArray(tagNames)) {
+            for (const tagName of tagNames) {
+                let tag = database.getTagByName(tagName);
+                if (!tag) {
+                    tag = database.createTag(tagName);
+                }
+                const added = database.addTagToMedia(fileHash, tag.id);
+                results.push({ tagId: tag.id, tagName: tag.name, added, created: !database.getTagByName(tagName) });
+            }
+        }
+        
+        log.info('Tags added to media', { fileHash, results });
+        res.json({ results });
+    } catch (error) {
+        log.error('Failed to add tags to media', { fileHash, error: error.message });
+        res.status(500).json({ error: 'Failed to add tags to media' });
+    }
+});
+
+// Remove tag from media file
+app.delete('/api/media/:fileHash/tags/:tagId', (req, res) => {
+    const { fileHash, tagId } = req.params;
+    
+    try {
+        const database = mediaScanner.getDatabase();
+        const removed = database.removeTagFromMedia(fileHash, parseInt(tagId));
+        
+        if (removed) {
+            log.info('Tag removed from media', { fileHash, tagId });
+            res.json({ message: 'Tag removed successfully' });
+        } else {
+            res.status(404).json({ error: 'Tag assignment not found' });
+        }
+    } catch (error) {
+        log.error('Failed to remove tag from media', { fileHash, tagId, error: error.message });
+        res.status(500).json({ error: 'Failed to remove tag from media' });
+    }
+});
+
+// Convenience endpoint: Get tags for media by file path
+app.get('/api/media-path/tags', (req, res) => {
+    const { path: filePath } = req.query;
+    
+    if (!filePath) {
+        return res.status(400).json({ error: 'File path is required' });
+    }
+    
+    try {
+        const database = mediaScanner.getDatabase();
+        const fileHash = database.getFileHashForPath(filePath);
+        const tags = database.getMediaTags(fileHash);
+        res.json({ tags, fileHash });
+    } catch (error) {
+        log.error('Failed to get media tags by path', { filePath, error: error.message });
+        res.status(500).json({ error: 'Failed to get media tags' });
+    }
+});
+
+// Convenience endpoint: Add tags to media by file path
+app.post('/api/media-path/tags', (req, res) => {
+    const { path: filePath } = req.query;
+    const { tagIds, tagNames } = req.body;
+    
+    if (!filePath) {
+        return res.status(400).json({ error: 'File path is required' });
+    }
+    
+    if ((!tagIds || !Array.isArray(tagIds)) && (!tagNames || !Array.isArray(tagNames))) {
+        return res.status(400).json({ error: 'tagIds or tagNames array is required' });
+    }
+    
+    try {
+        const database = mediaScanner.getDatabase();
+        const fileHash = database.getFileHashForPath(filePath);
+        
+        // Forward to the hash-based endpoint logic
+        req.params.fileHash = fileHash;
+        
+        const results = [];
+        
+        // Handle tag IDs
+        if (tagIds && Array.isArray(tagIds)) {
+            for (const tagId of tagIds) {
+                const added = database.addTagToMedia(fileHash, parseInt(tagId));
+                results.push({ tagId: parseInt(tagId), added });
+            }
+        }
+        
+        // Handle tag names (create if they don't exist)
+        if (tagNames && Array.isArray(tagNames)) {
+            for (const tagName of tagNames) {
+                let tag = database.getTagByName(tagName);
+                if (!tag) {
+                    tag = database.createTag(tagName);
+                }
+                const added = database.addTagToMedia(fileHash, tag.id);
+                results.push({ tagId: tag.id, tagName: tag.name, added });
+            }
+        }
+        
+        log.info('Tags added to media by path', { filePath, fileHash, results });
+        res.json({ results, fileHash });
+    } catch (error) {
+        log.error('Failed to add tags to media by path', { filePath, error: error.message });
+        res.status(500).json({ error: 'Failed to add tags to media' });
     }
 });
 

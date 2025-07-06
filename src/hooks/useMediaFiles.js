@@ -8,15 +8,24 @@ export function useMediaFiles() {
   const [error, setError] = useState(null)
   const [isScanning, setIsScanning] = useState(false)
 
-  const fetchMediaFiles = useCallback(async (mediaType = 'all') => {
-    console.log(`Fetching ${mediaType} media files...`)
+  const fetchMediaFiles = useCallback(async (mediaType = 'all', includeTags = [], excludeTags = []) => {
+    console.log(`Fetching ${mediaType} media files...`, { includeTags, excludeTags })
     
     try {
       setLoading(`Loading ${mediaType} media...`)
       setError(null)
       
+      // Build URL with filters
+      let url = `/api/media?type=${mediaType}`
+      if (includeTags.length > 0) {
+        url += `&tags=${includeTags.join(',')}`
+      }
+      if (excludeTags.length > 0) {
+        url += `&exclude-tags=${excludeTags.join(',')}`
+      }
+      
       // Fetch the requested type
-      const response = await fetch(`/api/media?type=${mediaType}`)
+      const response = await fetch(url)
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.error || 'Failed to get media files')
@@ -25,8 +34,8 @@ export function useMediaFiles() {
       const data = await response.json()
       console.log(`Received ${data.count} ${mediaType} files from server`)
       
-      // If we fetched 'all', use it for statistics too
-      if (mediaType === 'all') {
+      // If we fetched 'all' with no filters, use it for statistics too
+      if (mediaType === 'all' && includeTags.length === 0 && excludeTags.length === 0) {
         setAllMediaFiles(data.files)
       } else {
         // Otherwise, fetch all files for statistics (only if we don't have them)
@@ -44,7 +53,9 @@ export function useMediaFiles() {
       }
       
       if (!data.files || data.files.length === 0) {
-        setError(`No ${mediaType} files found in the specified directory`)
+        const hasFilters = includeTags.length > 0 || excludeTags.length > 0
+        const filterText = hasFilters ? ' matching the current filters' : ''
+        setError(`No ${mediaType} files found${filterText}`)
         setMediaFiles([])
         return
       }
@@ -60,14 +71,23 @@ export function useMediaFiles() {
     }
   }, [allMediaFiles.length])
 
-  const filterMedia = useCallback(async (mediaType) => {
-    console.log(`Filtering media by type: ${mediaType}`)
+  const filterMedia = useCallback(async (mediaType, includeTags = [], excludeTags = []) => {
+    console.log(`Filtering media by type: ${mediaType}`, { includeTags, excludeTags })
     
     try {
       setLoading(`Loading ${mediaType} files...`)
       setError(null)
       
-      const response = await fetch(`/api/media?type=${mediaType}`)
+      // Build URL with filters
+      let url = `/api/media?type=${mediaType}`
+      if (includeTags.length > 0) {
+        url += `&tags=${includeTags.join(',')}`
+      }
+      if (excludeTags.length > 0) {
+        url += `&exclude-tags=${excludeTags.join(',')}`
+      }
+      
+      const response = await fetch(url)
       
       if (!response.ok) {
         const errorData = await response.json()
@@ -78,7 +98,9 @@ export function useMediaFiles() {
       console.log(`Filter response: Found ${data.count} ${mediaType} files`)
       
       if (!data.files || data.files.length === 0) {
-        setError(`No ${mediaType} files found in the specified directory`)
+        const hasFilters = includeTags.length > 0 || excludeTags.length > 0
+        const filterText = hasFilters ? ' matching the current filters' : ''
+        setError(`No ${mediaType} files found${filterText}`)
         setMediaFiles([])
         return
       }

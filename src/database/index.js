@@ -68,11 +68,33 @@ class MediaDatabase {
                 last_seen DATETIME DEFAULT CURRENT_TIMESTAMP
             );
 
+            -- Tags table to store unique tag names
+            CREATE TABLE IF NOT EXISTS tags (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL,
+                color TEXT DEFAULT '#3B82F6',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
+            -- Junction table linking media files to tags (many-to-many relationship)
+            CREATE TABLE IF NOT EXISTS media_tags (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                file_hash TEXT NOT NULL,
+                tag_id INTEGER NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (file_hash) REFERENCES media_files(file_hash) ON DELETE CASCADE,
+                FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
+                UNIQUE(file_hash, tag_id)
+            );
+
             -- Indexes for performance
             CREATE INDEX IF NOT EXISTS idx_media_files_hash ON media_files(file_hash);
             CREATE INDEX IF NOT EXISTS idx_media_files_path ON media_files(file_path);
             CREATE INDEX IF NOT EXISTS idx_media_files_type ON media_files(media_type);
             CREATE INDEX IF NOT EXISTS idx_media_files_last_seen ON media_files(last_seen);
+            CREATE INDEX IF NOT EXISTS idx_media_tags_file_hash ON media_tags(file_hash);
+            CREATE INDEX IF NOT EXISTS idx_media_tags_tag_id ON media_tags(tag_id);
+            CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name);
 
             -- Database metadata table
             CREATE TABLE IF NOT EXISTS database_metadata (
@@ -82,7 +104,7 @@ class MediaDatabase {
             );
 
             -- Insert database version
-            INSERT OR REPLACE INTO database_metadata (key, value) VALUES ('version', '1.0.0');
+            INSERT OR REPLACE INTO database_metadata (key, value) VALUES ('version', '1.1.0');
             INSERT OR REPLACE INTO database_metadata (key, value) VALUES ('created_at', datetime('now'));
         `;
 
@@ -243,6 +265,29 @@ class MediaDatabase {
     }
 
     /**
+     * Get file hash for a given file path (generates if not in database)
+     */
+    getFileHashForPath(filePath) {
+        if (!this.isInitialized) {
+            throw new Error('Database not initialized');
+        }
+
+        try {
+            // First try to get from database
+            const mediaFile = this.getMediaFileByPath(filePath);
+            if (mediaFile) {
+                return mediaFile.file_hash;
+            }
+
+            // If not in database, generate hash
+            return this.generateFileHash(filePath);
+        } catch (error) {
+            log.error('Failed to get file hash for path', { filePath, error: error.message });
+            throw error;
+        }
+    }
+
+    /**
      * Remove orphaned files (not seen in the last X days)
      */
     cleanupOrphanedFiles(daysOld = 30) {
@@ -347,15 +392,335 @@ class MediaDatabase {
             // Cleanup orphaned files
             const removedCount = this.cleanupOrphanedFiles();
             
+            // Cleanup orphaned tags
+            const removedTags = this.cleanupOrphanedTags();
+            
             // Optimize database
             this.db.pragma('optimize');
             this.db.exec('VACUUM');
             
-            log.info('Database maintenance completed', { removedOrphanedFiles: removedCount });
+            log.info('Database maintenance completed', { 
+                removedOrphanedFiles: removedCount,
+                removedOrphanedTags: removedTags
+            });
             
-            return { removedOrphanedFiles: removedCount };
+            return { 
+                removedOrphanedFiles: removedCount,
+                removedOrphanedTags: removedTags
+            };
         } catch (error) {
             log.error('Database maintenance failed', { error: error.message });
+            throw error;
+        }
+    }
+
+    // ===== TAG MANAGEMENT METHODS =====
+
+    /**
+     * Create a new tag
+     */
+    createTag(name, color = '#3B82F6') {
+        if (!this.isInitialized) {
+            throw new Error('Database not initialized');
+        }
+
+        try {
+            const stmt = this.db.prepare(`
+                INSERT INTO tags (name, color) VALUES (?, ?)
+            `);
+            
+            const result = stmt.run(name.trim(), color);
+            
+            return {
+                id: result.lastInsertRowid,
+                name: name.trim(),
+                color: color,
+                created_at: new Date().toISOString()
+            };
+        } catch (error) {
+            if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+                throw new Error('Tag already exists');
+            }
+            log.error('Failed to create tag', { name, error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * Update an existing tag
+     */
+    updateTag(id, name, color) {
+        if (!this.isInitialized) {
+            throw new Error('Database not initialized');
+        }
+
+        try {
+            const stmt = this.db.prepare(`
+                UPDATE tags SET name = ?, color = ? WHERE id = ?
+            `);
+            
+            const result = stmt.run(name.trim(), color, id);
+            
+            if (result.changes === 0) {
+                throw new Error('Tag not found');
+            }
+            
+            return this.getTagById(id);
+        } catch (error) {
+            if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+                throw new Error('Tag name already exists');
+            }
+            log.error('Failed to update tag', { id, name, error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * Delete a tag (removes from all media)
+     */
+    deleteTag(id) {
+        if (!this.isInitialized) {
+            throw new Error('Database not initialized');
+        }
+
+        try {
+            const stmt = this.db.prepare('DELETE FROM tags WHERE id = ?');
+            const result = stmt.run(id);
+            
+            if (result.changes === 0) {
+                throw new Error('Tag not found');
+            }
+            
+            return result.changes;
+        } catch (error) {
+            log.error('Failed to delete tag', { id, error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * Get all tags with usage counts
+     */
+    getAllTags() {
+        if (!this.isInitialized) {
+            throw new Error('Database not initialized');
+        }
+
+        try {
+            const stmt = this.db.prepare(`
+                SELECT t.*, COUNT(mt.tag_id) as usage_count
+                FROM tags t
+                LEFT JOIN media_tags mt ON t.id = mt.tag_id
+                GROUP BY t.id
+                ORDER BY t.name
+            `);
+            
+            return stmt.all();
+        } catch (error) {
+            log.error('Failed to get all tags', { error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * Get tag by ID
+     */
+    getTagById(id) {
+        if (!this.isInitialized) {
+            throw new Error('Database not initialized');
+        }
+
+        try {
+            const stmt = this.db.prepare('SELECT * FROM tags WHERE id = ?');
+            return stmt.get(id);
+        } catch (error) {
+            log.error('Failed to get tag by ID', { id, error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * Get tag by name
+     */
+    getTagByName(name) {
+        if (!this.isInitialized) {
+            throw new Error('Database not initialized');
+        }
+
+        try {
+            const stmt = this.db.prepare('SELECT * FROM tags WHERE name = ?');
+            return stmt.get(name.trim());
+        } catch (error) {
+            log.error('Failed to get tag by name', { name, error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * Add tag to media file
+     */
+    addTagToMedia(fileHash, tagId) {
+        if (!this.isInitialized) {
+            throw new Error('Database not initialized');
+        }
+
+        try {
+            const stmt = this.db.prepare(`
+                INSERT INTO media_tags (file_hash, tag_id) VALUES (?, ?)
+            `);
+            
+            const result = stmt.run(fileHash, tagId);
+            return result.changes > 0;
+        } catch (error) {
+            if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+                // Tag already assigned to this media file
+                return false;
+            }
+            log.error('Failed to add tag to media', { fileHash, tagId, error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * Remove tag from media file
+     */
+    removeTagFromMedia(fileHash, tagId) {
+        if (!this.isInitialized) {
+            throw new Error('Database not initialized');
+        }
+
+        try {
+            const stmt = this.db.prepare(`
+                DELETE FROM media_tags WHERE file_hash = ? AND tag_id = ?
+            `);
+            
+            const result = stmt.run(fileHash, tagId);
+            return result.changes > 0;
+        } catch (error) {
+            log.error('Failed to remove tag from media', { fileHash, tagId, error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * Get all tags for a media file
+     */
+    getMediaTags(fileHash) {
+        if (!this.isInitialized) {
+            throw new Error('Database not initialized');
+        }
+
+        try {
+            const stmt = this.db.prepare(`
+                SELECT t.* FROM tags t
+                JOIN media_tags mt ON t.id = mt.tag_id
+                WHERE mt.file_hash = ?
+                ORDER BY t.name
+            `);
+            
+            return stmt.all(fileHash);
+        } catch (error) {
+            log.error('Failed to get media tags', { fileHash, error: error.message });
+            throw error;
+        }
+    }
+
+    /**
+     * Get media files filtered by tags and type
+     */
+    getMediaByTagsAndType(includeTags = [], excludeTags = [], mediaType = 'all') {
+        if (!this.isInitialized) {
+            throw new Error('Database not initialized');
+        }
+
+        try {
+            let query = `SELECT DISTINCT mf.file_path FROM media_files mf`;
+            let params = [];
+            let whereConditions = [];
+
+            // Handle media type filtering
+            if (mediaType !== 'all') {
+                const dbMediaType = mediaType === 'photos' ? 'image' : mediaType === 'videos' ? 'video' : mediaType;
+                whereConditions.push('mf.media_type = ?');
+                params.push(dbMediaType);
+            }
+
+            // Handle include tags (AND logic - media must have ALL specified tags)
+            if (includeTags.length > 0) {
+                const tagPlaceholders = includeTags.map(() => '?').join(',');
+                query += `
+                    JOIN media_tags mt_include ON mf.file_hash = mt_include.file_hash
+                    JOIN tags t_include ON mt_include.tag_id = t_include.id
+                `;
+                whereConditions.push(`t_include.name IN (${tagPlaceholders})`);
+                params.push(...includeTags);
+            }
+
+            // Handle exclude tags
+            if (excludeTags.length > 0) {
+                const tagPlaceholders = excludeTags.map(() => '?').join(',');
+                whereConditions.push(`
+                    mf.file_hash NOT IN (
+                        SELECT mt_exclude.file_hash 
+                        FROM media_tags mt_exclude
+                        JOIN tags t_exclude ON mt_exclude.tag_id = t_exclude.id
+                        WHERE t_exclude.name IN (${tagPlaceholders})
+                    )
+                `);
+                params.push(...excludeTags);
+            }
+
+            // Add WHERE clause if we have conditions
+            if (whereConditions.length > 0) {
+                query += ` WHERE ${whereConditions.join(' AND ')}`;
+            }
+
+            // Handle grouping for include tags (ensure all tags are present)
+            if (includeTags.length > 0) {
+                query += ` GROUP BY mf.file_hash HAVING COUNT(DISTINCT t_include.id) = ?`;
+                params.push(includeTags.length);
+            }
+
+            // Add ordering
+            query += ` ORDER BY mf.date_added DESC`;
+
+            const stmt = this.db.prepare(query);
+            const rows = stmt.all(...params);
+
+            return rows.map(row => row.file_path);
+        } catch (error) {
+            log.error('Failed to get media by tags and type', { 
+                includeTags, excludeTags, mediaType, error: error.message 
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Remove tags that are not assigned to any media files
+     */
+    cleanupOrphanedTags() {
+        if (!this.isInitialized) {
+            throw new Error('Database not initialized');
+        }
+
+        try {
+            const stmt = this.db.prepare(`
+                DELETE FROM tags 
+                WHERE id NOT IN (
+                    SELECT DISTINCT tag_id FROM media_tags
+                )
+            `);
+            
+            const result = stmt.run();
+            
+            if (result.changes > 0) {
+                log.info('Cleaned up orphaned tags', { removedCount: result.changes });
+            }
+            
+            return result.changes;
+        } catch (error) {
+            log.error('Failed to cleanup orphaned tags', { error: error.message });
             throw error;
         }
     }

@@ -14,6 +14,8 @@ function App() {
   const [currentMediaType, setCurrentMediaType] = useState('all')
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [debugMode, setDebugMode] = useState(false)
+  const [selectedTags, setSelectedTags] = useState([])
+  const [excludedTags, setExcludedTags] = useState([])
   
   const {
     mediaFiles,
@@ -74,13 +76,55 @@ function App() {
     
     setCurrentMediaType(mediaType)
     setCurrentIndex(0)
-    await filterMedia(mediaType)
+    await applyFilters(mediaType, selectedTags, excludedTags)
     setIsSettingsOpen(false)
+  }
+
+  const handleTagsChange = async (tags) => {
+    setSelectedTags(tags)
+    setCurrentIndex(0)
+    await applyFilters(currentMediaType, tags, excludedTags)
+  }
+
+  const handleExcludedTagsChange = async (tags) => {
+    setExcludedTags(tags)
+    setCurrentIndex(0)
+    await applyFilters(currentMediaType, selectedTags, tags)
+  }
+
+  const applyFilters = async (mediaType, includeTags, excludeTags) => {
+    try {
+      const tagNames = includeTags.map(tag => tag.name)
+      const excludeTagNames = excludeTags.map(tag => tag.name)
+      
+      let url = `/api/media?type=${mediaType}`
+      
+      if (tagNames.length > 0) {
+        url += `&tags=${tagNames.join(',')}`
+      }
+      
+      if (excludeTagNames.length > 0) {
+        url += `&exclude-tags=${excludeTagNames.join(',')}`
+      }
+      
+      const response = await fetch(url)
+      if (!response.ok) {
+        throw new Error('Failed to fetch filtered media')
+      }
+      
+      const data = await response.json()
+      
+      // Update the media files using the existing hook's internal state
+      // We'll need to modify the useMediaFiles hook to support this
+      await filterMedia(mediaType, tagNames, excludeTagNames)
+    } catch (error) {
+      console.error('Failed to apply filters:', error)
+    }
   }
 
   const handleRescan = async () => {
     await rescanDirectory()
-    await fetchMediaFiles(currentMediaType)
+    await applyFilters(currentMediaType, selectedTags, excludedTags)
     setIsSettingsOpen(false)
   }
 
@@ -113,12 +157,19 @@ function App() {
           <div className="h-full w-full flex justify-center items-center text-gray-500 text-center p-5">
             <div>
               <p className="text-lg mb-2">No media files found</p>
-              <p className="text-sm">Try rescanning the directory or check if the directory contains supported media files.</p>
+              <p className="text-sm">
+                {selectedTags.length > 0 || excludedTags.length > 0 
+                  ? 'No media matches the current tag filters. Try adjusting your filters.'
+                  : 'Try rescanning the directory or check if the directory contains supported media files.'
+                }
+              </p>
               {debugMode && (
                 <div className="mt-4 text-xs">
                   <p>Debug Mode Active</p>
                   <p>Container Height: {window.innerHeight}px</p>
                   <p>Viewport: {window.innerWidth}x{window.innerHeight}</p>
+                  <p>Selected Tags: {selectedTags.map(t => t.name).join(', ') || 'None'}</p>
+                  <p>Excluded Tags: {excludedTags.map(t => t.name).join(', ') || 'None'}</p>
                 </div>
               )}
             </div>
@@ -143,6 +194,10 @@ function App() {
           allMediaFiles={allMediaFiles}
           currentMediaFiles={mediaFiles}
           directoryName={directoryPath}
+          selectedTags={selectedTags}
+          excludedTags={excludedTags}
+          onTagsChange={handleTagsChange}
+          onExcludedTagsChange={handleExcludedTagsChange}
         />
       </div>
     </div>

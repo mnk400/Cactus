@@ -1,5 +1,8 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { isImage, isVideo } from '../utils/helpers'
+import TagFilter from './TagFilter'
+import TagManager from './TagManager'
+import useTags from '../hooks/useTags'
 
 function SettingsPanel({ 
   isOpen, 
@@ -9,8 +12,15 @@ function SettingsPanel({
   isScanning,
   allMediaFiles = [],
   currentMediaFiles = [],
-  directoryName = ''
+  directoryName = '',
+  selectedTags = [],
+  excludedTags = [],
+  onTagsChange,
+  onExcludedTagsChange
 }) {
+  const [showTagManager, setShowTagManager] = useState(false)
+  const { tags, createTag, updateTag, deleteTag } = useTags()
+
   if (!isOpen) return null
 
   // Calculate statistics
@@ -40,147 +50,213 @@ function SettingsPanel({
     }
   }
 
+  const handleCreateTag = async (name, color) => {
+    try {
+      await createTag(name, color);
+    } catch (error) {
+      console.error('Failed to create tag:', error);
+    }
+  };
+
+  const handleUpdateTag = async (id, name, color) => {
+    try {
+      await updateTag(id, name, color);
+    } catch (error) {
+      console.error('Failed to update tag:', error);
+    }
+  };
+
+  const handleDeleteTag = async (id) => {
+    try {
+      await deleteTag(id);
+      // Remove deleted tag from current filters
+      onTagsChange(selectedTags.filter(tag => tag.id !== id));
+      onExcludedTagsChange(excludedTags.filter(tag => tag.id !== id));
+    } catch (error) {
+      console.error('Failed to delete tag:', error);
+    }
+  };
+
   return (
-    <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-80 backdrop-blur-md rounded-3xl p-3 sm:p-4 text-gray-200 z-10 w-11/12 max-w-xl box-border shadow-2xl max-h-[70vh] sm:max-h-[80vh] overflow-y-auto">
-      
-      {/* Header */}
-      <div className="flex items-center gap-2 mb-3 sm:mb-4">
-        <span className="text-lg sm:text-xl opacity-80">⚙️</span>
-        <h3 className="text-base sm:text-lg font-semibold text-white m-0">Settings & Stats</h3>
-      </div>
-      
-      {/* Statistics Section */}
-      <div className="stats-section mb-3 sm:mb-4 p-2 sm:p-3 bg-black bg-opacity-40 backdrop-blur-sm rounded-2xl">
-        <div className="flex items-center gap-2 mb-2 sm:mb-3">
-          <span className="text-sm sm:text-base opacity-80">📊</span>
-          <h4 className="text-sm sm:text-base font-medium text-white m-0">Media Library</h4>
+    <>
+      <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-80 backdrop-blur-md rounded-3xl p-3 sm:p-4 text-gray-200 z-10 w-11/12 max-w-xl box-border shadow-2xl max-h-[70vh] sm:max-h-[80vh] overflow-y-auto">
+        
+        {/* Header */}
+        <div className="flex items-center gap-2 mb-3 sm:mb-4">
+          <span className="text-lg sm:text-xl opacity-80">⚙️</span>
+          <h3 className="text-base sm:text-lg font-semibold text-white m-0">Settings & Stats</h3>
         </div>
         
-        {/* Directory Info */}
-        {directoryName && (
-          <div className="mb-2 sm:mb-3 p-2 bg-black bg-opacity-50 backdrop-blur-sm rounded-lg">
-            <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">Full Path</div>
-            <div className="text-xs font-mono text-gray-200 break-all leading-tight">{directoryName}</div>
+        {/* Statistics Section */}
+        <div className="stats-section mb-3 sm:mb-4 p-2 sm:p-3 bg-black bg-opacity-40 backdrop-blur-sm rounded-2xl">
+          <div className="flex items-center gap-2 mb-2 sm:mb-3">
+            <span className="text-sm sm:text-base opacity-80">📊</span>
+            <h4 className="text-sm sm:text-base font-medium text-white m-0">Media Library</h4>
           </div>
-        )}
-        
-        {/* Current View Stats */}
-        <div className="mb-2 sm:mb-3 p-2 bg-black bg-opacity-30 backdrop-blur-sm rounded-lg">
-          <div className="text-xs text-gray-300 uppercase tracking-wide mb-1">Currently Viewing</div>
-          <div className="flex justify-between items-center">
-            <span className="text-sm sm:text-base font-bold text-white">{currentCount}</span>
-            <span className="text-xs text-gray-300">{getMediaTypeLabel(currentMediaType)}</span>
-          </div>
-        </div>
-        
-        {/* Total Stats Grid */}
-        <div className="grid grid-cols-3 gap-1.5 sm:gap-2 text-center mb-2 sm:mb-3">
-          <div className="stat-item p-1.5 sm:p-2 bg-black bg-opacity-40 backdrop-blur-sm rounded-lg">
-            <div className="text-sm sm:text-base font-bold text-white">{totalFiles}</div>
-            <div className="text-xs text-gray-400 uppercase tracking-wide">Total</div>
-          </div>
-          <div className="stat-item p-1.5 sm:p-2 bg-black bg-opacity-30 backdrop-blur-sm rounded-lg">
-            <div className="text-sm sm:text-base font-bold text-gray-200">{totalPhotos}</div>
-            <div className="text-xs text-gray-300 uppercase tracking-wide">Photos</div>
-          </div>
-          <div className="stat-item p-1.5 sm:p-2 bg-black bg-opacity-30 backdrop-blur-sm rounded-lg">
-            <div className="text-sm sm:text-base font-bold text-gray-200">{totalVideos}</div>
-            <div className="text-xs text-gray-300 uppercase tracking-wide">Videos</div>
-          </div>
-        </div>
-        
-        {/* Visual Breakdown Bar */}
-        {totalFiles > 0 && (
-          <div>
-            <div className="text-xs text-gray-400 mb-1">Distribution</div>
-            <div className="flex h-1.5 bg-black bg-opacity-60 backdrop-blur-sm rounded-full overflow-hidden">
-              <div 
-                className="bg-white bg-opacity-60" 
-                style={{ width: `${photoPercentage}%` }}
-                title={`Photos: ${photoPercentage}%`}
-              />
-              <div 
-                className="bg-gray-400 bg-opacity-80" 
-                style={{ width: `${videoPercentage}%` }}
-                title={`Videos: ${videoPercentage}%`}
-              />
+          
+          {/* Directory Info */}
+          {directoryName && (
+            <div className="mb-2 sm:mb-3 p-2 bg-black bg-opacity-50 backdrop-blur-sm rounded-lg">
+              <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">Full Path</div>
+              <div className="text-xs font-mono text-gray-200 break-all leading-tight">{directoryName}</div>
             </div>
-            <div className="flex justify-between text-xs text-gray-400 mt-1">
-              <span>📸 {photoPercentage}%</span>
-              <span>🎥 {videoPercentage}%</span>
-            </div>
-          </div>
-        )}
-      </div>
-      
-      {/* Media Type Filter Section */}
-      <div className="filter-section mb-3 sm:mb-4">
-        <div className="flex items-center gap-2 mb-2 sm:mb-3">
-          <span className="text-sm sm:text-base opacity-80">🎛️</span>
-          <h4 className="text-sm sm:text-base font-medium text-white m-0">Filter</h4>
-        </div>
-        
-        <div className="media-type-selector flex gap-1.5 sm:gap-2">
-          <button
-            onClick={() => onMediaTypeChange('all')}
-            className={getButtonClass('all')}
-          >
-            <div className="flex items-center justify-center gap-1">
-              <span className="opacity-80 text-xs sm:text-sm">🎭</span>
-              <span className="text-xs sm:text-sm">All</span>
-            </div>
-          </button>
-          <button
-            onClick={() => onMediaTypeChange('photos')}
-            className={getButtonClass('photos')}
-          >
-            <div className="flex items-center justify-center gap-1">
-              <span className="opacity-80 text-xs sm:text-sm">📸</span>
-              <span className="text-xs sm:text-sm">Photos</span>
-            </div>
-          </button>
-          <button
-            onClick={() => onMediaTypeChange('videos')}
-            className={getButtonClass('videos')}
-          >
-            <div className="flex items-center justify-center gap-1">
-              <span className="opacity-80 text-xs sm:text-sm">🎥</span>
-              <span className="text-xs sm:text-sm">Videos</span>
-            </div>
-          </button>
-        </div>
-      </div>
-      
-      {/* Actions Section */}
-      <div className="actions-section">
-        <div className="flex items-center gap-2 mb-2 sm:mb-3">
-          <span className="text-sm sm:text-base opacity-80">🔄</span>
-          <h4 className="text-sm sm:text-base font-medium text-white m-0">Actions</h4>
-        </div>
-        
-        <button
-          onClick={onRescan}
-          disabled={isScanning}
-          className={`rescan-btn w-full flex items-center justify-center gap-2 border-none py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl cursor-pointer text-xs sm:text-sm font-medium transition-all duration-200 ease-in-out active:scale-95 ${
-            isScanning 
-              ? 'bg-black bg-opacity-50 text-gray-500 cursor-not-allowed opacity-50' 
-              : 'bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-white shadow-lg hover:shadow-xl'
-          }`}
-        >
-          {isScanning ? (
-            <>
-              <div className="animate-spin w-3 h-3 sm:w-4 sm:h-4 border-2 border-gray-500 border-t-transparent rounded-full"></div>
-              <span>Scanning...</span>
-            </>
-          ) : (
-            <>
-              <span className="opacity-80">🔍</span>
-              <span>Rescan Directory</span>
-            </>
           )}
-        </button>
+          
+          {/* Current View Stats */}
+          <div className="mb-2 sm:mb-3 p-2 bg-black bg-opacity-30 backdrop-blur-sm rounded-lg">
+            <div className="text-xs text-gray-300 uppercase tracking-wide mb-1">Currently Viewing</div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm sm:text-base font-bold text-white">{currentCount}</span>
+              <span className="text-xs text-gray-300">{getMediaTypeLabel(currentMediaType)}</span>
+            </div>
+          </div>
+          
+          {/* Total Stats Grid */}
+          <div className="grid grid-cols-3 gap-1.5 sm:gap-2 text-center mb-2 sm:mb-3">
+            <div className="stat-item p-1.5 sm:p-2 bg-black bg-opacity-40 backdrop-blur-sm rounded-lg">
+              <div className="text-sm sm:text-base font-bold text-white">{totalFiles}</div>
+              <div className="text-xs text-gray-400 uppercase tracking-wide">Total</div>
+            </div>
+            <div className="stat-item p-1.5 sm:p-2 bg-black bg-opacity-30 backdrop-blur-sm rounded-lg">
+              <div className="text-sm sm:text-base font-bold text-gray-200">{totalPhotos}</div>
+              <div className="text-xs text-gray-300 uppercase tracking-wide">Photos</div>
+            </div>
+            <div className="stat-item p-1.5 sm:p-2 bg-black bg-opacity-30 backdrop-blur-sm rounded-lg">
+              <div className="text-sm sm:text-base font-bold text-gray-200">{totalVideos}</div>
+              <div className="text-xs text-gray-300 uppercase tracking-wide">Videos</div>
+            </div>
+          </div>
+          
+          {/* Visual Breakdown Bar */}
+          {totalFiles > 0 && (
+            <div>
+              <div className="text-xs text-gray-400 mb-1">Distribution</div>
+              <div className="flex h-1.5 bg-black bg-opacity-60 backdrop-blur-sm rounded-full overflow-hidden">
+                <div 
+                  className="bg-white bg-opacity-60" 
+                  style={{ width: `${photoPercentage}%` }}
+                  title={`Photos: ${photoPercentage}%`}
+                />
+                <div 
+                  className="bg-gray-400 bg-opacity-80" 
+                  style={{ width: `${videoPercentage}%` }}
+                  title={`Videos: ${videoPercentage}%`}
+                />
+              </div>
+              <div className="flex justify-between text-xs text-gray-400 mt-1">
+                <span>📸 {photoPercentage}%</span>
+                <span>🎥 {videoPercentage}%</span>
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {/* Media Type Filter Section */}
+        <div className="filter-section mb-3 sm:mb-4">
+          <div className="flex items-center gap-2 mb-2 sm:mb-3">
+            <span className="text-sm sm:text-base opacity-80">🎛️</span>
+            <h4 className="text-sm sm:text-base font-medium text-white m-0">Media Type</h4>
+          </div>
+          
+          <div className="media-type-selector flex gap-1.5 sm:gap-2">
+            <button
+              onClick={() => onMediaTypeChange('all')}
+              className={getButtonClass('all')}
+            >
+              <div className="flex items-center justify-center gap-1">
+                <span className="opacity-80 text-xs sm:text-sm">🎭</span>
+                <span className="text-xs sm:text-sm">All</span>
+              </div>
+            </button>
+            <button
+              onClick={() => onMediaTypeChange('photos')}
+              className={getButtonClass('photos')}
+            >
+              <div className="flex items-center justify-center gap-1">
+                <span className="opacity-80 text-xs sm:text-sm">📸</span>
+                <span className="text-xs sm:text-sm">Photos</span>
+              </div>
+            </button>
+            <button
+              onClick={() => onMediaTypeChange('videos')}
+              className={getButtonClass('videos')}
+            >
+              <div className="flex items-center justify-center gap-1">
+                <span className="opacity-80 text-xs sm:text-sm">🎥</span>
+                <span className="text-xs sm:text-sm">Videos</span>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {/* Tag Filter Section */}
+        <div className="tag-filter-section mb-3 sm:mb-4 p-2 sm:p-3 bg-black bg-opacity-40 backdrop-blur-sm rounded-2xl">
+          <div className="flex items-center gap-2 mb-2 sm:mb-3">
+            <span className="text-sm sm:text-base opacity-80">🏷️</span>
+            <h4 className="text-sm sm:text-base font-medium text-white m-0">Tag Filters</h4>
+          </div>
+          
+          <TagFilter
+            tags={tags}
+            selectedTags={selectedTags}
+            excludedTags={excludedTags}
+            onTagsChange={onTagsChange}
+            onExcludedTagsChange={onExcludedTagsChange}
+          />
+        </div>
+        
+        {/* Actions Section */}
+        <div className="actions-section">
+          <div className="flex items-center gap-2 mb-2 sm:mb-3">
+            <span className="text-sm sm:text-base opacity-80">🔄</span>
+            <h4 className="text-sm sm:text-base font-medium text-white m-0">Actions</h4>
+          </div>
+          
+          <div className="space-y-2">
+            <button
+              onClick={() => setShowTagManager(true)}
+              className="w-full flex items-center justify-center gap-2 border-none py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl cursor-pointer text-xs sm:text-sm font-medium transition-all duration-200 ease-in-out active:scale-95 bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-white shadow-lg hover:shadow-xl"
+            >
+              <span className="opacity-80">🏷️</span>
+              <span>Manage Tags</span>
+            </button>
+            
+            <button
+              onClick={onRescan}
+              disabled={isScanning}
+              className={`rescan-btn w-full flex items-center justify-center gap-2 border-none py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl cursor-pointer text-xs sm:text-sm font-medium transition-all duration-200 ease-in-out active:scale-95 ${
+                isScanning 
+                  ? 'bg-black bg-opacity-50 text-gray-500 cursor-not-allowed opacity-50' 
+                  : 'bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-white shadow-lg hover:shadow-xl'
+              }`}
+            >
+              {isScanning ? (
+                <>
+                  <div className="animate-spin w-3 h-3 sm:w-4 sm:h-4 border-2 border-gray-500 border-t-transparent rounded-full"></div>
+                  <span>Scanning...</span>
+                </>
+              ) : (
+                <>
+                  <span className="opacity-80">🔍</span>
+                  <span>Rescan Directory</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
+
+      {/* Tag Manager Modal */}
+      {showTagManager && (
+        <TagManager
+          tags={tags}
+          onCreateTag={handleCreateTag}
+          onUpdateTag={handleUpdateTag}
+          onDeleteTag={handleDeleteTag}
+          onClose={() => setShowTagManager(false)}
+        />
+      )}
+    </>
   )
 }
 
