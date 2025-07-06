@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import MediaViewer from './components/MediaViewer'
 import Navigation from './components/Navigation'
+import SettingsPanel from './components/SettingsPanel'
 import LoadingMessage from './components/LoadingMessage'
 import ErrorMessage from './components/ErrorMessage'
 import DebugInfo from './components/DebugInfo'
@@ -16,6 +17,7 @@ function App() {
   
   const {
     mediaFiles,
+    allMediaFiles,
     loading,
     error,
     fetchMediaFiles,
@@ -82,13 +84,13 @@ function App() {
     setIsSettingsOpen(false)
   }
 
-  // Safely get current media file and directory name
+  // Safely get current media file and full directory path
   const currentMediaFile = mediaFiles.length > 0 && currentIndex < mediaFiles.length 
     ? mediaFiles[currentIndex] 
     : null
     
-  const directoryName = currentMediaFile 
-    ? currentMediaFile.split('/').slice(0, -1).pop() || 'Root'
+  const directoryPath = currentMediaFile 
+    ? currentMediaFile.split('/').slice(0, -1).join('/') || '/'
     : ''
 
   return (
@@ -127,14 +129,20 @@ function App() {
           onPrevious={() => handleNavigation(-1)}
           onNext={() => handleNavigation(1)}
           onToggleSettings={() => setIsSettingsOpen(!isSettingsOpen)}
-          directoryName={directoryName}
-          isSettingsOpen={isSettingsOpen}
+          directoryName={directoryPath}
+          showNavButtons={mediaFiles.length > 0}
+          currentMediaFile={currentMediaFile}
+        />
+
+        <SettingsPanel
+          isOpen={isSettingsOpen}
           currentMediaType={currentMediaType}
           onMediaTypeChange={handleMediaTypeChange}
           onRescan={handleRescan}
           isScanning={isScanning}
-          showNavButtons={mediaFiles.length > 0}
-          currentMediaFile={currentMediaFile}
+          allMediaFiles={allMediaFiles}
+          currentMediaFiles={mediaFiles}
+          directoryName={directoryPath}
         />
       </div>
     </div>

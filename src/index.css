@@ -19,6 +19,38 @@ html, body {
   background-color: #000;
 }
 
+/* Media sizing based on orientation and screen size */
+@media (orientation: portrait) and (max-width: 768px) {
+  .media-item img,
+  .media-item video {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 100% !important;
+    max-width: none !important;
+  }
+}
+
+@media (orientation: landscape) and (min-width: 769px) {
+  .media-item img,
+  .media-item video {
+    width: auto !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: none !important;
+  }
+}
+
+/* Tablet portrait - still use full width */
+@media (orientation: portrait) and (min-width: 769px) and (max-width: 1024px) {
+  .media-item img,
+  .media-item video {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 100% !important;
+    max-width: none !important;
+  }
+}
+
 #root {
   height: 100%;
   height: calc(var(--vh, 1vh) * 100);

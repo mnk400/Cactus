@@ -18,6 +18,13 @@ module.exports = {
           900: '#1a1a1a',
         },
       },
+      backdropBlur: {
+        'xs': '2px',
+        'sm': '4px',
+        'md': '12px',
+        'lg': '16px',
+        'xl': '24px',
+      }
     },
   },
   plugins: [],

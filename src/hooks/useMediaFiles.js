@@ -3,6 +3,7 @@ import { shuffleArray } from '../utils/helpers'
 
 export function useMediaFiles() {
   const [mediaFiles, setMediaFiles] = useState([])
+  const [allMediaFiles, setAllMediaFiles] = useState([]) // Track all files for statistics
   const [loading, setLoading] = useState(null)
   const [error, setError] = useState(null)
   const [isScanning, setIsScanning] = useState(false)
@@ -14,6 +15,16 @@ export function useMediaFiles() {
       setLoading(`Loading ${mediaType} media...`)
       setError(null)
       
+      // Always fetch all files first for statistics
+      const allResponse = await fetch('/get-media-files?type=all')
+      if (allResponse.ok) {
+        const allData = await allResponse.json()
+        if (allData.files && allData.files.length > 0) {
+          setAllMediaFiles(allData.files)
+        }
+      }
+      
+      // Then fetch the requested type
       const response = await fetch(`/get-media-files?type=${mediaType}`)
 
       if (!response.ok) {
@@ -113,6 +124,7 @@ export function useMediaFiles() {
 
   return {
     mediaFiles,
+    allMediaFiles,
     loading,
     error,
     isScanning,
