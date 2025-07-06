@@ -1,7 +1,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-const mediaScanner = require('./mediaScanner');
+const mediaScanner = require('./mediaScannerSQLite');
 const minimist = require('minimist');
 
 const app = express();
@@ -121,6 +121,25 @@ app.get('/media', (req, res) => {
     }
 });
 
+// API endpoint to get database statistics
+app.get('/api/stats', (req, res) => {
+    try {
+        const stats = mediaScanner.getStats();
+        const database = mediaScanner.getDatabase();
+        
+        res.json({
+            ...stats,
+            database: {
+                version: database ? database.getDatabaseVersion() : 'unknown',
+                path: database ? database.dbPath : 'unknown'
+            }
+        });
+    } catch (error) {
+        log.error('Failed to get database statistics', { error: error.message });
+        res.status(500).json({ error: 'Failed to get statistics' });
+    }
+});
+
 // Serve React app for all other routes (SPA routing)
 app.get('*', (req, res) => {
     const indexPath = path.join(reactBuildPath, 'index.html');
@@ -135,6 +154,7 @@ app.listen(PORT, () => {
     log.info('Cactus media server started', { 
         port: PORT, 
         directory: directoryPath,
-        version: 'React'
+        version: 'React + SQLite',
+        storage: 'SQLite Database'
     });
 });
