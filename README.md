@@ -22,7 +22,6 @@ Extremely minimal randomized order media reviewer built with React
 - **Video Controls**: Play/pause, progress bar, fullscreen support
 - **Touch Gestures**: Swipe up/down navigation with visual feedback
 - **Preloading**: Preloads adjacent media files for smooth navigation
-- **iOS Safari Support**: Handles iOS bottom bar behavior
 - **Responsive Design**: Works on mobile and desktop
 
 ## Quick Start
@@ -107,7 +106,6 @@ Built with modern React architecture for maintainability and performance:
 - `useMediaFiles.js` - Media loading, filtering, and rescanning
 - `useTouchGestures.js` - Smooth swipe navigation
 - `useKeyboardNavigation.js` - Arrow key navigation
-- `useIOSBottomBar.js` - iOS Safari bottom bar handling
 - `useMediaPreloader.js` - Adjacent media preloading
 - `useMobileViewport.js` - Mobile viewport optimization
 

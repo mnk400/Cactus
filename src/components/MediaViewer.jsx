@@ -4,7 +4,7 @@ import VideoProgressBar from './VideoProgressBar'
 import { useTouchGestures } from '../hooks/useTouchGestures'
 import { useMediaPreloader } from '../hooks/useMediaPreloader'
 
-function MediaViewer({ mediaFiles, currentIndex, onNavigate, isBottomBarVisible }) {
+function MediaViewer({ mediaFiles, currentIndex, onNavigate }) {
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [direction, setDirection] = useState(0)
   const [prevIndex, setPrevIndex] = useState(currentIndex)
@@ -61,7 +61,6 @@ function MediaViewer({ mediaFiles, currentIndex, onNavigate, isBottomBarVisible 
             getPreloadedMedia={getPreloadedMedia}
           />
           <VideoProgressBar 
-            isBottomBarVisible={isBottomBarVisible}
             currentMediaFile={currentMediaFile}
           />
         </>

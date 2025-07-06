@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { isVideo } from '../utils/helpers'
 
-function VideoProgressBar({ isBottomBarVisible, currentMediaFile }) {
+function VideoProgressBar({ currentMediaFile }) {
   const [progress, setProgress] = useState(0)
   const [isVisible, setIsVisible] = useState(false)
   const progressBarRef = useRef(null)
@@ -44,12 +44,10 @@ function VideoProgressBar({ isBottomBarVisible, currentMediaFile }) {
 
   if (!isVisible) return null
 
-  const bottomClass = isBottomBarVisible ? 'bottom-[150px]' : 'bottom-[90px]'
-
   return (
     <div 
       ref={progressBarRef}
-      className={`video-progress-container absolute left-1/2 transform -translate-x-1/2 w-11/12 max-w-[570px] h-5 bg-black bg-opacity-80 backdrop-blur-md rounded-lg overflow-hidden z-[19] cursor-pointer ${bottomClass}`}
+      className="video-progress-container absolute left-1/2 transform -translate-x-1/2 w-11/12 max-w-[570px] h-5 bg-black bg-opacity-80 backdrop-blur-md rounded-lg overflow-hidden z-[19] cursor-pointer bottom-[90px]"
       onClick={handleProgressClick}
     >
       <div 

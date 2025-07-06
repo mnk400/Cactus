@@ -6,7 +6,6 @@ import ErrorMessage from './components/ErrorMessage'
 import DebugInfo from './components/DebugInfo'
 import { useMediaFiles } from './hooks/useMediaFiles'
 import { useKeyboardNavigation } from './hooks/useKeyboardNavigation'
-import { useIOSBottomBar } from './hooks/useIOSBottomBar'
 import { useMobileViewport } from './hooks/useMobileViewport'
 
 function App() {
@@ -25,8 +24,6 @@ function App() {
     isScanning
   } = useMediaFiles()
 
-  const { isBottomBarVisible } = useIOSBottomBar()
-  
   // Handle mobile viewport issues
   useMobileViewport()
 
@@ -107,7 +104,6 @@ function App() {
             mediaFiles={mediaFiles}
             currentIndex={currentIndex}
             onNavigate={handleNavigation}
-            isBottomBarVisible={isBottomBarVisible}
           />
         )}
 
@@ -138,7 +134,6 @@ function App() {
           onRescan={handleRescan}
           isScanning={isScanning}
           showNavButtons={mediaFiles.length > 0}
-          isBottomBarVisible={isBottomBarVisible}
           currentMediaFile={currentMediaFile}
         />
       </div>

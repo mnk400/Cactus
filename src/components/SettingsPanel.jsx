@@ -19,7 +19,7 @@ function SettingsPanel({
   }
 
   return (
-    <div className="settings-panel absolute bottom-20 left-0 bg-black bg-opacity-90 rounded-3xl p-4 text-gray-200 z-10 backdrop-blur-md flex flex-col gap-2.5 w-full box-border text-center">
+    <div className="settings-panel absolute bottom-20 left-0 bg-black bg-opacity-90 rounded-3xl p-4 text-gray-200 z-10 flex flex-col gap-2.5 w-full box-border text-center">
       <h3 className="mt-0 text-gray-200 text-lg mb-2.5">Settings</h3>
       
       <div className="setting-group flex flex-col gap-2 mb-2.5">
