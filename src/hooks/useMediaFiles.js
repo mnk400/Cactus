@@ -15,30 +15,33 @@ export function useMediaFiles() {
       setLoading(`Loading ${mediaType} media...`)
       setError(null)
       
-      // Always fetch all files first for statistics
-      const allResponse = await fetch('/api/media?type=all')
-      if (allResponse.ok) {
-        const allData = await allResponse.json()
-        if (allData.files && allData.files.length > 0) {
-          setAllMediaFiles(allData.files)
-        }
+      // Fetch the requested type
+      const response = await fetch(`/api/media?type=${mediaType}`)
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to get media files')
       }
       
-      // Then fetch the requested type (skip if already fetched all)
-      let response, data
+      const data = await response.json()
+      console.log(`Received ${data.count} ${mediaType} files from server`)
+      
+      // If we fetched 'all', use it for statistics too
       if (mediaType === 'all') {
-        response = allResponse
-        data = await allResponse.json()
+        setAllMediaFiles(data.files)
       } else {
-        response = await fetch(`/api/media?type=${mediaType}`)
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Failed to get media files')
+        // Otherwise, fetch all files for statistics (only if we don't have them)
+        if (allMediaFiles.length === 0) {
+          try {
+            const allResponse = await fetch('/api/media?type=all')
+            if (allResponse.ok) {
+              const allData = await allResponse.json()
+              setAllMediaFiles(allData.files)
+            }
+          } catch (error) {
+            console.warn('Failed to fetch all files for statistics:', error.message)
+          }
         }
-        data = await response.json()
       }
-
-      console.log(`Received ${data.files ? data.files.length : 0} files from server`)
       
       if (!data.files || data.files.length === 0) {
         setError(`No ${mediaType} files found in the specified directory`)
@@ -55,7 +58,7 @@ export function useMediaFiles() {
     } finally {
       setLoading(null)
     }
-  }, [])
+  }, [allMediaFiles.length])
 
   const filterMedia = useCallback(async (mediaType) => {
     console.log(`Filtering media by type: ${mediaType}`)
