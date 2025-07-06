@@ -1,4 +1,6 @@
 node_modules
 package-lock.json
 *_media_cache*
+*_media.db*
+test-media/
 dist
