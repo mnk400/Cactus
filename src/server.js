@@ -51,8 +51,33 @@ app.use(express.json());
     await mediaScanner.loadMediaFiles();
 })();
 
-// API endpoint to get media files
+// Unified API endpoint to get media files with optional filtering
+app.get('/api/media', (req, res) => {
+    const mediaType = req.query.type || 'all';
+    
+    // Validate media type
+    if (!['all', 'photos', 'videos'].includes(mediaType)) {
+        return res.status(400).json({ 
+            error: 'Invalid media type. Use "all", "photos", or "videos".' 
+        });
+    }
+    
+    try {
+        const files = mediaScanner.filterMediaByType(mediaType);
+        res.json({ 
+            files: files,
+            count: files.length,
+            type: mediaType
+        });
+    } catch (error) {
+        log.error('Failed to retrieve media files', { mediaType, error: error.message });
+        res.status(500).json({ error: 'Failed to get media files' });
+    }
+});
+
+// Backward compatibility endpoints (deprecated)
 app.get('/get-media-files', (req, res) => {
+    log.warn('Using deprecated endpoint /get-media-files, please use /api/media instead');
     const mediaType = req.query.type || 'all';
     
     try {
@@ -64,8 +89,8 @@ app.get('/get-media-files', (req, res) => {
     }
 });
 
-// API endpoint to filter media files by type
 app.get('/filter-media', (req, res) => {
+    log.warn('Using deprecated endpoint /filter-media, please use /api/media instead');
     const { type } = req.query;
     
     if (!type || !['all', 'photos', 'videos'].includes(type)) {

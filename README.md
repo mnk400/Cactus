@@ -138,8 +138,7 @@ src/
 
 ## API Endpoints
 
-- `GET /get-media-files?type=all|photos|videos` - Get filtered media files
-- `GET /filter-media?type=all|photos|videos` - Filter existing media files
+- `GET /api/media?type=all|photos|videos` - Get filtered media files
 - `POST /rescan-directory` - Rescan directory for new files
 - `GET /media?path=<filepath>` - Serve media files
 - `GET /api/stats` - Get database statistics and file counts

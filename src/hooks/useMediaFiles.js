@@ -16,7 +16,7 @@ export function useMediaFiles() {
       setError(null)
       
       // Always fetch all files first for statistics
-      const allResponse = await fetch('/get-media-files?type=all')
+      const allResponse = await fetch('/api/media?type=all')
       if (allResponse.ok) {
         const allData = await allResponse.json()
         if (allData.files && allData.files.length > 0) {
@@ -24,15 +24,20 @@ export function useMediaFiles() {
         }
       }
       
-      // Then fetch the requested type
-      const response = await fetch(`/get-media-files?type=${mediaType}`)
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to scan directory')
+      // Then fetch the requested type (skip if already fetched all)
+      let response, data
+      if (mediaType === 'all') {
+        response = allResponse
+        data = await allResponse.json()
+      } else {
+        response = await fetch(`/api/media?type=${mediaType}`)
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to get media files')
+        }
+        data = await response.json()
       }
 
-      const data = await response.json()
       console.log(`Received ${data.files ? data.files.length : 0} files from server`)
       
       if (!data.files || data.files.length === 0) {
@@ -59,7 +64,7 @@ export function useMediaFiles() {
       setLoading(`Loading ${mediaType} files...`)
       setError(null)
       
-      const response = await fetch(`/filter-media?type=${mediaType}`)
+      const response = await fetch(`/api/media?type=${mediaType}`)
       
       if (!response.ok) {
         const errorData = await response.json()
@@ -67,7 +72,7 @@ export function useMediaFiles() {
       }
       
       const data = await response.json()
-      console.log(`Filter response: ${data.message}`)
+      console.log(`Filter response: Found ${data.count} ${mediaType} files`)
       
       if (!data.files || data.files.length === 0) {
         setError(`No ${mediaType} files found in the specified directory`)
