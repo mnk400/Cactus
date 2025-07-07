@@ -87,11 +87,11 @@ const TagInput = ({
                     setTimeout(() => setShowSuggestions(false), 150);
                 }}
                 placeholder={placeholder}
-                className="w-full px-4 py-3 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white bg-opacity-20 text-white placeholder-gray-400 text-base"
+                className="w-full px-4 py-3 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-black-shades-700 text-white placeholder-gray-400 text-base"
             />
             
             {showSuggestions && filteredTags.length > 0 && (
-                <div className="absolute z-10 w-full mt-2 bg-gray-800 border border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                <div className="absolute z-10 w-full mt-2 bg-black-shades-800 border border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                     {filteredTags.map((tag, index) => (
                         <button
                             key={tag.id}

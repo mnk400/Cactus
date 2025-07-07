@@ -66,7 +66,7 @@ const TagFilter = ({
                 <div className="relative">
                     <button
                         onClick={() => setShowIncludeDropdown(!showIncludeDropdown)}
-                        className="w-full px-3 py-2 text-left bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-gray-200 rounded-xl transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
+                        className="w-full px-3 py-2 text-left bg-black-shades-700 hover:bg-white hover:bg-opacity-20 text-gray-200 rounded-xl transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
                         disabled={availableIncludeTags.length === 0 && includeSearchTerm === ''}
                     >
                         {availableIncludeTags.length > 0 || includeSearchTerm !== '' ? 'Add tag to include...' : 'No more tags available'}
@@ -77,7 +77,7 @@ const TagFilter = ({
                              <input
                                  type="text"
                                  placeholder="Search tags..."
-                                 className="w-full px-3 py-2 bg-black bg-opacity-50 text-gray-200 rounded-t-xl focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
+                                 className="w-full px-3 py-2 bg-black-shades-800 text-gray-200 rounded-t-xl focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
                                  value={includeSearchTerm}
                                  onChange={(e) => setIncludeSearchTerm(e.target.value)}
                                  onClick={(e) => e.stopPropagation()} // Prevent dropdown from closing when clicking input
@@ -162,7 +162,7 @@ const TagFilter = ({
                         onTagsChange([]);
                         onExcludedTagsChange([]);
                     }}
-                    className="w-full px-3 py-2 text-sm bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-gray-200 rounded-xl transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
+                    className="w-full px-3 py-2 text-sm bg-black-shades-700 hover:bg-white hover:bg-opacity-20 text-gray-200 rounded-xl transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
                 >
                     Clear All Filters
                 </button>

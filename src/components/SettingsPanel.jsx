@@ -79,16 +79,14 @@ function SettingsPanel({
   };
 
   return (
-      <div className="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-md p-4 sm:p-6 text-gray-200 z-50 overflow-y-auto">
+      <div className="fixed inset-0 bg-black-shades-900 p-4 sm:p-6 text-gray-200 z-50 overflow-y-auto">
         {/* Close Button */}
         <button
           onClick={() => onClose()}
-          className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors duration-200"
+          className="absolute top-4 right-4 px-3 py-1 bg-red-400 text-white rounded-md hover:bg-red-500 transition-colors duration-200"
           aria-label="Close settings"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          Close
         </button>
 
         {/* Header */}
@@ -98,21 +96,21 @@ function SettingsPanel({
         
         <div className="max-w-4xl mx-auto">
           {/* Statistics Section */}
-          <div className="stats-section mb-3 sm:mb-4 p-2 sm:p-3 bg-black bg-opacity-40 backdrop-blur-sm rounded-2xl">
+          <div className="stats-section mb-3 sm:mb-4 p-2 sm:p-3 bg-black-shades-800 rounded-2xl">
           <div className="flex items-center gap-2 mb-2 sm:mb-3">
             <h4 className="text-sm sm:text-base font-medium text-white m-0">Media Library</h4>
           </div>
           
           {/* Directory Info */}
           {directoryName && (
-            <div className="mb-2 sm:mb-3 p-2 bg-black bg-opacity-50 backdrop-blur-sm rounded-lg">
+            <div className="mb-2 sm:mb-3 p-2 bg-black-shades-700 rounded-lg">
               <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">Full Path</div>
               <div className="text-xs font-mono text-gray-200 break-all leading-tight">{directoryName}</div>
             </div>
           )}
           
           {/* Current View Stats */}
-          <div className="mb-2 sm:mb-3 p-2 bg-black bg-opacity-30 backdrop-blur-sm rounded-lg">
+          <div className="mb-2 sm:mb-3 p-2 bg-black-shades-700 rounded-lg">
             <div className="text-xs text-gray-300 uppercase tracking-wide mb-1">Currently Viewing</div>
             <div className="flex justify-between items-center">
               <span className="text-sm sm:text-base font-bold text-white">{currentCount}</span>
@@ -122,15 +120,15 @@ function SettingsPanel({
           
           {/* Total Stats Grid */}
           <div className="grid grid-cols-3 gap-1.5 sm:gap-2 text-center mb-2 sm:mb-3">
-            <div className="stat-item p-1.5 sm:p-2 bg-black bg-opacity-40 backdrop-blur-sm rounded-lg">
+            <div className="stat-item p-1.5 sm:p-2 bg-black-shades-700 rounded-lg">
               <div className="text-sm sm:text-base font-bold text-white">{totalFiles}</div>
               <div className="text-xs text-gray-400 uppercase tracking-wide">Total</div>
             </div>
-            <div className="stat-item p-1.5 sm:p-2 bg-black bg-opacity-30 backdrop-blur-sm rounded-lg">
+            <div className="stat-item p-1.5 sm:p-2 bg-black-shades-700 rounded-lg">
               <div className="text-sm sm:text-base font-bold text-gray-200">{totalPhotos}</div>
               <div className="text-xs text-gray-300 uppercase tracking-wide">Photos</div>
             </div>
-            <div className="stat-item p-1.5 sm:p-2 bg-black bg-opacity-30 backdrop-blur-sm rounded-lg">
+            <div className="stat-item p-1.5 sm:p-2 bg-black-shades-700 rounded-lg">
               <div className="text-sm sm:text-base font-bold text-gray-200">{totalVideos}</div>
               <div className="text-xs text-gray-300 uppercase tracking-wide">Videos</div>
             </div>
@@ -140,7 +138,7 @@ function SettingsPanel({
           {totalFiles > 0 && (
             <div>
               <div className="text-xs text-gray-400 mb-1">Distribution</div>
-              <div className="flex h-1.5 bg-black bg-opacity-60 backdrop-blur-sm rounded-full overflow-hidden">
+              <div className="flex h-1.5 bg-black-shades-600 rounded-full overflow-hidden">
                 <div 
                   className="bg-white bg-opacity-60" 
                   style={{ width: `${photoPercentage}%` }}

@@ -16,6 +16,7 @@ module.exports = {
           700: '#4d4d4d',
           800: '#333333',
           900: '#1a1a1a',
+          1000: '#0f0f0f',
         },
       },
       backdropBlur: {

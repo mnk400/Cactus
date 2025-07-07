@@ -47,7 +47,7 @@ function VideoProgressBar({ currentMediaFile }) {
   return (
     <div 
       ref={progressBarRef}
-      className="video-progress-container absolute left-1/2 transform -translate-x-1/2 w-11/12 max-w-[570px] h-5 bg-black bg-opacity-80 backdrop-blur-md rounded-lg overflow-hidden z-[19] cursor-pointer bottom-[90px]"
+      className="video-progress-container absolute left-1/2 transform -translate-x-1/2 w-11/12 max-w-[570px] h-5 bg-black-shades-900 rounded-lg overflow-hidden z-[19] cursor-pointer bottom-[90px]"
       onClick={handleProgressClick}
     >
       <div 
