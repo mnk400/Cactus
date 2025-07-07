@@ -83,14 +83,12 @@ function SettingsPanel({
         
         {/* Header */}
         <div className="flex items-center gap-2 mb-3 sm:mb-4">
-          <span className="text-lg sm:text-xl opacity-80">⚙️</span>
           <h3 className="text-base sm:text-lg font-semibold text-white m-0">Settings & Stats</h3>
         </div>
         
         {/* Statistics Section */}
         <div className="stats-section mb-3 sm:mb-4 p-2 sm:p-3 bg-black bg-opacity-40 backdrop-blur-sm rounded-2xl">
           <div className="flex items-center gap-2 mb-2 sm:mb-3">
-            <span className="text-sm sm:text-base opacity-80">📊</span>
             <h4 className="text-sm sm:text-base font-medium text-white m-0">Media Library</h4>
           </div>
           
@@ -154,7 +152,6 @@ function SettingsPanel({
         {/* Media Type Filter Section */}
         <div className="filter-section mb-3 sm:mb-4">
           <div className="flex items-center gap-2 mb-2 sm:mb-3">
-            <span className="text-sm sm:text-base opacity-80">🎛️</span>
             <h4 className="text-sm sm:text-base font-medium text-white m-0">Media Type</h4>
           </div>
           
@@ -192,7 +189,6 @@ function SettingsPanel({
         {/* Tag Filter Section */}
         <div className="tag-filter-section mb-3 sm:mb-4 p-2 sm:p-3 bg-black bg-opacity-40 backdrop-blur-sm rounded-2xl">
           <div className="flex items-center gap-2 mb-2 sm:mb-3">
-            <span className="text-sm sm:text-base opacity-80">🏷️</span>
             <h4 className="text-sm sm:text-base font-medium text-white m-0">Tag Filters</h4>
           </div>
           
@@ -208,7 +204,6 @@ function SettingsPanel({
         {/* Actions Section */}
         <div className="actions-section">
           <div className="flex items-center gap-2 mb-2 sm:mb-3">
-            <span className="text-sm sm:text-base opacity-80">🔄</span>
             <h4 className="text-sm sm:text-base font-medium text-white m-0">Actions</h4>
           </div>
           
@@ -217,7 +212,6 @@ function SettingsPanel({
               onClick={() => setShowTagManager(true)}
               className="w-full flex items-center justify-center gap-2 border-none py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl cursor-pointer text-xs sm:text-sm font-medium transition-all duration-200 ease-in-out active:scale-95 bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-white shadow-lg hover:shadow-xl"
             >
-              <span className="opacity-80">🏷️</span>
               <span>Manage Tags</span>
             </button>
             
@@ -237,7 +231,6 @@ function SettingsPanel({
                 </>
               ) : (
                 <>
-                  <span className="opacity-80">🔍</span>
                   <span>Rescan Directory</span>
                 </>
               )}
