@@ -1,17 +1,41 @@
-const path = require('path');
-const fs = require('fs');
-const { promisify } = require('util');
-const crypto = require('crypto');
-const MediaDatabase = require('./database');
+const path = require("path");
+const fs = require("fs");
+const { promisify } = require("util");
+const crypto = require("crypto");
+const MediaDatabase = require("./database");
 
 const readdir = promisify(fs.readdir);
 const stat = promisify(fs.stat);
 
 // Simple structured logging
 const log = {
-    info: (message, meta = {}) => console.log(JSON.stringify({ level: 'info', message, ...meta, timestamp: new Date().toISOString() })),
-    error: (message, meta = {}) => console.error(JSON.stringify({ level: 'error', message, ...meta, timestamp: new Date().toISOString() })),
-    warn: (message, meta = {}) => console.warn(JSON.stringify({ level: 'warn', message, ...meta, timestamp: new Date().toISOString() }))
+  info: (message, meta = {}) =>
+    console.log(
+      JSON.stringify({
+        level: "info",
+        message,
+        ...meta,
+        timestamp: new Date().toISOString(),
+      }),
+    ),
+  error: (message, meta = {}) =>
+    console.error(
+      JSON.stringify({
+        level: "error",
+        message,
+        ...meta,
+        timestamp: new Date().toISOString(),
+      }),
+    ),
+  warn: (message, meta = {}) =>
+    console.warn(
+      JSON.stringify({
+        level: "warn",
+        message,
+        ...meta,
+        timestamp: new Date().toISOString(),
+      }),
+    ),
 };
 
 // Get directory path from command line arguments
@@ -22,395 +46,412 @@ let mediaDatabase;
 let LOCK_FILE_PATH;
 
 // Define media type extensions
-const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
-const VIDEO_EXTENSIONS = ['.mp4', '.MP4', '.webm', '.mov', '.avi', '.mkv', '.ogg'];
+const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"];
+const VIDEO_EXTENSIONS = [
+  ".mp4",
+  ".MP4",
+  ".webm",
+  ".mov",
+  ".avi",
+  ".mkv",
+  ".ogg",
+];
 
 function initializeScanner(dirPath) {
-    directoryPath = dirPath;
-    
-    // Create database path based on directory hash for unique database per directory
-    const dirHash = crypto.createHash('md5').update(directoryPath).digest('hex');
-    const dbFileName = `.${dirHash}_media.db`;
-    const dbPath = path.join(process.cwd(), 'configuration', dbFileName);
-    
-    // Initialize database
-    mediaDatabase = new MediaDatabase(dbPath);
-    mediaDatabase.initialize();
-    
-    // Initialize lock file path
-    const lockFileName = `.${dirHash}_scan.lock`;
-    LOCK_FILE_PATH = path.join(process.cwd(), 'configuration', lockFileName);
-    
-    log.info('SQLite media scanner initialized', { 
-        directory: directoryPath,
-        database: dbFileName,
-        dbPath: dbPath,
-        lockFile: lockFileName,
-        lockPath: LOCK_FILE_PATH
-    });
+  directoryPath = dirPath;
+
+  // Create database path based on directory hash for unique database per directory
+  const dirHash = crypto.createHash("md5").update(directoryPath).digest("hex");
+  const dbFileName = `.${dirHash}_media.db`;
+  const dbPath = path.join(process.cwd(), "configuration", dbFileName);
+
+  // Initialize database
+  mediaDatabase = new MediaDatabase(dbPath);
+  mediaDatabase.initialize();
+
+  // Initialize lock file path
+  const lockFileName = `.${dirHash}_scan.lock`;
+  LOCK_FILE_PATH = path.join(process.cwd(), "configuration", lockFileName);
+
+  log.info("SQLite media scanner initialized", {
+    directory: directoryPath,
+    database: dbFileName,
+    dbPath: dbPath,
+    lockFile: lockFileName,
+    lockPath: LOCK_FILE_PATH,
+  });
 }
 
 // Function to check if a file is an image
 function isImage(filePath) {
-    const ext = path.extname(filePath).toLowerCase();
-    return IMAGE_EXTENSIONS.includes(ext);
+  const ext = path.extname(filePath).toLowerCase();
+  return IMAGE_EXTENSIONS.includes(ext);
 }
 
 // Function to check if a file is a video
 function isVideo(filePath) {
-    const ext = path.extname(filePath).toLowerCase();
-    return VIDEO_EXTENSIONS.includes(ext);
+  const ext = path.extname(filePath).toLowerCase();
+  return VIDEO_EXTENSIONS.includes(ext);
 }
 
 // Function to get media type from file path
 function getMediaType(filePath) {
-    if (isImage(filePath)) return 'image';
-    if (isVideo(filePath)) return 'video';
-    return null;
+  if (isImage(filePath)) return "image";
+  if (isVideo(filePath)) return "video";
+  return null;
 }
 
 // Lock management functions (same as before)
 function createLockFile() {
-    try {
-        const lockData = {
-            pid: process.pid,
-            timestamp: new Date().toISOString(),
-            directory: directoryPath
-        };
-        fs.writeFileSync(LOCK_FILE_PATH, JSON.stringify(lockData, null, 2));
-        log.info('Scan lock file created', { 
-            lockFile: path.basename(LOCK_FILE_PATH),
-            lockPath: LOCK_FILE_PATH,
-            pid: process.pid
-        });
-        return true;
-    } catch (error) {
-        log.error('Failed to create scan lock file', { 
-            lockFile: path.basename(LOCK_FILE_PATH),
-            lockPath: LOCK_FILE_PATH,
-            error: error.message 
-        });
-        return false;
-    }
+  try {
+    const lockData = {
+      pid: process.pid,
+      timestamp: new Date().toISOString(),
+      directory: directoryPath,
+    };
+    fs.writeFileSync(LOCK_FILE_PATH, JSON.stringify(lockData, null, 2));
+    log.info("Scan lock file created", {
+      lockFile: path.basename(LOCK_FILE_PATH),
+      lockPath: LOCK_FILE_PATH,
+      pid: process.pid,
+    });
+    return true;
+  } catch (error) {
+    log.error("Failed to create scan lock file", {
+      lockFile: path.basename(LOCK_FILE_PATH),
+      lockPath: LOCK_FILE_PATH,
+      error: error.message,
+    });
+    return false;
+  }
 }
 
 function removeLockFile() {
-    try {
-        if (fs.existsSync(LOCK_FILE_PATH)) {
-            fs.unlinkSync(LOCK_FILE_PATH);
-            log.info('Scan lock file removed', { 
-                lockFile: path.basename(LOCK_FILE_PATH),
-                lockPath: LOCK_FILE_PATH
-            });
-        }
-    } catch (error) {
-        log.error('Failed to remove scan lock file', { 
-            lockFile: path.basename(LOCK_FILE_PATH),
-            lockPath: LOCK_FILE_PATH,
-            error: error.message 
-        });
+  try {
+    if (fs.existsSync(LOCK_FILE_PATH)) {
+      fs.unlinkSync(LOCK_FILE_PATH);
+      log.info("Scan lock file removed", {
+        lockFile: path.basename(LOCK_FILE_PATH),
+        lockPath: LOCK_FILE_PATH,
+      });
     }
+  } catch (error) {
+    log.error("Failed to remove scan lock file", {
+      lockFile: path.basename(LOCK_FILE_PATH),
+      lockPath: LOCK_FILE_PATH,
+      error: error.message,
+    });
+  }
 }
 
 function isLocked() {
-    if (!fs.existsSync(LOCK_FILE_PATH)) {
-        return false;
+  if (!fs.existsSync(LOCK_FILE_PATH)) {
+    return false;
+  }
+
+  try {
+    const lockData = JSON.parse(fs.readFileSync(LOCK_FILE_PATH, "utf-8"));
+
+    // Check if the lock is stale (older than 5 minutes)
+    const lockTime = new Date(lockData.timestamp);
+    const now = new Date();
+    const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+
+    if (lockTime < fiveMinutesAgo) {
+      log.warn("Removing stale scan lock file", {
+        lockFile: path.basename(LOCK_FILE_PATH),
+        lockPath: LOCK_FILE_PATH,
+        lockAge: Math.round((now - lockTime) / 1000) + "s",
+        lockedByPid: lockData.pid,
+      });
+      removeLockFile();
+      return false;
     }
-    
-    try {
-        const lockData = JSON.parse(fs.readFileSync(LOCK_FILE_PATH, 'utf-8'));
-        
-        // Check if the lock is stale (older than 5 minutes)
-        const lockTime = new Date(lockData.timestamp);
-        const now = new Date();
-        const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
-        
-        if (lockTime < fiveMinutesAgo) {
-            log.warn('Removing stale scan lock file', { 
-                lockFile: path.basename(LOCK_FILE_PATH),
-                lockPath: LOCK_FILE_PATH,
-                lockAge: Math.round((now - lockTime) / 1000) + 's',
-                lockedByPid: lockData.pid
-            });
-            removeLockFile();
-            return false;
-        }
-        
-        log.info('Scan currently locked', {
-            lockFile: path.basename(LOCK_FILE_PATH),
-            lockPath: LOCK_FILE_PATH,
-            lockedByPid: lockData.pid,
-            lockedSince: lockData.timestamp
-        });
-        return true;
-    } catch (error) {
-        log.warn('Corrupted scan lock file detected, removing', { 
-            lockFile: path.basename(LOCK_FILE_PATH),
-            lockPath: LOCK_FILE_PATH,
-            error: error.message 
-        });
-        removeLockFile();
-        return false;
-    }
+
+    log.info("Scan currently locked", {
+      lockFile: path.basename(LOCK_FILE_PATH),
+      lockPath: LOCK_FILE_PATH,
+      lockedByPid: lockData.pid,
+      lockedSince: lockData.timestamp,
+    });
+    return true;
+  } catch (error) {
+    log.warn("Corrupted scan lock file detected, removing", {
+      lockFile: path.basename(LOCK_FILE_PATH),
+      lockPath: LOCK_FILE_PATH,
+      error: error.message,
+    });
+    removeLockFile();
+    return false;
+  }
 }
 
 // Function to recursively scan directory for media files
 async function scanDirectory(directoryPath) {
-    const mediaFiles = [];
-    const supportedExtensions = [...IMAGE_EXTENSIONS, ...VIDEO_EXTENSIONS];
-    const processedFiles = new Set(); // Track processed files to avoid duplicates
+  const mediaFiles = [];
+  const supportedExtensions = [...IMAGE_EXTENSIONS, ...VIDEO_EXTENSIONS];
+  const processedFiles = new Set(); // Track processed files to avoid duplicates
 
-    async function scan(dir) {
-        try {
-            const files = await readdir(dir);
-            
-            for (const file of files) {
-                const filePath = path.join(dir, file);
-                
-                // Skip if we've already processed this file (shouldn't happen, but safety check)
-                if (processedFiles.has(filePath)) {
-                    continue;
-                }
-                
-                try {
-                    const fileStat = await stat(filePath);
-                    
-                    if (fileStat.isDirectory()) {
-                        // Recursively scan subdirectories
-                        await scan(filePath);
-                    } else if (fileStat.isFile()) {
-                        // Check if it's a supported media file
-                        const ext = path.extname(file).toLowerCase();
-                        if (supportedExtensions.includes(ext)) {
-                            const mediaType = getMediaType(filePath);
-                            if (mediaType) {
-                                try {
-                                    // Add/update file in database
-                                    const result = mediaDatabase.upsertMediaFile(filePath, mediaType);
-                                    mediaFiles.push(filePath);
-                                    processedFiles.add(filePath);
-                                    
-                                    if (result.isNew) {
-                                        log.info('New media file discovered', { 
-                                            filePath, 
-                                            mediaType, 
-                                            fileHash: result.fileHash 
-                                        });
-                                    }
-                                } catch (dbError) {
-                                    log.error('Failed to process media file', { 
-                                        filePath, 
-                                        error: dbError.message 
-                                    });
-                                    // Still add to array for backward compatibility
-                                    mediaFiles.push(filePath);
-                                }
-                            }
-                        }
-                    }
-                } catch (statError) {
-                    log.warn('Failed to stat file, skipping', { 
-                        filePath, 
-                        error: statError.message 
-                    });
-                }
-            }
-        } catch (error) {
-            log.error('Failed to scan directory', { directory: dir, error: error.message });
+  async function scan(dir) {
+    try {
+      const files = await readdir(dir);
+
+      for (const file of files) {
+        const filePath = path.join(dir, file);
+
+        // Skip if we've already processed this file (shouldn't happen, but safety check)
+        if (processedFiles.has(filePath)) {
+          continue;
         }
-    }
 
-    await scan(directoryPath);
-    return mediaFiles;
+        try {
+          const fileStat = await stat(filePath);
+
+          if (fileStat.isDirectory()) {
+            // Recursively scan subdirectories
+            await scan(filePath);
+          } else if (fileStat.isFile()) {
+            // Check if it's a supported media file
+            const ext = path.extname(file).toLowerCase();
+            if (supportedExtensions.includes(ext)) {
+              const mediaType = getMediaType(filePath);
+              if (mediaType) {
+                try {
+                  // Add/update file in database
+                  const result = mediaDatabase.upsertMediaFile(
+                    filePath,
+                    mediaType,
+                  );
+                  mediaFiles.push(filePath);
+                  processedFiles.add(filePath);
+
+                  if (result.isNew) {
+                    log.info("New media file discovered", {
+                      filePath,
+                      mediaType,
+                      fileHash: result.fileHash,
+                    });
+                  }
+                } catch (dbError) {
+                  log.error("Failed to process media file", {
+                    filePath,
+                    error: dbError.message,
+                  });
+                  // Still add to array for backward compatibility
+                  mediaFiles.push(filePath);
+                }
+              }
+            }
+          }
+        } catch (statError) {
+          log.warn("Failed to stat file, skipping", {
+            filePath,
+            error: statError.message,
+          });
+        }
+      }
+    } catch (error) {
+      log.error("Failed to scan directory", {
+        directory: dir,
+        error: error.message,
+      });
+    }
+  }
+
+  await scan(directoryPath);
+  return mediaFiles;
 }
 
 // Function to load media files from database or scan directory
 async function loadMediaFiles() {
-    if (!directoryPath || !mediaDatabase) {
-        log.error('Media scanner not initialized');
-        return [];
-    }
+  if (!directoryPath || !mediaDatabase) {
+    log.error("Media scanner not initialized");
+    return [];
+  }
 
-    try {
-        // First, try to get files from database
-        const dbFiles = mediaDatabase.getMediaFiles('all');
-        
-        if (dbFiles.length > 0) {
-            // Verify that some of the files still exist
-            const sampleSize = Math.min(5, dbFiles.length);
-            const sampleFiles = dbFiles.slice(0, sampleSize);
-            const existingFiles = sampleFiles.filter(filePath => {
-                try {
-                    return fs.existsSync(filePath);
-                } catch {
-                    return false;
-                }
-            });
-            
-            // If most sample files exist, use database
-            if (existingFiles.length >= sampleSize * 0.8) {
-                const stats = mediaDatabase.getStats();
-                log.info('Media files loaded from database', { 
-                    total: stats.total,
-                    images: stats.images,
-                    videos: stats.videos,
-                    dbVersion: mediaDatabase.getDatabaseVersion()
-                });
-                return dbFiles;
-            } else {
-                log.info('Database files seem outdated, performing fresh scan');
-            }
-        } else {
-            log.info('No files in database, performing fresh scan');
+  try {
+    // First, try to get files from database
+    const dbFiles = mediaDatabase.getMediaFiles("all");
+
+    if (dbFiles.length > 0) {
+      // Verify that some of the files still exist
+      const sampleSize = Math.min(5, dbFiles.length);
+      const sampleFiles = dbFiles.slice(0, sampleSize);
+      const existingFiles = sampleFiles.filter((filePath) => {
+        try {
+          return fs.existsSync(filePath);
+        } catch {
+          return false;
         }
-    } catch (error) {
-        log.warn('Failed to load from database, performing fresh scan', { 
-            error: error.message 
-        });
-    }
+      });
 
-    // Perform fresh scan
-    log.info('Scanning directory for media files', { directory: directoryPath });
-    const scannedFiles = await scanDirectory(directoryPath);
-    
-    const stats = mediaDatabase.getStats();
-    log.info('Media scan completed', { 
-        total: stats.total,
-        images: stats.images,
-        videos: stats.videos,
-        scannedFiles: scannedFiles.length
+      // If most sample files exist, use database
+      if (existingFiles.length >= sampleSize * 0.8) {
+        const stats = mediaDatabase.getStats();
+        log.info("Media files loaded from database", {
+          total: stats.total,
+          images: stats.images,
+          videos: stats.videos,
+          dbVersion: mediaDatabase.getDatabaseVersion(),
+        });
+        return dbFiles;
+      } else {
+        log.info("Database files seem outdated, performing fresh scan");
+      }
+    } else {
+      log.info("No files in database, performing fresh scan");
+    }
+  } catch (error) {
+    log.warn("Failed to load from database, performing fresh scan", {
+      error: error.message,
     });
-    
-    return scannedFiles;
+  }
+
+  // Perform fresh scan
+  log.info("Scanning directory for media files", { directory: directoryPath });
+  const scannedFiles = await scanDirectory(directoryPath);
+
+  const stats = mediaDatabase.getStats();
+  log.info("Media scan completed", {
+    total: stats.total,
+    images: stats.images,
+    videos: stats.videos,
+    scannedFiles: scannedFiles.length,
+  });
+
+  return scannedFiles;
 }
 
 // Function to filter media files by type
 function filterMediaByType(mediaType) {
-    if (!mediaDatabase) {
-        log.warn('Database not initialized for filtering');
-        return [];
-    }
-    
-    try {
-        const filteredFiles = mediaDatabase.getMediaFiles(mediaType);
-        log.info('Media files filtered', { 
-            mediaType, 
-            count: filteredFiles.length 
-        });
-        return filteredFiles;
-    } catch (error) {
-        log.error('Failed to filter media files', { mediaType, error: error.message });
-        return [];
-    }
+  if (!mediaDatabase) {
+    log.warn("Database not initialized for filtering");
+    return [];
+  }
+
+  try {
+    const filteredFiles = mediaDatabase.getMediaFiles(mediaType);
+    log.info("Media files filtered", {
+      mediaType,
+      count: filteredFiles.length,
+    });
+    return filteredFiles;
+  } catch (error) {
+    log.error("Failed to filter media files", {
+      mediaType,
+      error: error.message,
+    });
+    return [];
+  }
 }
 
 // Function to trigger a rescan of the directory
 async function rescanDirectory() {
-    if (!directoryPath || !mediaDatabase) {
-        log.error('Media scanner not initialized');
-        throw new Error('Media scanner not initialized');
-    }
-    
-    // Check if a scan is already in progress
-    if (isLocked()) {
-        throw new Error('Scan already in progress');
-    }
-    
-    // Create lock file
-    if (!createLockFile()) {
-        throw new Error('Failed to create lock file');
-    }
-    
-    try {
-        log.info('Starting directory rescan', { directory: directoryPath });
-        
-        // Perform the scan
-        const files = await scanDirectory(directoryPath);
-        
-        // Run database maintenance (cleanup orphaned files)
-        const maintenanceResult = mediaDatabase.maintenance();
-        
-        const stats = mediaDatabase.getStats();
-        log.info('Directory rescan completed', { 
-            scannedFiles: files.length,
-            totalInDb: stats.total,
-            images: stats.images,
-            videos: stats.videos,
-            orphanedFilesRemoved: maintenanceResult.removedOrphanedFiles
-        });
-        
-        return files;
-    } catch (error) {
-        log.error('Directory rescan failed', { error: error.message });
-        throw new Error('Failed to rescan directory');
-    } finally {
-        removeLockFile();
-    }
+  if (!directoryPath || !mediaDatabase) {
+    log.error("Media scanner not initialized");
+    throw new Error("Media scanner not initialized");
+  }
+
+  // Check if a scan is already in progress
+  if (isLocked()) {
+    throw new Error("Scan already in progress");
+  }
+
+  // Create lock file
+  if (!createLockFile()) {
+    throw new Error("Failed to create lock file");
+  }
+
+  try {
+    log.info("Starting directory rescan", { directory: directoryPath });
+
+    // Perform the scan
+    const files = await scanDirectory(directoryPath);
+
+    // Run database maintenance (cleanup orphaned files)
+    const maintenanceResult = mediaDatabase.maintenance();
+
+    const stats = mediaDatabase.getStats();
+    log.info("Directory rescan completed", {
+      scannedFiles: files.length,
+      totalInDb: stats.total,
+      images: stats.images,
+      videos: stats.videos,
+      orphanedFilesRemoved: maintenanceResult.removedOrphanedFiles,
+    });
+
+    return files;
+  } catch (error) {
+    log.error("Directory rescan failed", { error: error.message });
+    throw new Error("Failed to rescan directory");
+  } finally {
+    removeLockFile();
+  }
 }
 
 // Get database statistics
 function getStats() {
-    if (!mediaDatabase) {
-        return { total: 0, images: 0, videos: 0 };
-    }
-    
-    try {
-        return mediaDatabase.getStats();
-    } catch (error) {
-        log.error('Failed to get stats', { error: error.message });
-        return { total: 0, images: 0, videos: 0 };
-    }
+  if (!mediaDatabase) {
+    return { total: 0, images: 0, videos: 0 };
+  }
+
+  try {
+    return mediaDatabase.getStats();
+  } catch (error) {
+    log.error("Failed to get stats", { error: error.message });
+    return { total: 0, images: 0, videos: 0 };
+  }
 }
 
 // Get database instance (for future extensions)
 function getDatabase() {
-    return mediaDatabase;
+  return mediaDatabase;
 }
 
 module.exports = {
-    initializeScanner,
-    loadMediaFiles,
-    rescanDirectory,
-    filterMediaByType,
-    getStats,
-    getDatabase,
-    // Backward compatibility
-    get scannedMediaFiles() { 
-        try {
-            return mediaDatabase ? mediaDatabase.getMediaFiles('all') : [];
-        } catch (error) {
-            log.error('Failed to get scanned media files', { error: error.message });
-            return [];
-        }
+  initializeScanner,
+  loadMediaFiles,
+  rescanDirectory,
+  filterMediaByType,
+  getStats,
+  getDatabase,
+  // Backward compatibility
+  get scannedMediaFiles() {
+    try {
+      return mediaDatabase ? mediaDatabase.getMediaFiles("all") : [];
+    } catch (error) {
+      log.error("Failed to get scanned media files", { error: error.message });
+      return [];
     }
+  },
 };
 
 // Cleanup lock file and close database on process exit
-process.on('exit', () => {
-    if (LOCK_FILE_PATH) {
-        removeLockFile();
-    }
-    if (mediaDatabase) {
-        mediaDatabase.close();
-    }
+process.on("exit", () => {
+  if (LOCK_FILE_PATH) {
+    removeLockFile();
+  }
+  if (mediaDatabase) {
+    mediaDatabase.close();
+  }
 });
 
-process.on('SIGINT', () => {
-    if (LOCK_FILE_PATH) {
-        removeLockFile();
-    }
-    if (mediaDatabase) {
-        mediaDatabase.close();
-    }
-    process.exit(0);
+process.on("SIGINT", () => {
+  if (LOCK_FILE_PATH) {
+    removeLockFile();
+  }
+  if (mediaDatabase) {
+    mediaDatabase.close();
+  }
+  process.exit(0);
 });
 
-process.on('SIGTERM', () => {
-    if (LOCK_FILE_PATH) {
-        removeLockFile();
-    }
-    if (mediaDatabase) {
-        mediaDatabase.close();
-    }
-    process.exit(0);
+process.on("SIGTERM", () => {
+  if (LOCK_FILE_PATH) {
+    removeLockFile();
+  }
+  if (mediaDatabase) {
+    mediaDatabase.close();
+  }
+  process.exit(0);
 });

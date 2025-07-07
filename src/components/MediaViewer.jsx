@@ -1,50 +1,53 @@
-import React, { useState, useEffect } from 'react'
-import MediaItem from './MediaItem'
+import React, { useState, useEffect } from "react";
+import MediaItem from "./MediaItem";
 
-import { useTouchGestures } from '../hooks/useTouchGestures'
-import { useMediaPreloader } from '../hooks/useMediaPreloader'
+import { useTouchGestures } from "../hooks/useTouchGestures";
+import { useMediaPreloader } from "../hooks/useMediaPreloader";
 
-function MediaViewer({ mediaFiles, currentIndex, onNavigate, showTagInput, onToggleTagInput }) {
-  const [isTransitioning, setIsTransitioning] = useState(false)
-  const [direction, setDirection] = useState(0)
-  const [prevIndex, setPrevIndex] = useState(currentIndex)
-  
-  const { getPreloadedMedia } = useMediaPreloader(mediaFiles, currentIndex)
-  
-  const {
-    handleTouchStart,
-    handleTouchMove,
-    handleTouchEnd
-  } = useTouchGestures((dir) => {
-    if (!isTransitioning && !showTagInput) {
-      setDirection(dir)
-      onNavigate(dir)
-    }
-  })
+function MediaViewer({
+  mediaFiles,
+  currentIndex,
+  onNavigate,
+  showTagInput,
+  onToggleTagInput,
+}) {
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [direction, setDirection] = useState(0);
+  const [prevIndex, setPrevIndex] = useState(currentIndex);
+
+  const { getPreloadedMedia } = useMediaPreloader(mediaFiles, currentIndex);
+
+  const { handleTouchStart, handleTouchMove, handleTouchEnd } =
+    useTouchGestures((dir) => {
+      if (!isTransitioning && !showTagInput) {
+        setDirection(dir);
+        onNavigate(dir);
+      }
+    });
 
   // Track direction when index changes
   useEffect(() => {
     if (currentIndex !== prevIndex) {
-      const diff = currentIndex - prevIndex
+      const diff = currentIndex - prevIndex;
       // Handle wrap-around cases
       if (Math.abs(diff) > 1) {
         // Wrapped around
         if (diff > 0) {
-          setDirection(-1) // Wrapped from end to beginning (previous)
+          setDirection(-1); // Wrapped from end to beginning (previous)
         } else {
-          setDirection(1) // Wrapped from beginning to end (next)
+          setDirection(1); // Wrapped from beginning to end (next)
         }
       } else {
-        setDirection(diff > 0 ? 1 : -1)
+        setDirection(diff > 0 ? 1 : -1);
       }
-      setPrevIndex(currentIndex)
+      setPrevIndex(currentIndex);
     }
-  }, [currentIndex, prevIndex])
+  }, [currentIndex, prevIndex]);
 
-  const currentMediaFile = mediaFiles[currentIndex]
+  const currentMediaFile = mediaFiles[currentIndex];
 
   return (
-    <div 
+    <div
       className="media-wrapper h-full w-full relative"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
@@ -60,11 +63,10 @@ function MediaViewer({ mediaFiles, currentIndex, onNavigate, showTagInput, onTog
             setIsTransitioning={setIsTransitioning}
             getPreloadedMedia={getPreloadedMedia}
           />
-          
         </>
       )}
     </div>
-  )
+  );
 }
 
-export default MediaViewer
+export default MediaViewer;

@@ -1,61 +1,93 @@
-const Database = require('better-sqlite3');
-const crypto = require('crypto');
-const fs = require('fs');
-const path = require('path');
+const Database = require("better-sqlite3");
+const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
 
 // Simple structured logging
 const log = {
-    info: (message, meta = {}) => console.log(JSON.stringify({ level: 'info', message, ...meta, timestamp: new Date().toISOString() })),
-    error: (message, meta = {}) => console.error(JSON.stringify({ level: 'error', message, ...meta, timestamp: new Date().toISOString() })),
-    warn: (message, meta = {}) => console.warn(JSON.stringify({ level: 'warn', message, ...meta, timestamp: new Date().toISOString() })),
-    debug: (message, meta = {}) => console.log(JSON.stringify({ level: 'debug', message, ...meta, timestamp: new Date().toISOString() }))
+  info: (message, meta = {}) =>
+    console.log(
+      JSON.stringify({
+        level: "info",
+        message,
+        ...meta,
+        timestamp: new Date().toISOString(),
+      }),
+    ),
+  error: (message, meta = {}) =>
+    console.error(
+      JSON.stringify({
+        level: "error",
+        message,
+        ...meta,
+        timestamp: new Date().toISOString(),
+      }),
+    ),
+  warn: (message, meta = {}) =>
+    console.warn(
+      JSON.stringify({
+        level: "warn",
+        message,
+        ...meta,
+        timestamp: new Date().toISOString(),
+      }),
+    ),
+  debug: (message, meta = {}) =>
+    console.log(
+      JSON.stringify({
+        level: "debug",
+        message,
+        ...meta,
+        timestamp: new Date().toISOString(),
+      }),
+    ),
 };
 
 class MediaDatabase {
-    constructor(dbPath) {
-        this.dbPath = dbPath;
-        this.db = null;
-        this.isInitialized = false;
+  constructor(dbPath) {
+    this.dbPath = dbPath;
+    this.db = null;
+    this.isInitialized = false;
+  }
+
+  /**
+   * Initialize the database connection and schema
+   */
+  initialize() {
+    try {
+      // Ensure the database directory exists
+      const dbDir = path.dirname(this.dbPath);
+      if (!fs.existsSync(dbDir)) {
+        fs.mkdirSync(dbDir, { recursive: true });
+      }
+
+      this.db = new Database(this.dbPath);
+      this.db.pragma("journal_mode = WAL"); // Better performance for concurrent reads
+      this.db.pragma("synchronous = NORMAL"); // Good balance of safety and performance
+      this.db.pragma("cache_size = 1000"); // Cache more pages in memory
+      this.db.pragma("temp_store = memory"); // Store temp tables in memory
+
+      this.initializeSchema();
+      this.isInitialized = true;
+
+      log.info("Database initialized successfully", {
+        dbPath: this.dbPath,
+        version: this.getDatabaseVersion(),
+      });
+    } catch (error) {
+      log.error("Failed to initialize database", {
+        dbPath: this.dbPath,
+        error: error.message,
+      });
+      throw error;
     }
+  }
 
-    /**
-     * Initialize the database connection and schema
-     */
-    initialize() {
-        try {
-            // Ensure the database directory exists
-            const dbDir = path.dirname(this.dbPath);
-            if (!fs.existsSync(dbDir)) {
-                fs.mkdirSync(dbDir, { recursive: true });
-            }
-
-            this.db = new Database(this.dbPath);
-            this.db.pragma('journal_mode = WAL'); // Better performance for concurrent reads
-            this.db.pragma('synchronous = NORMAL'); // Good balance of safety and performance
-            this.db.pragma('cache_size = 1000'); // Cache more pages in memory
-            this.db.pragma('temp_store = memory'); // Store temp tables in memory
-            
-            this.initializeSchema();
-            this.isInitialized = true;
-            
-            log.info('Database initialized successfully', { 
-                dbPath: this.dbPath,
-                version: this.getDatabaseVersion()
-            });
-        } catch (error) {
-            log.error('Failed to initialize database', { 
-                dbPath: this.dbPath, 
-                error: error.message 
-            });
-            throw error;
-        }
-    }
-
-    /**
-     * Create the database schema
-     */
-    initializeSchema() {
-        const schema = `
+  /**
+   * Create the database schema
+   */
+  initializeSchema() {
+    const schema = `
             -- Media files table with content-based identification
             CREATE TABLE IF NOT EXISTS media_files (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -109,70 +141,76 @@ class MediaDatabase {
             INSERT OR REPLACE INTO database_metadata (key, value) VALUES ('created_at', datetime('now'));
         `;
 
-        this.db.exec(schema);
-    }
+    this.db.exec(schema);
+  }
 
-    /**
-     * Generate a content-based hash for file identification
-     * Uses first 64KB + last 64KB + file size for fast, unique identification
-     */
-    generateFileHash(filePath) {
-        try {
-            const stats = fs.statSync(filePath);
-            const fileSize = stats.size;
-            
-            if (fileSize === 0) {
-                // Handle empty files
-                return crypto.createHash('sha256').update(`empty-${path.basename(filePath)}-${fileSize}`).digest('hex');
-            }
+  /**
+   * Generate a content-based hash for file identification
+   * Uses first 64KB + last 64KB + file size for fast, unique identification
+   */
+  generateFileHash(filePath) {
+    try {
+      const stats = fs.statSync(filePath);
+      const fileSize = stats.size;
 
-            const hash = crypto.createHash('sha256');
-            hash.update(fileSize.toString());
-            hash.update(path.basename(filePath)); // Include filename for additional uniqueness
-            
-            const fd = fs.openSync(filePath, 'r');
-            
-            try {
-                // Read first chunk (up to 64KB)
-                const firstChunkSize = Math.min(65536, fileSize);
-                const firstChunk = Buffer.alloc(firstChunkSize);
-                fs.readSync(fd, firstChunk, 0, firstChunkSize, 0);
-                hash.update(firstChunk);
-                
-                // Read last chunk if file is large enough (and different from first chunk)
-                if (fileSize > 65536) {
-                    const lastChunk = Buffer.alloc(65536);
-                    fs.readSync(fd, lastChunk, 0, 65536, fileSize - 65536);
-                    hash.update(lastChunk);
-                }
-                
-                return hash.digest('hex');
-            } finally {
-                fs.closeSync(fd);
-            }
-        } catch (error) {
-            log.error('Failed to generate file hash', { filePath, error: error.message });
-            // Fallback to path-based hash if file reading fails
-            return crypto.createHash('sha256').update(filePath).digest('hex');
-        }
-    }
+      if (fileSize === 0) {
+        // Handle empty files
+        return crypto
+          .createHash("sha256")
+          .update(`empty-${path.basename(filePath)}-${fileSize}`)
+          .digest("hex");
+      }
 
-    /**
-     * Add or update a media file in the database
-     */
-    upsertMediaFile(filePath, mediaType) {
-        if (!this.isInitialized) {
-            throw new Error('Database not initialized');
+      const hash = crypto.createHash("sha256");
+      hash.update(fileSize.toString());
+      hash.update(path.basename(filePath)); // Include filename for additional uniqueness
+
+      const fd = fs.openSync(filePath, "r");
+
+      try {
+        // Read first chunk (up to 64KB)
+        const firstChunkSize = Math.min(65536, fileSize);
+        const firstChunk = Buffer.alloc(firstChunkSize);
+        fs.readSync(fd, firstChunk, 0, firstChunkSize, 0);
+        hash.update(firstChunk);
+
+        // Read last chunk if file is large enough (and different from first chunk)
+        if (fileSize > 65536) {
+          const lastChunk = Buffer.alloc(65536);
+          fs.readSync(fd, lastChunk, 0, 65536, fileSize - 65536);
+          hash.update(lastChunk);
         }
 
-        try {
-            const stats = fs.statSync(filePath);
-            const fileHash = this.generateFileHash(filePath);
-            const filename = path.basename(filePath);
-            const fileSize = stats.size;
-            const now = new Date().toISOString();
+        return hash.digest("hex");
+      } finally {
+        fs.closeSync(fd);
+      }
+    } catch (error) {
+      log.error("Failed to generate file hash", {
+        filePath,
+        error: error.message,
+      });
+      // Fallback to path-based hash if file reading fails
+      return crypto.createHash("sha256").update(filePath).digest("hex");
+    }
+  }
 
-            const stmt = this.db.prepare(`
+  /**
+   * Add or update a media file in the database
+   */
+  upsertMediaFile(filePath, mediaType) {
+    if (!this.isInitialized) {
+      throw new Error("Database not initialized");
+    }
+
+    try {
+      const stats = fs.statSync(filePath);
+      const fileHash = this.generateFileHash(filePath);
+      const filename = path.basename(filePath);
+      const fileSize = stats.size;
+      const now = new Date().toISOString();
+
+      const stmt = this.db.prepare(`
                 INSERT INTO media_files (file_hash, file_path, filename, file_size, media_type, last_seen)
                 VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(file_hash) DO UPDATE SET
@@ -186,491 +224,550 @@ class MediaDatabase {
                     file_size = excluded.file_size
             `);
 
-            const result = stmt.run(fileHash, filePath, filename, fileSize, mediaType, now);
-            
-            return {
-                fileHash,
-                filePath,
-                filename,
-                fileSize,
-                mediaType,
-                isNew: result.changes > 0 && result.lastInsertRowid > 0
-            };
-        } catch (error) {
-            log.error('Failed to upsert media file', { filePath, error: error.message });
-            throw error;
-        }
+      const result = stmt.run(
+        fileHash,
+        filePath,
+        filename,
+        fileSize,
+        mediaType,
+        now,
+      );
+
+      return {
+        fileHash,
+        filePath,
+        filename,
+        fileSize,
+        mediaType,
+        isNew: result.changes > 0 && result.lastInsertRowid > 0,
+      };
+    } catch (error) {
+      log.error("Failed to upsert media file", {
+        filePath,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Get all media files, optionally filtered by type
+   */
+  getMediaFiles(mediaType = "all") {
+    if (!this.isInitialized) {
+      throw new Error("Database not initialized");
     }
 
-    /**
-     * Get all media files, optionally filtered by type
-     */
-    getMediaFiles(mediaType = 'all') {
-        if (!this.isInitialized) {
-            throw new Error('Database not initialized');
-        }
+    try {
+      let query = "SELECT * FROM media_files ORDER BY date_added DESC";
+      let params = [];
 
-        try {
-            let query = 'SELECT * FROM media_files ORDER BY date_added DESC';
-            let params = [];
+      if (mediaType !== "all") {
+        const dbMediaType =
+          mediaType === "photos"
+            ? "image"
+            : mediaType === "videos"
+              ? "video"
+              : mediaType;
+        query =
+          "SELECT * FROM media_files WHERE media_type = ? ORDER BY date_added DESC";
+        params = [dbMediaType];
+      }
 
-            if (mediaType !== 'all') {
-                const dbMediaType = mediaType === 'photos' ? 'image' : mediaType === 'videos' ? 'video' : mediaType;
-                query = 'SELECT * FROM media_files WHERE media_type = ? ORDER BY date_added DESC';
-                params = [dbMediaType];
-            }
+      const stmt = this.db.prepare(query);
+      const rows = stmt.all(...params);
 
-            const stmt = this.db.prepare(query);
-            const rows = stmt.all(...params);
+      // Convert to the format expected by the frontend (array of file paths)
+      return rows.map((row) => row.file_path);
+    } catch (error) {
+      log.error("Failed to get media files", {
+        mediaType,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
 
-            // Convert to the format expected by the frontend (array of file paths)
-            return rows.map(row => row.file_path);
-        } catch (error) {
-            log.error('Failed to get media files', { mediaType, error: error.message });
-            throw error;
-        }
+  /**
+   * Get media file by hash
+   */
+  getMediaFileByHash(fileHash) {
+    if (!this.isInitialized) {
+      throw new Error("Database not initialized");
     }
 
-    /**
-     * Get media file by hash
-     */
-    getMediaFileByHash(fileHash) {
-        if (!this.isInitialized) {
-            throw new Error('Database not initialized');
-        }
+    try {
+      const stmt = this.db.prepare(
+        "SELECT * FROM media_files WHERE file_hash = ?",
+      );
+      return stmt.get(fileHash);
+    } catch (error) {
+      log.error("Failed to get media file by hash", {
+        fileHash,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
 
-        try {
-            const stmt = this.db.prepare('SELECT * FROM media_files WHERE file_hash = ?');
-            return stmt.get(fileHash);
-        } catch (error) {
-            log.error('Failed to get media file by hash', { fileHash, error: error.message });
-            throw error;
-        }
+  /**
+   * Get media file by path
+   */
+  getMediaFileByPath(filePath) {
+    if (!this.isInitialized) {
+      throw new Error("Database not initialized");
     }
 
-    /**
-     * Get media file by path
-     */
-    getMediaFileByPath(filePath) {
-        if (!this.isInitialized) {
-            throw new Error('Database not initialized');
-        }
+    try {
+      const stmt = this.db.prepare(
+        "SELECT * FROM media_files WHERE file_path = ?",
+      );
+      return stmt.get(filePath);
+    } catch (error) {
+      log.error("Failed to get media file by path", {
+        filePath,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
 
-        try {
-            const stmt = this.db.prepare('SELECT * FROM media_files WHERE file_path = ?');
-            return stmt.get(filePath);
-        } catch (error) {
-            log.error('Failed to get media file by path', { filePath, error: error.message });
-            throw error;
-        }
+  /**
+   * Get file hash for a given file path (generates if not in database)
+   */
+  getFileHashForPath(filePath) {
+    if (!this.isInitialized) {
+      throw new Error("Database not initialized");
     }
 
-    /**
-     * Get file hash for a given file path (generates if not in database)
-     */
-    getFileHashForPath(filePath) {
-        if (!this.isInitialized) {
-            throw new Error('Database not initialized');
-        }
+    try {
+      // First try to get from database
+      const mediaFile = this.getMediaFileByPath(filePath);
+      if (mediaFile) {
+        return mediaFile.file_hash;
+      }
 
-        try {
-            // First try to get from database
-            const mediaFile = this.getMediaFileByPath(filePath);
-            if (mediaFile) {
-                return mediaFile.file_hash;
-            }
+      // If not in database, generate hash
+      return this.generateFileHash(filePath);
+    } catch (error) {
+      log.error("Failed to get file hash for path", {
+        filePath,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
 
-            // If not in database, generate hash
-            return this.generateFileHash(filePath);
-        } catch (error) {
-            log.error('Failed to get file hash for path', { filePath, error: error.message });
-            throw error;
-        }
+  /**
+   * Remove orphaned files (not seen in the last X days)
+   */
+  cleanupOrphanedFiles(daysOld = 30) {
+    if (!this.isInitialized) {
+      throw new Error("Database not initialized");
     }
 
-    /**
-     * Remove orphaned files (not seen in the last X days)
-     */
-    cleanupOrphanedFiles(daysOld = 30) {
-        if (!this.isInitialized) {
-            throw new Error('Database not initialized');
-        }
+    try {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
-        try {
-            const cutoffDate = new Date();
-            cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-            
-            const stmt = this.db.prepare(`
+      const stmt = this.db.prepare(`
                 DELETE FROM media_files 
                 WHERE last_seen < ? AND datetime(last_seen) < datetime(?)
             `);
-            
-            const result = stmt.run(cutoffDate.toISOString(), cutoffDate.toISOString());
-            
-            if (result.changes > 0) {
-                log.info('Cleaned up orphaned files', { 
-                    removedCount: result.changes, 
-                    olderThanDays: daysOld 
-                });
-            }
-            
-            return result.changes;
-        } catch (error) {
-            log.error('Failed to cleanup orphaned files', { error: error.message });
-            throw error;
-        }
+
+      const result = stmt.run(
+        cutoffDate.toISOString(),
+        cutoffDate.toISOString(),
+      );
+
+      if (result.changes > 0) {
+        log.info("Cleaned up orphaned files", {
+          removedCount: result.changes,
+          olderThanDays: daysOld,
+        });
+      }
+
+      return result.changes;
+    } catch (error) {
+      log.error("Failed to cleanup orphaned files", { error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * Get database statistics
+   */
+  getStats() {
+    if (!this.isInitialized) {
+      throw new Error("Database not initialized");
     }
 
-    /**
-     * Get database statistics
-     */
-    getStats() {
-        if (!this.isInitialized) {
-            throw new Error('Database not initialized');
-        }
+    try {
+      const totalStmt = this.db.prepare(
+        "SELECT COUNT(*) as count FROM media_files",
+      );
+      const imageStmt = this.db.prepare(
+        "SELECT COUNT(*) as count FROM media_files WHERE media_type = ?",
+      );
+      const videoStmt = this.db.prepare(
+        "SELECT COUNT(*) as count FROM media_files WHERE media_type = ?",
+      );
 
-        try {
-            const totalStmt = this.db.prepare('SELECT COUNT(*) as count FROM media_files');
-            const imageStmt = this.db.prepare('SELECT COUNT(*) as count FROM media_files WHERE media_type = ?');
-            const videoStmt = this.db.prepare('SELECT COUNT(*) as count FROM media_files WHERE media_type = ?');
-            
-            const total = totalStmt.get().count;
-            const images = imageStmt.get('image').count;
-            const videos = videoStmt.get('video').count;
+      const total = totalStmt.get().count;
+      const images = imageStmt.get("image").count;
+      const videos = videoStmt.get("video").count;
 
-            return {
-                total,
-                images,
-                videos
-            };
-        } catch (error) {
-            log.error('Failed to get database stats', { error: error.message });
-            throw error;
-        }
+      return {
+        total,
+        images,
+        videos,
+      };
+    } catch (error) {
+      log.error("Failed to get database stats", { error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * Get database version
+   */
+  getDatabaseVersion() {
+    if (!this.isInitialized) {
+      return "unknown";
     }
 
-    /**
-     * Get database version
-     */
-    getDatabaseVersion() {
-        if (!this.isInitialized) {
-            return 'unknown';
-        }
+    try {
+      const stmt = this.db.prepare(
+        "SELECT value FROM database_metadata WHERE key = ?",
+      );
+      const result = stmt.get("version");
+      return result ? result.value : "unknown";
+    } catch (error) {
+      return "unknown";
+    }
+  }
 
-        try {
-            const stmt = this.db.prepare('SELECT value FROM database_metadata WHERE key = ?');
-            const result = stmt.get('version');
-            return result ? result.value : 'unknown';
-        } catch (error) {
-            return 'unknown';
-        }
+  /**
+   * Close the database connection
+   */
+  close() {
+    if (this.db) {
+      try {
+        this.db.close();
+        this.isInitialized = false;
+        log.info("Database connection closed");
+      } catch (error) {
+        log.error("Error closing database", { error: error.message });
+      }
+    }
+  }
+
+  /**
+   * Run database maintenance (cleanup + optimize)
+   */
+  maintenance() {
+    if (!this.isInitialized) {
+      throw new Error("Database not initialized");
     }
 
-    /**
-     * Close the database connection
-     */
-    close() {
-        if (this.db) {
-            try {
-                this.db.close();
-                this.isInitialized = false;
-                log.info('Database connection closed');
-            } catch (error) {
-                log.error('Error closing database', { error: error.message });
-            }
-        }
+    try {
+      // Cleanup orphaned files
+      const removedCount = this.cleanupOrphanedFiles();
+
+      // Cleanup orphaned tags
+      const removedTags = this.cleanupOrphanedTags();
+
+      // Optimize database
+      this.db.pragma("optimize");
+      this.db.exec("VACUUM");
+
+      log.info("Database maintenance completed", {
+        removedOrphanedFiles: removedCount,
+        removedOrphanedTags: removedTags,
+      });
+
+      return {
+        removedOrphanedFiles: removedCount,
+        removedOrphanedTags: removedTags,
+      };
+    } catch (error) {
+      log.error("Database maintenance failed", { error: error.message });
+      throw error;
+    }
+  }
+
+  // ===== TAG MANAGEMENT METHODS =====
+
+  /**
+   * Create a new tag
+   */
+  createTag(name, color = "#3B82F6") {
+    if (!this.isInitialized) {
+      throw new Error("Database not initialized");
     }
 
-    /**
-     * Run database maintenance (cleanup + optimize)
-     */
-    maintenance() {
-        if (!this.isInitialized) {
-            throw new Error('Database not initialized');
-        }
-
-        try {
-            // Cleanup orphaned files
-            const removedCount = this.cleanupOrphanedFiles();
-            
-            // Cleanup orphaned tags
-            const removedTags = this.cleanupOrphanedTags();
-            
-            // Optimize database
-            this.db.pragma('optimize');
-            this.db.exec('VACUUM');
-            
-            log.info('Database maintenance completed', { 
-                removedOrphanedFiles: removedCount,
-                removedOrphanedTags: removedTags
-            });
-            
-            return { 
-                removedOrphanedFiles: removedCount,
-                removedOrphanedTags: removedTags
-            };
-        } catch (error) {
-            log.error('Database maintenance failed', { error: error.message });
-            throw error;
-        }
-    }
-
-    // ===== TAG MANAGEMENT METHODS =====
-
-    /**
-     * Create a new tag
-     */
-    createTag(name, color = '#3B82F6') {
-        if (!this.isInitialized) {
-            throw new Error('Database not initialized');
-        }
-
-        try {
-            const stmt = this.db.prepare(`
+    try {
+      const stmt = this.db.prepare(`
                 INSERT INTO tags (name, color) VALUES (?, ?)
             `);
-            
-            const result = stmt.run(name.trim(), color);
-            
-            return {
-                id: result.lastInsertRowid,
-                name: name.trim(),
-                color: color,
-                created_at: new Date().toISOString()
-            };
-        } catch (error) {
-            if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-                throw new Error('Tag already exists');
-            }
-            log.error('Failed to create tag', { name, error: error.message });
-            throw error;
-        }
+
+      const result = stmt.run(name.trim(), color);
+
+      return {
+        id: result.lastInsertRowid,
+        name: name.trim(),
+        color: color,
+        created_at: new Date().toISOString(),
+      };
+    } catch (error) {
+      if (error.code === "SQLITE_CONSTRAINT_UNIQUE") {
+        throw new Error("Tag already exists");
+      }
+      log.error("Failed to create tag", { name, error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * Update an existing tag
+   */
+  updateTag(id, name, color) {
+    if (!this.isInitialized) {
+      throw new Error("Database not initialized");
     }
 
-    /**
-     * Update an existing tag
-     */
-    updateTag(id, name, color) {
-        if (!this.isInitialized) {
-            throw new Error('Database not initialized');
-        }
-
-        try {
-            const stmt = this.db.prepare(`
+    try {
+      const stmt = this.db.prepare(`
                 UPDATE tags SET name = ?, color = ? WHERE id = ?
             `);
-            
-            const result = stmt.run(name.trim(), color, id);
-            
-            if (result.changes === 0) {
-                throw new Error('Tag not found');
-            }
-            
-            return this.getTagById(id);
-        } catch (error) {
-            if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-                throw new Error('Tag name already exists');
-            }
-            log.error('Failed to update tag', { id, name, error: error.message });
-            throw error;
-        }
+
+      const result = stmt.run(name.trim(), color, id);
+
+      if (result.changes === 0) {
+        throw new Error("Tag not found");
+      }
+
+      return this.getTagById(id);
+    } catch (error) {
+      if (error.code === "SQLITE_CONSTRAINT_UNIQUE") {
+        throw new Error("Tag name already exists");
+      }
+      log.error("Failed to update tag", { id, name, error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a tag (removes from all media)
+   */
+  deleteTag(id) {
+    if (!this.isInitialized) {
+      throw new Error("Database not initialized");
     }
 
-    /**
-     * Delete a tag (removes from all media)
-     */
-    deleteTag(id) {
-        if (!this.isInitialized) {
-            throw new Error('Database not initialized');
-        }
+    try {
+      const stmt = this.db.prepare("DELETE FROM tags WHERE id = ?");
+      const result = stmt.run(id);
 
-        try {
-            const stmt = this.db.prepare('DELETE FROM tags WHERE id = ?');
-            const result = stmt.run(id);
-            
-            if (result.changes === 0) {
-                throw new Error('Tag not found');
-            }
-            
-            return result.changes;
-        } catch (error) {
-            log.error('Failed to delete tag', { id, error: error.message });
-            throw error;
-        }
+      if (result.changes === 0) {
+        throw new Error("Tag not found");
+      }
+
+      return result.changes;
+    } catch (error) {
+      log.error("Failed to delete tag", { id, error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * Get all tags with usage counts
+   */
+  getAllTags() {
+    if (!this.isInitialized) {
+      throw new Error("Database not initialized");
     }
 
-    /**
-     * Get all tags with usage counts
-     */
-    getAllTags() {
-        if (!this.isInitialized) {
-            throw new Error('Database not initialized');
-        }
-
-        try {
-            const stmt = this.db.prepare(`
+    try {
+      const stmt = this.db.prepare(`
                 SELECT t.*, COUNT(mt.tag_id) as usage_count
                 FROM tags t
                 LEFT JOIN media_tags mt ON t.id = mt.tag_id
                 GROUP BY t.id
                 ORDER BY t.name
             `);
-            
-            return stmt.all();
-        } catch (error) {
-            log.error('Failed to get all tags', { error: error.message });
-            throw error;
-        }
+
+      return stmt.all();
+    } catch (error) {
+      log.error("Failed to get all tags", { error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * Get tag by ID
+   */
+  getTagById(id) {
+    if (!this.isInitialized) {
+      throw new Error("Database not initialized");
     }
 
-    /**
-     * Get tag by ID
-     */
-    getTagById(id) {
-        if (!this.isInitialized) {
-            throw new Error('Database not initialized');
-        }
+    try {
+      const stmt = this.db.prepare("SELECT * FROM tags WHERE id = ?");
+      return stmt.get(id);
+    } catch (error) {
+      log.error("Failed to get tag by ID", { id, error: error.message });
+      throw error;
+    }
+  }
 
-        try {
-            const stmt = this.db.prepare('SELECT * FROM tags WHERE id = ?');
-            return stmt.get(id);
-        } catch (error) {
-            log.error('Failed to get tag by ID', { id, error: error.message });
-            throw error;
-        }
+  /**
+   * Get tag by name
+   */
+  getTagByName(name) {
+    if (!this.isInitialized) {
+      throw new Error("Database not initialized");
     }
 
-    /**
-     * Get tag by name
-     */
-    getTagByName(name) {
-        if (!this.isInitialized) {
-            throw new Error('Database not initialized');
-        }
+    try {
+      const stmt = this.db.prepare("SELECT * FROM tags WHERE name = ?");
+      return stmt.get(name.trim());
+    } catch (error) {
+      log.error("Failed to get tag by name", { name, error: error.message });
+      throw error;
+    }
+  }
 
-        try {
-            const stmt = this.db.prepare('SELECT * FROM tags WHERE name = ?');
-            return stmt.get(name.trim());
-        } catch (error) {
-            log.error('Failed to get tag by name', { name, error: error.message });
-            throw error;
-        }
+  /**
+   * Add tag to media file
+   */
+  addTagToMedia(fileHash, tagId) {
+    if (!this.isInitialized) {
+      throw new Error("Database not initialized");
     }
 
-    /**
-     * Add tag to media file
-     */
-    addTagToMedia(fileHash, tagId) {
-        if (!this.isInitialized) {
-            throw new Error('Database not initialized');
-        }
-
-        try {
-            const stmt = this.db.prepare(`
+    try {
+      const stmt = this.db.prepare(`
                 INSERT INTO media_tags (file_hash, tag_id) VALUES (?, ?)
             `);
-            
-            const result = stmt.run(fileHash, tagId);
-            return result.changes > 0;
-        } catch (error) {
-            if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-                // Tag already assigned to this media file
-                return false;
-            }
-            log.error('Failed to add tag to media', { fileHash, tagId, error: error.message });
-            throw error;
-        }
+
+      const result = stmt.run(fileHash, tagId);
+      return result.changes > 0;
+    } catch (error) {
+      if (error.code === "SQLITE_CONSTRAINT_UNIQUE") {
+        // Tag already assigned to this media file
+        return false;
+      }
+      log.error("Failed to add tag to media", {
+        fileHash,
+        tagId,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Remove tag from media file
+   */
+  removeTagFromMedia(fileHash, tagId) {
+    if (!this.isInitialized) {
+      throw new Error("Database not initialized");
     }
 
-    /**
-     * Remove tag from media file
-     */
-    removeTagFromMedia(fileHash, tagId) {
-        if (!this.isInitialized) {
-            throw new Error('Database not initialized');
-        }
-
-        try {
-            const stmt = this.db.prepare(`
+    try {
+      const stmt = this.db.prepare(`
                 DELETE FROM media_tags WHERE file_hash = ? AND tag_id = ?
             `);
-            
-            const result = stmt.run(fileHash, tagId);
-            return result.changes > 0;
-        } catch (error) {
-            log.error('Failed to remove tag from media', { fileHash, tagId, error: error.message });
-            throw error;
-        }
+
+      const result = stmt.run(fileHash, tagId);
+      return result.changes > 0;
+    } catch (error) {
+      log.error("Failed to remove tag from media", {
+        fileHash,
+        tagId,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Get all tags for a media file
+   */
+  getMediaTags(fileHash) {
+    if (!this.isInitialized) {
+      throw new Error("Database not initialized");
     }
 
-    /**
-     * Get all tags for a media file
-     */
-    getMediaTags(fileHash) {
-        if (!this.isInitialized) {
-            throw new Error('Database not initialized');
-        }
-
-        try {
-            const stmt = this.db.prepare(`
+    try {
+      const stmt = this.db.prepare(`
                 SELECT t.* FROM tags t
                 JOIN media_tags mt ON t.id = mt.tag_id
                 WHERE mt.file_hash = ?
                 ORDER BY t.name
             `);
-            
-            return stmt.all(fileHash);
-        } catch (error) {
-            log.error('Failed to get media tags', { fileHash, error: error.message });
-            throw error;
-        }
+
+      return stmt.all(fileHash);
+    } catch (error) {
+      log.error("Failed to get media tags", { fileHash, error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * Get media files filtered by tags and type
+   */
+  getMediaByTagsAndType(includeTags = [], excludeTags = [], mediaType = "all") {
+    if (!this.isInitialized) {
+      throw new Error("Database not initialized");
     }
 
-    /**
-     * Get media files filtered by tags and type
-     */
-    getMediaByTagsAndType(includeTags = [], excludeTags = [], mediaType = 'all') {
-        if (!this.isInitialized) {
-            throw new Error('Database not initialized');
-        }
+    try {
+      log.info("Starting tag-based media filtering", {
+        includeTags,
+        excludeTags,
+        mediaType,
+        includeCount: includeTags.length,
+        excludeCount: excludeTags.length,
+      });
 
-        try {
-            log.info('Starting tag-based media filtering', {
-                includeTags,
-                excludeTags,
-                mediaType,
-                includeCount: includeTags.length,
-                excludeCount: excludeTags.length
-            });
+      let query = `SELECT DISTINCT mf.file_path FROM media_files mf`;
+      let params = [];
+      let whereConditions = [];
 
-            let query = `SELECT DISTINCT mf.file_path FROM media_files mf`;
-            let params = [];
-            let whereConditions = [];
+      // Handle media type filtering
+      if (mediaType !== "all") {
+        const dbMediaType =
+          mediaType === "photos"
+            ? "image"
+            : mediaType === "videos"
+              ? "video"
+              : mediaType;
+        whereConditions.push("mf.media_type = ?");
+        params.push(dbMediaType);
+        log.debug("Added media type filter", { mediaType, dbMediaType });
+      }
 
-            // Handle media type filtering
-            if (mediaType !== 'all') {
-                const dbMediaType = mediaType === 'photos' ? 'image' : mediaType === 'videos' ? 'video' : mediaType;
-                whereConditions.push('mf.media_type = ?');
-                params.push(dbMediaType);
-                log.debug('Added media type filter', { mediaType, dbMediaType });
-            }
-
-            // Handle include tags (AND logic - media must have ALL specified tags)
-            if (includeTags.length > 0) {
-                const tagPlaceholders = includeTags.map(() => '?').join(',');
-                query += `
+      // Handle include tags (AND logic - media must have ALL specified tags)
+      if (includeTags.length > 0) {
+        const tagPlaceholders = includeTags.map(() => "?").join(",");
+        query += `
                     JOIN media_tags mt_include ON mf.file_hash = mt_include.file_hash
                     JOIN tags t_include ON mt_include.tag_id = t_include.id
                 `;
-                whereConditions.push(`t_include.name IN (${tagPlaceholders})`);
-                params.push(...includeTags);
-                log.debug('Added include tags filter', { includeTags, tagPlaceholders });
-            }
+        whereConditions.push(`t_include.name IN (${tagPlaceholders})`);
+        params.push(...includeTags);
+        log.debug("Added include tags filter", {
+          includeTags,
+          tagPlaceholders,
+        });
+      }
 
-            // Handle exclude tags
-            if (excludeTags.length > 0) {
-                const tagPlaceholders = excludeTags.map(() => '?').join(',');
-                whereConditions.push(`
+      // Handle exclude tags
+      if (excludeTags.length > 0) {
+        const tagPlaceholders = excludeTags.map(() => "?").join(",");
+        whereConditions.push(`
                     mf.file_hash NOT IN (
                         SELECT mt_exclude.file_hash 
                         FROM media_tags mt_exclude
@@ -678,80 +775,88 @@ class MediaDatabase {
                         WHERE t_exclude.name IN (${tagPlaceholders})
                     )
                 `);
-                params.push(...excludeTags);
-                log.debug('Added exclude tags filter', { excludeTags, tagPlaceholders });
-            }
+        params.push(...excludeTags);
+        log.debug("Added exclude tags filter", {
+          excludeTags,
+          tagPlaceholders,
+        });
+      }
 
-            // Add WHERE clause if we have conditions
-            if (whereConditions.length > 0) {
-                query += ` WHERE ${whereConditions.join(' AND ')}`;
-            }
+      // Add WHERE clause if we have conditions
+      if (whereConditions.length > 0) {
+        query += ` WHERE ${whereConditions.join(" AND ")}`;
+      }
 
-            // Handle grouping for include tags (ensure all tags are present)
-            if (includeTags.length > 0) {
-                query += ` GROUP BY mf.file_hash HAVING COUNT(DISTINCT t_include.id) = ?`;
-                params.push(includeTags.length);
-                log.debug('Added grouping for include tags', { requiredTagCount: includeTags.length });
-            }
+      // Handle grouping for include tags (ensure all tags are present)
+      if (includeTags.length > 0) {
+        query += ` GROUP BY mf.file_hash HAVING COUNT(DISTINCT t_include.id) = ?`;
+        params.push(includeTags.length);
+        log.debug("Added grouping for include tags", {
+          requiredTagCount: includeTags.length,
+        });
+      }
 
-            // Add ordering
-            query += ` ORDER BY mf.date_added DESC`;
+      // Add ordering
+      query += ` ORDER BY mf.date_added DESC`;
 
-            log.debug('Executing tag filter query', { 
-                query: query.replace(/\s+/g, ' ').trim(),
-                paramCount: params.length 
-            });
+      log.debug("Executing tag filter query", {
+        query: query.replace(/\s+/g, " ").trim(),
+        paramCount: params.length,
+      });
 
-            const stmt = this.db.prepare(query);
-            const rows = stmt.all(...params);
+      const stmt = this.db.prepare(query);
+      const rows = stmt.all(...params);
 
-            const result = rows.map(row => row.file_path);
-            
-            log.info('Tag filtering query completed', {
-                includeTags,
-                excludeTags,
-                mediaType,
-                resultCount: result.length,
-                executionTime: 'completed'
-            });
+      const result = rows.map((row) => row.file_path);
 
-            return result;
-        } catch (error) {
-            log.error('Failed to get media by tags and type', { 
-                includeTags, excludeTags, mediaType, error: error.message 
-            });
-            throw error;
-        }
+      log.info("Tag filtering query completed", {
+        includeTags,
+        excludeTags,
+        mediaType,
+        resultCount: result.length,
+        executionTime: "completed",
+      });
+
+      return result;
+    } catch (error) {
+      log.error("Failed to get media by tags and type", {
+        includeTags,
+        excludeTags,
+        mediaType,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Remove tags that are not assigned to any media files
+   */
+  cleanupOrphanedTags() {
+    if (!this.isInitialized) {
+      throw new Error("Database not initialized");
     }
 
-    /**
-     * Remove tags that are not assigned to any media files
-     */
-    cleanupOrphanedTags() {
-        if (!this.isInitialized) {
-            throw new Error('Database not initialized');
-        }
-
-        try {
-            const stmt = this.db.prepare(`
+    try {
+      const stmt = this.db.prepare(`
                 DELETE FROM tags 
                 WHERE id NOT IN (
                     SELECT DISTINCT tag_id FROM media_tags
                 )
             `);
-            
-            const result = stmt.run();
-            
-            if (result.changes > 0) {
-                log.info('Cleaned up orphaned tags', { removedCount: result.changes });
-            }
-            
-            return result.changes;
-        } catch (error) {
-            log.error('Failed to cleanup orphaned tags', { error: error.message });
-            throw error;
-        }
+
+      const result = stmt.run();
+
+      if (result.changes > 0) {
+        log.info("Cleaned up orphaned tags", { removedCount: result.changes });
+      }
+
+      return result.changes;
+    } catch (error) {
+      log.error("Failed to cleanup orphaned tags", { error: error.message });
+      throw error;
     }
+  }
 }
 
 module.exports = MediaDatabase;

@@ -9,7 +9,8 @@
 }
 
 /* Mobile viewport fix */
-html, body {
+html,
+body {
   height: 100%;
   height: calc(var(--vh, 1vh) * 100);
   width: 100%;
@@ -21,11 +22,11 @@ html, body {
 
 /* Hide scrollbars for horizontal tag scrolling */
 .scrollbar-hide {
-  -ms-overflow-style: none;  /* Internet Explorer 10+ */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+  scrollbar-width: none; /* Firefox */
 }
 .scrollbar-hide::-webkit-scrollbar {
-  display: none;  /* Safari and Chrome */
+  display: none; /* Safari and Chrome */
 }
 
 /* Media sizing based on orientation and screen size */
@@ -134,8 +135,6 @@ html, body {
   background-color: rgba(16, 16, 16, 1);
 }
 
-
-
 /* Video progress bar styles */
 .video-progress-container {
   transition: bottom 0.3s ease;
@@ -147,32 +146,39 @@ html, body {
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
-    opacity: .5;
+    opacity: 0.5;
   }
 }
 
 /* Mobile-specific fixes */
 @media screen and (max-width: 768px) {
   /* Ensure proper height on mobile */
-  html, body, #root, .container {
+  html,
+  body,
+  #root,
+  .container {
     height: 100vh;
     height: calc(var(--vh, 1vh) * 100);
     min-height: 100vh;
     min-height: calc(var(--vh, 1vh) * 100);
   }
-  
+
   /* Fix for iOS Safari */
   @supports (-webkit-touch-callout: none) {
-    html, body, #root, .container {
+    html,
+    body,
+    #root,
+    .container {
       height: var(--actual-height, 100vh);
       min-height: var(--actual-height, 100vh);
     }
   }
-  
+
   /* Ensure navigation is visible */
   .navigation {
     position: fixed;
@@ -188,14 +194,14 @@ html, body {
     min-height: 100vh;
     min-height: calc(var(--vh, 1vh) * 100);
   }
-  
+
   /* Ensure media is properly centered and sized in portrait */
   .media-item {
     display: flex;
     align-items: center;
     justify-content: center;
   }
-  
+
   .media-item img,
   .media-item video {
     max-height: calc(100vh - 120px); /* Account for navigation */
@@ -214,7 +220,9 @@ html, body {
 }
 
 /* Prevent zoom on input focus (mobile) */
-input, select, textarea {
+input,
+select,
+textarea {
   font-size: 16px;
 }
 
@@ -344,8 +352,6 @@ input, select, textarea {
   background-color: rgba(16, 16, 16, 1);
 }
 
-
-
 /* Video progress bar styles */
 .video-progress-container {
   transition: bottom 0.3s ease;
@@ -357,32 +363,39 @@ input, select, textarea {
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
-    opacity: .5;
+    opacity: 0.5;
   }
 }
 
 /* Mobile-specific fixes */
 @media screen and (max-width: 768px) {
   /* Ensure proper height on mobile */
-  html, body, #root, .container {
+  html,
+  body,
+  #root,
+  .container {
     height: 100vh;
     height: calc(var(--vh, 1vh) * 100);
     min-height: 100vh;
     min-height: calc(var(--vh, 1vh) * 100);
   }
-  
+
   /* Fix for iOS Safari */
   @supports (-webkit-touch-callout: none) {
-    html, body, #root, .container {
+    html,
+    body,
+    #root,
+    .container {
       height: var(--actual-height, 100vh);
       min-height: var(--actual-height, 100vh);
     }
   }
-  
+
   /* Ensure navigation is visible */
   .navigation {
     position: fixed;
@@ -398,14 +411,14 @@ input, select, textarea {
     min-height: 100vh;
     min-height: calc(var(--vh, 1vh) * 100);
   }
-  
+
   /* Ensure media is properly centered and sized in portrait */
   .media-item {
     display: flex;
     align-items: center;
     justify-content: center;
   }
-  
+
   .media-item img,
   .media-item video {
     max-height: calc(100vh - 120px); /* Account for navigation */
@@ -424,7 +437,9 @@ input, select, textarea {
 }
 
 /* Prevent zoom on input focus (mobile) */
-input, select, textarea {
+input,
+select,
+textarea {
   font-size: 16px;
 }
 

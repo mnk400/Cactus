@@ -1,4 +1,4 @@
-import React from 'react'
+import React from "react";
 
 function ErrorMessage({ message }) {
   return (
@@ -7,7 +7,7 @@ function ErrorMessage({ message }) {
         {message}
       </div>
     </div>
-  )
+  );
 }
 
-export default ErrorMessage
+export default ErrorMessage;

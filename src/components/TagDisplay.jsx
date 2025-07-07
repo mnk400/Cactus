@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
-import useTags from '../hooks/useTags';
+import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
+import useTags from "../hooks/useTags";
 
 const TagDisplay = ({ currentMediaFile, showTagInput, isVideoPlaying }) => {
   const [mediaTags, setMediaTags] = useState([]);
@@ -16,7 +16,7 @@ const TagDisplay = ({ currentMediaFile, showTagInput, isVideoPlaying }) => {
           const tags = await getMediaTags(currentMediaFile);
           setMediaTags(tags);
         } catch (error) {
-          console.error('Failed to load media tags:', error);
+          console.error("Failed to load media tags:", error);
           setMediaTags([]);
         }
       } else {
@@ -27,10 +27,10 @@ const TagDisplay = ({ currentMediaFile, showTagInput, isVideoPlaying }) => {
     loadMediaTags();
 
     const handleTagsUpdated = () => loadMediaTags();
-    window.addEventListener('tags-updated', handleTagsUpdated);
+    window.addEventListener("tags-updated", handleTagsUpdated);
 
     return () => {
-      window.removeEventListener('tags-updated', handleTagsUpdated);
+      window.removeEventListener("tags-updated", handleTagsUpdated);
     };
   }, [currentMediaFile, getMediaTags]);
 
@@ -38,7 +38,9 @@ const TagDisplay = ({ currentMediaFile, showTagInput, isVideoPlaying }) => {
     if (currentMediaFile) {
       try {
         // We need the file hash for removal, let's get it from the API
-        const response = await fetch(`/api/media-path/tags?path=${encodeURIComponent(currentMediaFile)}`);
+        const response = await fetch(
+          `/api/media-path/tags?path=${encodeURIComponent(currentMediaFile)}`,
+        );
         const data = await response.json();
 
         if (data.fileHash) {
@@ -46,10 +48,10 @@ const TagDisplay = ({ currentMediaFile, showTagInput, isVideoPlaying }) => {
           // Reload tags for current media
           const updatedTags = await getMediaTags(currentMediaFile);
           setMediaTags(updatedTags);
-          window.dispatchEvent(new CustomEvent('tags-updated'));
+          window.dispatchEvent(new CustomEvent("tags-updated"));
         }
       } catch (error) {
-        console.error('Failed to remove tag:', error);
+        console.error("Failed to remove tag:", error);
       }
     }
   };
@@ -57,8 +59,11 @@ const TagDisplay = ({ currentMediaFile, showTagInput, isVideoPlaying }) => {
   useLayoutEffect(() => {
     // Capture "first" positions before render
     const currentTags = Array.from(tagRefs.current.values()).filter(Boolean);
-    currentTags.forEach(tagEl => {
-      prevTagPositions.current.set(tagEl.dataset.tagId, tagEl.getBoundingClientRect());
+    currentTags.forEach((tagEl) => {
+      prevTagPositions.current.set(
+        tagEl.dataset.tagId,
+        tagEl.getBoundingClientRect(),
+      );
     });
 
     // Cleanup for next render
@@ -69,7 +74,7 @@ const TagDisplay = ({ currentMediaFile, showTagInput, isVideoPlaying }) => {
 
   useLayoutEffect(() => {
     // After render, calculate "last" and "invert", then animate
-    mediaTags.forEach(tag => {
+    mediaTags.forEach((tag) => {
       const tagEl = tagRefs.current.get(tag.id);
       const prevRect = prevTagPositions.current.get(tag.id);
 
@@ -81,14 +86,14 @@ const TagDisplay = ({ currentMediaFile, showTagInput, isVideoPlaying }) => {
         if (dx || dy) {
           // Invert: move to the "first" position
           tagEl.style.transform = `translate(${dx}px, ${dy}px)`;
-          tagEl.style.transition = 'transform 0s';
+          tagEl.style.transition = "transform 0s";
 
           // Force reflow
           tagEl.offsetWidth;
 
           // Play: animate to "last" position
-          tagEl.style.transition = 'transform 300ms ease-in-out';
-          tagEl.style.transform = '';
+          tagEl.style.transition = "transform 300ms ease-in-out";
+          tagEl.style.transform = "";
         }
       }
     });
@@ -100,7 +105,9 @@ const TagDisplay = ({ currentMediaFile, showTagInput, isVideoPlaying }) => {
   }
 
   return (
-    <div className={`fixed pb-1 left-1/2 transform -translate-x-1/2 w-11/12 max-w-xl z-10 pointer-events-none transition-all duration-300 ${isVideoPlaying ? 'bottom-20' : 'bottom-16'}`}>
+    <div
+      className={`fixed pb-1 left-1/2 transform -translate-x-1/2 w-11/12 max-w-xl z-10 pointer-events-none transition-all duration-300 ${isVideoPlaying ? "bottom-20" : "bottom-16"}`}
+    >
       <div className="pb-3 pointer-events-auto">
         <div className="overflow-x-auto scrollbar-hide">
           <div className="flex gap-2 min-w-max pb-1">
@@ -137,7 +144,9 @@ const TagDisplay = ({ currentMediaFile, showTagInput, isVideoPlaying }) => {
         </div>
         {mediaTags.length > 3 && (
           <div className="text-center mt-1">
-            <div className="text-xs text-gray-400 opacity-60">← Scroll to see all tags →</div>
+            <div className="text-xs text-gray-400 opacity-60">
+              ← Scroll to see all tags →
+            </div>
           </div>
         )}
       </div>

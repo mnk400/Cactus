@@ -1,20 +1,20 @@
-import React from 'react'
+import React from "react";
 
 function FullscreenButton() {
   const handleFullscreen = () => {
-    const videoElement = document.querySelector('.media-item video')
-    if (!videoElement) return
+    const videoElement = document.querySelector(".media-item video");
+    if (!videoElement) return;
 
     if (videoElement.requestFullscreen) {
-      videoElement.requestFullscreen()
+      videoElement.requestFullscreen();
     } else if (videoElement.webkitRequestFullscreen) {
-      videoElement.webkitRequestFullscreen()
+      videoElement.webkitRequestFullscreen();
     } else if (videoElement.msRequestFullscreen) {
-      videoElement.msRequestFullscreen()
+      videoElement.msRequestFullscreen();
     } else if (videoElement.webkitEnterFullscreen) {
-      videoElement.webkitEnterFullscreen()
+      videoElement.webkitEnterFullscreen();
     }
-  }
+  };
 
   return (
     <button
@@ -23,7 +23,7 @@ function FullscreenButton() {
     >
       ⛶
     </button>
-  )
+  );
 }
 
-export default FullscreenButton
+export default FullscreenButton;

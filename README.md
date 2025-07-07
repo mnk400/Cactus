@@ -1,4 +1,5 @@
 # Cactus
+
 ```
     ,*-.
     |  |
@@ -7,7 +8,7 @@
 `---.  |_| |
     |  .--`
     |  |
-    |  | 
+    |  |
 
 ```
 
@@ -29,11 +30,13 @@ Extremely minimal randomized order media reviewer built with React
 ## Quick Start
 
 1. **Install dependencies:**
+
    ```bash
    npm install
    ```
 
 2. **Start the application:**
+
    ```bash
    npm start -- -d /path/to/your/media/directory -p 3000
    ```
@@ -77,6 +80,7 @@ npm run start:dev
 ## Settings
 
 Click the ⋯ button to access:
+
 - **Media Type Filter**: Switch between All, Photos, or Videos
 - **Rescan Directory**: Refresh the media file list
 
@@ -97,12 +101,14 @@ docker run -p 3000:3000 -v /path/to/your/media/directory:/media cactus-media-ser
 Built with modern React architecture and SQLite for robust data persistence:
 
 ### **Storage System**
+
 - **SQLite Database**: Persistent storage with content-based file identification
 - **Content Hashing**: Files identified by SHA-256 hash of content (survives moves/renames)
 - **WAL Mode**: Write-Ahead Logging for better concurrent performance
 - **Automatic Cleanup**: Orphaned file records are automatically removed
 
 ### **Components**
+
 - `App.jsx` - Main application with state management
 - `MediaViewer.jsx` - Media display and touch gesture handling
 - `MediaItem.jsx` - Individual media items with animations
@@ -111,6 +117,7 @@ Built with modern React architecture and SQLite for robust data persistence:
 - `VideoProgressBar.jsx` - Video progress indicator
 
 ### **Custom Hooks**
+
 - `useMediaFiles.js` - Media loading, filtering, and rescanning
 - `useTouchGestures.js` - Smooth swipe navigation
 - `useKeyboardNavigation.js` - Arrow key navigation
@@ -118,10 +125,12 @@ Built with modern React architecture and SQLite for robust data persistence:
 - `useMobileViewport.js` - Mobile viewport optimization
 
 ### **Database Layer**
+
 - `database/index.js` - SQLite database service
 - `mediaScannerSQLite.js` - Enhanced media scanner with database integration
 
 ### **File Structure**
+
 ```
 src/
 ├── components/         # React components

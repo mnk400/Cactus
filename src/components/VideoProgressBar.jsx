@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { isVideo } from '../utils/helpers';
+import React, { useState, useEffect, useRef } from "react";
+import { isVideo } from "../utils/helpers";
 
 function VideoProgressBar({ videoElement }) {
   const [progress, setProgress] = useState(0);
@@ -13,13 +13,14 @@ function VideoProgressBar({ videoElement }) {
 
       if (videoElement) {
         const handleTimeUpdate = () => {
-          const progress = (videoElement.currentTime / videoElement.duration) * 100;
+          const progress =
+            (videoElement.currentTime / videoElement.duration) * 100;
           setProgress(isNaN(progress) ? 0 : progress);
         };
 
-        videoElement.addEventListener('timeupdate', handleTimeUpdate);
+        videoElement.addEventListener("timeupdate", handleTimeUpdate);
         return () => {
-          videoElement.removeEventListener('timeupdate', handleTimeUpdate);
+          videoElement.removeEventListener("timeupdate", handleTimeUpdate);
         };
       }
     } else {
