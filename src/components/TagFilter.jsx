@@ -47,7 +47,7 @@ const TagFilter = ({
         <div className="space-y-4">
             {/* Include Tags */}
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-white mb-2">
                     Include Tags (show media with these tags)
                 </label>
                 
@@ -64,26 +64,26 @@ const TagFilter = ({
                 <div className="relative">
                     <button
                         onClick={() => setShowIncludeDropdown(!showIncludeDropdown)}
-                        className="w-full px-3 py-2 text-left border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 text-left bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-gray-200 rounded-xl transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
                         disabled={availableIncludeTags.length === 0}
                     >
                         {availableIncludeTags.length > 0 ? 'Add tag to include...' : 'No more tags available'}
                     </button>
 
                     {showIncludeDropdown && availableIncludeTags.length > 0 && (
-                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                        <div className="absolute z-10 w-full mt-1 bg-black bg-opacity-80 backdrop-blur-sm border border-gray-600 rounded-xl shadow-lg max-h-48 overflow-y-auto">
                             {availableIncludeTags.map(tag => (
                                 <button
                                     key={tag.id}
                                     onClick={() => handleIncludeTag(tag)}
-                                    className="w-full px-3 py-2 text-left hover:bg-gray-100 focus:outline-none focus:bg-gray-100 flex items-center"
+                                    className="w-full px-3 py-2 text-left hover:bg-white hover:bg-opacity-20 focus:outline-none focus:bg-white focus:bg-opacity-20 flex items-center text-gray-200 transition-all duration-200"
                                 >
                                     <span
                                         className="inline-block w-3 h-3 rounded-full mr-2"
                                         style={{ backgroundColor: tag.color }}
                                     ></span>
                                     {tag.name}
-                                    <span className="text-gray-500 text-sm ml-auto">
+                                    <span className="text-gray-400 text-sm ml-auto">
                                         ({tag.usage_count})
                                     </span>
                                 </button>
@@ -95,7 +95,7 @@ const TagFilter = ({
 
             {/* Exclude Tags */}
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-white mb-2">
                     Exclude Tags (hide media with these tags)
                 </label>
                 
@@ -112,26 +112,26 @@ const TagFilter = ({
                 <div className="relative">
                     <button
                         onClick={() => setShowExcludeDropdown(!showExcludeDropdown)}
-                        className="w-full px-3 py-2 text-left border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 text-left bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-gray-200 rounded-xl transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
                         disabled={availableExcludeTags.length === 0}
                     >
                         {availableExcludeTags.length > 0 ? 'Add tag to exclude...' : 'No more tags available'}
                     </button>
 
                     {showExcludeDropdown && availableExcludeTags.length > 0 && (
-                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                        <div className="absolute z-10 w-full mt-1 bg-black bg-opacity-80 backdrop-blur-sm border border-gray-600 rounded-xl shadow-lg max-h-48 overflow-y-auto">
                             {availableExcludeTags.map(tag => (
                                 <button
                                     key={tag.id}
                                     onClick={() => handleExcludeTag(tag)}
-                                    className="w-full px-3 py-2 text-left hover:bg-gray-100 focus:outline-none focus:bg-gray-100 flex items-center"
+                                    className="w-full px-3 py-2 text-left hover:bg-white hover:bg-opacity-20 focus:outline-none focus:bg-white focus:bg-opacity-20 flex items-center text-gray-200 transition-all duration-200"
                                 >
                                     <span
                                         className="inline-block w-3 h-3 rounded-full mr-2"
                                         style={{ backgroundColor: tag.color }}
                                     ></span>
                                     {tag.name}
-                                    <span className="text-gray-500 text-sm ml-auto">
+                                    <span className="text-gray-400 text-sm ml-auto">
                                         ({tag.usage_count})
                                     </span>
                                 </button>
@@ -148,7 +148,7 @@ const TagFilter = ({
                         onTagsChange([]);
                         onExcludedTagsChange([]);
                     }}
-                    className="w-full px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 text-sm bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-gray-200 rounded-xl transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
                 >
                     Clear All Filters
                 </button>

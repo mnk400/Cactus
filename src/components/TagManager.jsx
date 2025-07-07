@@ -59,14 +59,14 @@ const TagManager = ({ tags = [], onCreateTag, onUpdateTag, onDeleteTag, onClose 
     ];
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+            <div className="bg-black bg-opacity-90 backdrop-blur-md rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto border border-gray-600">
                 <div className="p-6">
                     <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-xl font-semibold text-gray-900">Manage Tags</h2>
+                        <h2 className="text-xl font-semibold text-white">Manage Tags</h2>
                         <button
                             onClick={onClose}
-                            className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                            className="text-gray-400 hover:text-white focus:outline-none transition-colors duration-200"
                         >
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -75,34 +75,34 @@ const TagManager = ({ tags = [], onCreateTag, onUpdateTag, onDeleteTag, onClose 
                     </div>
 
                     {/* Create New Tag */}
-                    <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                        <h3 className="text-lg font-medium text-gray-900 mb-3">Create New Tag</h3>
+                    <div className="mb-6 p-4 bg-black bg-opacity-40 backdrop-blur-sm rounded-2xl">
+                        <h3 className="text-lg font-medium text-white mb-3">Create New Tag</h3>
                         <form onSubmit={handleCreateTag} className="flex gap-3">
                             <input
                                 type="text"
                                 value={newTagName}
                                 onChange={(e) => setNewTagName(e.target.value)}
                                 placeholder="Tag name"
-                                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="flex-1 px-3 py-2 bg-black bg-opacity-50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
                             />
                             <select
                                 value={newTagColor}
                                 onChange={(e) => setNewTagColor(e.target.value)}
-                                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="px-3 py-2 bg-black bg-opacity-50 border border-gray-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
                             >
                                 {colorOptions.map(color => (
-                                    <option key={color} value={color}>
+                                    <option key={color} value={color} className="bg-gray-800">
                                         {color}
                                     </option>
                                 ))}
                             </select>
                             <div
-                                className="w-10 h-10 rounded border border-gray-300"
+                                className="w-10 h-10 rounded-xl border border-gray-600"
                                 style={{ backgroundColor: newTagColor }}
                             ></div>
                             <button
                                 type="submit"
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="px-4 py-2 bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-white rounded-xl transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
                             >
                                 Create
                             </button>
@@ -111,48 +111,48 @@ const TagManager = ({ tags = [], onCreateTag, onUpdateTag, onDeleteTag, onClose 
 
                     {/* Existing Tags */}
                     <div>
-                        <h3 className="text-lg font-medium text-gray-900 mb-3">
+                        <h3 className="text-lg font-medium text-white mb-3">
                             Existing Tags ({tags.length})
                         </h3>
                         {tags.length === 0 ? (
-                            <p className="text-gray-500 text-center py-8">No tags created yet</p>
+                            <p className="text-gray-400 text-center py-8">No tags created yet</p>
                         ) : (
                             <div className="space-y-2">
                                 {tags.map(tag => (
-                                    <div key={tag.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <div key={tag.id} className="flex items-center justify-between p-3 bg-black bg-opacity-30 backdrop-blur-sm rounded-xl">
                                         {editingTag === tag.id ? (
                                             <form onSubmit={handleUpdateTag} className="flex-1 flex gap-3">
                                                 <input
                                                     type="text"
                                                     value={editName}
                                                     onChange={(e) => setEditName(e.target.value)}
-                                                    className="flex-1 px-3 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    className="flex-1 px-3 py-1 bg-black bg-opacity-50 border border-gray-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
                                                 />
                                                 <select
                                                     value={editColor}
                                                     onChange={(e) => setEditColor(e.target.value)}
-                                                    className="px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    className="px-2 py-1 bg-black bg-opacity-50 border border-gray-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
                                                 >
                                                     {colorOptions.map(color => (
-                                                        <option key={color} value={color}>
+                                                        <option key={color} value={color} className="bg-gray-800">
                                                             {color}
                                                         </option>
                                                     ))}
                                                 </select>
                                                 <div
-                                                    className="w-8 h-8 rounded border border-gray-300"
+                                                    className="w-8 h-8 rounded border border-gray-600"
                                                     style={{ backgroundColor: editColor }}
                                                 ></div>
                                                 <button
                                                     type="submit"
-                                                    className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+                                                    className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors duration-200 text-sm"
                                                 >
                                                     Save
                                                 </button>
                                                 <button
                                                     type="button"
                                                     onClick={handleCancelEdit}
-                                                    className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-sm"
+                                                    className="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded-xl transition-colors duration-200 text-sm"
                                                 >
                                                     Cancel
                                                 </button>
@@ -164,21 +164,21 @@ const TagManager = ({ tags = [], onCreateTag, onUpdateTag, onDeleteTag, onClose 
                                                         className="w-4 h-4 rounded"
                                                         style={{ backgroundColor: tag.color }}
                                                     ></div>
-                                                    <span className="font-medium">{tag.name}</span>
-                                                    <span className="text-sm text-gray-500">
+                                                    <span className="font-medium text-white">{tag.name}</span>
+                                                    <span className="text-sm text-gray-400">
                                                         ({tag.usage_count} files)
                                                     </span>
                                                 </div>
                                                 <div className="flex gap-2">
                                                     <button
                                                         onClick={() => handleEditTag(tag)}
-                                                        className="px-3 py-1 text-sm text-blue-600 hover:text-blue-800 focus:outline-none"
+                                                        className="px-3 py-1 text-sm text-blue-400 hover:text-blue-300 focus:outline-none transition-colors duration-200"
                                                     >
                                                         Edit
                                                     </button>
                                                     <button
                                                         onClick={() => handleDeleteTag(tag.id)}
-                                                        className="px-3 py-1 text-sm text-red-600 hover:text-red-800 focus:outline-none"
+                                                        className="px-3 py-1 text-sm text-red-400 hover:text-red-300 focus:outline-none transition-colors duration-200"
                                                     >
                                                         Delete
                                                     </button>

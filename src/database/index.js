@@ -634,6 +634,14 @@ class MediaDatabase {
         }
 
         try {
+            log.info('Starting tag-based media filtering', {
+                includeTags,
+                excludeTags,
+                mediaType,
+                includeCount: includeTags.length,
+                excludeCount: excludeTags.length
+            });
+
             let query = `SELECT DISTINCT mf.file_path FROM media_files mf`;
             let params = [];
             let whereConditions = [];
@@ -643,6 +651,7 @@ class MediaDatabase {
                 const dbMediaType = mediaType === 'photos' ? 'image' : mediaType === 'videos' ? 'video' : mediaType;
                 whereConditions.push('mf.media_type = ?');
                 params.push(dbMediaType);
+                log.debug('Added media type filter', { mediaType, dbMediaType });
             }
 
             // Handle include tags (AND logic - media must have ALL specified tags)
@@ -654,6 +663,7 @@ class MediaDatabase {
                 `;
                 whereConditions.push(`t_include.name IN (${tagPlaceholders})`);
                 params.push(...includeTags);
+                log.debug('Added include tags filter', { includeTags, tagPlaceholders });
             }
 
             // Handle exclude tags
@@ -668,6 +678,7 @@ class MediaDatabase {
                     )
                 `);
                 params.push(...excludeTags);
+                log.debug('Added exclude tags filter', { excludeTags, tagPlaceholders });
             }
 
             // Add WHERE clause if we have conditions
@@ -679,15 +690,31 @@ class MediaDatabase {
             if (includeTags.length > 0) {
                 query += ` GROUP BY mf.file_hash HAVING COUNT(DISTINCT t_include.id) = ?`;
                 params.push(includeTags.length);
+                log.debug('Added grouping for include tags', { requiredTagCount: includeTags.length });
             }
 
             // Add ordering
             query += ` ORDER BY mf.date_added DESC`;
 
+            log.debug('Executing tag filter query', { 
+                query: query.replace(/\s+/g, ' ').trim(),
+                paramCount: params.length 
+            });
+
             const stmt = this.db.prepare(query);
             const rows = stmt.all(...params);
 
-            return rows.map(row => row.file_path);
+            const result = rows.map(row => row.file_path);
+            
+            log.info('Tag filtering query completed', {
+                includeTags,
+                excludeTags,
+                mediaType,
+                resultCount: result.length,
+                executionTime: 'completed'
+            });
+
+            return result;
         } catch (error) {
             log.error('Failed to get media by tags and type', { 
                 includeTags, excludeTags, mediaType, error: error.message 

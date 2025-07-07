@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react'
 import MediaViewer from './components/MediaViewer'
 import Navigation from './components/Navigation'
 import SettingsPanel from './components/SettingsPanel'
+import TagDisplay from './components/TagDisplay'
+import TagInputModal from './components/TagInputModal'
 import LoadingMessage from './components/LoadingMessage'
 import ErrorMessage from './components/ErrorMessage'
 import DebugInfo from './components/DebugInfo'
@@ -13,9 +15,11 @@ function App() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [currentMediaType, setCurrentMediaType] = useState('all')
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [showTagInput, setShowTagInput] = useState(false)
   const [debugMode, setDebugMode] = useState(false)
   const [selectedTags, setSelectedTags] = useState([])
   const [excludedTags, setExcludedTags] = useState([])
+  const [tagUpdateTrigger, setTagUpdateTrigger] = useState(0)
   
   const {
     mediaFiles,
@@ -56,7 +60,7 @@ function App() {
 
   // Keyboard navigation
   useKeyboardNavigation((direction) => {
-    if (mediaFiles.length > 0) {
+    if (mediaFiles.length > 0 && !showTagInput) {
       setCurrentIndex(prev => 
         (prev + direction + mediaFiles.length) % mediaFiles.length
       )
@@ -128,6 +132,19 @@ function App() {
     setIsSettingsOpen(false)
   }
 
+  const handleToggleTagInput = (show) => {
+    if (typeof show === 'boolean') {
+      setShowTagInput(show)
+    } else {
+      setShowTagInput(prev => !prev)
+    }
+  }
+
+  const handleTagsUpdated = () => {
+    // Trigger a re-render of TagDisplay by updating a counter
+    setTagUpdateTrigger(prev => prev + 1)
+  }
+
   // Safely get current media file and full directory path
   const currentMediaFile = mediaFiles.length > 0 && currentIndex < mediaFiles.length 
     ? mediaFiles[currentIndex] 
@@ -150,6 +167,8 @@ function App() {
             mediaFiles={mediaFiles}
             currentIndex={currentIndex}
             onNavigate={handleNavigation}
+            showTagInput={showTagInput}
+            onToggleTagInput={handleToggleTagInput}
           />
         )}
 
@@ -180,6 +199,7 @@ function App() {
           onPrevious={() => handleNavigation(-1)}
           onNext={() => handleNavigation(1)}
           onToggleSettings={() => setIsSettingsOpen(!isSettingsOpen)}
+          onToggleTagInput={handleToggleTagInput}
           directoryName={directoryPath}
           showNavButtons={mediaFiles.length > 0}
           currentMediaFile={currentMediaFile}
@@ -200,6 +220,20 @@ function App() {
           onExcludedTagsChange={handleExcludedTagsChange}
         />
       </div>
+
+      {/* Fixed position tag components */}
+      <TagDisplay 
+        currentMediaFile={currentMediaFile} 
+        showTagInput={showTagInput}
+        key={tagUpdateTrigger} // Force re-render when tags are updated
+      />
+      
+      <TagInputModal
+        isOpen={showTagInput}
+        onClose={() => handleToggleTagInput(false)}
+        currentMediaFile={currentMediaFile}
+        onTagsUpdated={handleTagsUpdated}
+      />
     </div>
   )
 }

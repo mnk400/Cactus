@@ -35,11 +35,6 @@ const TagInput = ({
     }, [inputValue, availableTags]);
 
     const handleKeyDown = (e) => {
-        if (e.key === 'Escape') {
-            onClose();
-            return;
-        }
-
         if (e.key === 'Enter') {
             e.preventDefault();
             if (selectedIndex >= 0 && filteredTags[selectedIndex]) {
@@ -49,20 +44,6 @@ const TagInput = ({
                 // Add new tag
                 addTag(inputValue.trim());
             }
-            return;
-        }
-
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            setSelectedIndex(prev => 
-                prev < filteredTags.length - 1 ? prev + 1 : prev
-            );
-            return;
-        }
-
-        if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            setSelectedIndex(prev => prev > 0 ? prev - 1 : -1);
             return;
         }
 
@@ -90,6 +71,11 @@ const TagInput = ({
 
     return (
         <div className={`relative ${className}`}>
+            {/* Header with title and close hint */}
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-white">Add Tags</h3>
+            </div>
+            
             <input
                 ref={inputRef}
                 type="text"
@@ -101,37 +87,35 @@ const TagInput = ({
                     setTimeout(() => setShowSuggestions(false), 150);
                 }}
                 placeholder={placeholder}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                className="w-full px-4 py-3 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white bg-opacity-20 text-white placeholder-gray-400 text-base"
             />
             
             {showSuggestions && filteredTags.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                <div className="absolute z-10 w-full mt-2 bg-gray-800 border border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                     {filteredTags.map((tag, index) => (
                         <button
                             key={tag.id}
                             onClick={() => handleSuggestionClick(tag.name)}
-                            className={`w-full px-3 py-2 text-left hover:bg-gray-100 focus:outline-none focus:bg-gray-100 ${
-                                index === selectedIndex ? 'bg-blue-100' : ''
+                            className={`w-full px-4 py-3 text-left hover:bg-gray-700 focus:outline-none focus:bg-gray-700 transition-colors ${
+                                index === selectedIndex ? 'bg-blue-600' : ''
                             }`}
                         >
-                            <span
-                                className="inline-block w-3 h-3 rounded-full mr-2"
-                                style={{ backgroundColor: tag.color }}
-                            ></span>
-                            {tag.name}
-                            {tag.usage_count > 0 && (
-                                <span className="text-gray-500 text-sm ml-2">
-                                    ({tag.usage_count})
-                                </span>
-                            )}
+                            <div className="flex items-center">
+                                <span
+                                    className="inline-block w-3 h-3 rounded-full mr-3"
+                                    style={{ backgroundColor: tag.color }}
+                                ></span>
+                                <span className="text-white">{tag.name}</span>
+                                {tag.usage_count > 0 && (
+                                    <span className="text-gray-400 text-sm ml-auto">
+                                        ({tag.usage_count})
+                                    </span>
+                                )}
+                            </div>
                         </button>
                     ))}
                 </div>
             )}
-            
-            <div className="mt-2 text-xs text-gray-500">
-                Press Enter or Tab to add • Escape to close • ↑↓ to navigate
-            </div>
         </div>
     );
 };

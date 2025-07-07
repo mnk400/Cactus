@@ -70,7 +70,21 @@ app.get('/api/media', (req, res) => {
         if (tags || excludeTags) {
             const tagList = tags ? tags.split(',').map(t => t.trim()).filter(t => t) : [];
             const excludeTagList = excludeTags ? excludeTags.split(',').map(t => t.trim()).filter(t => t) : [];
+            
+            log.info('Filtering media by tags', { 
+                mediaType, 
+                includeTags: tagList, 
+                excludeTags: excludeTagList 
+            });
+            
             files = mediaScanner.getDatabase().getMediaByTagsAndType(tagList, excludeTagList, mediaType);
+            
+            log.info('Tag filtering completed', { 
+                mediaType, 
+                includeTags: tagList, 
+                excludeTags: excludeTagList,
+                resultCount: files.length 
+            });
         } else {
             files = mediaScanner.filterMediaByType(mediaType);
         }
@@ -378,11 +392,14 @@ app.get('/media', (req, res) => {
             return res.status(400).send('File path is required');
         }
 
-        if (!fs.existsSync(filePath)) {
+        // Convert relative path to absolute path
+        const absolutePath = path.isAbsolute(filePath) ? filePath : path.resolve(filePath);
+
+        if (!fs.existsSync(absolutePath)) {
             return res.status(404).send('File not found');
         }
 
-        res.sendFile(filePath);
+        res.sendFile(absolutePath);
     } catch (error) {
         log.error('Failed to serve media file', { filePath: req.query.path, error: error.message });
         res.status(500).send('Failed to serve media file');
