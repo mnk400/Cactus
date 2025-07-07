@@ -6,6 +6,7 @@ import useTags from '../hooks/useTags'
 
 function SettingsPanel({ 
   isOpen, 
+  onClose,
   currentMediaType, 
   onMediaTypeChange, 
   onRescan, 
@@ -78,16 +79,26 @@ function SettingsPanel({
   };
 
   return (
-    <>
-      <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-80 backdrop-blur-md rounded-3xl p-3 sm:p-4 text-gray-200 z-10 w-11/12 max-w-xl box-border shadow-2xl max-h-[70vh] sm:max-h-[80vh] overflow-y-auto">
-        
+      <div className="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-md p-4 sm:p-6 text-gray-200 z-50 overflow-y-auto">
+        {/* Close Button */}
+        <button
+          onClick={() => onClose()}
+          className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors duration-200"
+          aria-label="Close settings"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
         {/* Header */}
-        <div className="flex items-center gap-2 mb-3 sm:mb-4">
+        <div className="flex items-center gap-2 mb-3 sm:mb-4 max-w-4xl mx-auto">
           <h3 className="text-base sm:text-lg font-semibold text-white m-0">Settings & Stats</h3>
         </div>
         
-        {/* Statistics Section */}
-        <div className="stats-section mb-3 sm:mb-4 p-2 sm:p-3 bg-black bg-opacity-40 backdrop-blur-sm rounded-2xl">
+        <div className="max-w-4xl mx-auto">
+          {/* Statistics Section */}
+          <div className="stats-section mb-3 sm:mb-4 p-2 sm:p-3 bg-black bg-opacity-40 backdrop-blur-sm rounded-2xl">
           <div className="flex items-center gap-2 mb-2 sm:mb-3">
             <h4 className="text-sm sm:text-base font-medium text-white m-0">Media Library</h4>
           </div>
@@ -202,7 +213,7 @@ function SettingsPanel({
         </div>
         
         {/* Actions Section */}
-        <div className="actions-section">
+        <div className="actions-section mb-6">
           <div className="flex items-center gap-2 mb-2 sm:mb-3">
             <h4 className="text-sm sm:text-base font-medium text-white m-0">Actions</h4>
           </div>
@@ -249,7 +260,7 @@ function SettingsPanel({
           onClose={() => setShowTagManager(false)}
         />
       )}
-    </>
+    </div>
   )
 }
 

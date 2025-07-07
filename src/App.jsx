@@ -9,7 +9,7 @@ import ErrorMessage from './components/ErrorMessage'
 import DebugInfo from './components/DebugInfo'
 import { useMediaFiles } from './hooks/useMediaFiles'
 import { useKeyboardNavigation } from './hooks/useKeyboardNavigation'
-import { useMobileViewport } from './hooks/useMobileViewport'
+
 
 function App() {
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -33,7 +33,7 @@ function App() {
   } = useMediaFiles()
 
   // Handle mobile viewport issues
-  useMobileViewport()
+  
 
   // Initialize media files on mount
   useEffect(() => {
@@ -195,18 +195,21 @@ function App() {
           </div>
         )}
 
-        <Navigation
-          onPrevious={() => handleNavigation(-1)}
-          onNext={() => handleNavigation(1)}
-          onToggleSettings={() => setIsSettingsOpen(!isSettingsOpen)}
-          onToggleTagInput={handleToggleTagInput}
-          directoryName={directoryPath}
-          showNavButtons={mediaFiles.length > 0}
-          currentMediaFile={currentMediaFile}
-        />
+        {!isSettingsOpen && (
+          <Navigation
+            onPrevious={() => handleNavigation(-1)}
+            onNext={() => handleNavigation(1)}
+            onToggleSettings={() => setIsSettingsOpen(!isSettingsOpen)}
+            onToggleTagInput={handleToggleTagInput}
+            directoryName={directoryPath}
+            showNavButtons={mediaFiles.length > 0}
+            currentMediaFile={currentMediaFile}
+          />
+        )}
 
         <SettingsPanel
           isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
           currentMediaType={currentMediaType}
           onMediaTypeChange={handleMediaTypeChange}
           onRescan={handleRescan}

@@ -10,6 +10,7 @@ const TagInputModal = ({ isOpen, onClose, currentMediaFile, onTagsUpdated }) => 
       try {
         await addTagsToMedia(currentMediaFile, tagNames);
         // Notify parent that tags were updated
+        window.dispatchEvent(new CustomEvent('tags-updated'));
         if (onTagsUpdated) {
           onTagsUpdated();
         }

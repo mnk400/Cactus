@@ -22,6 +22,13 @@ const TagDisplay = ({ currentMediaFile, showTagInput }) => {
     };
 
     loadMediaTags();
+
+    const handleTagsUpdated = () => loadMediaTags();
+    window.addEventListener('tags-updated', handleTagsUpdated);
+
+    return () => {
+      window.removeEventListener('tags-updated', handleTagsUpdated);
+    };
   }, [currentMediaFile, getMediaTags]);
 
   const handleRemoveTag = async (tagId) => {
@@ -36,6 +43,7 @@ const TagDisplay = ({ currentMediaFile, showTagInput }) => {
           // Reload tags for current media
           const updatedTags = await getMediaTags(currentMediaFile);
           setMediaTags(updatedTags);
+          window.dispatchEvent(new CustomEvent('tags-updated'));
         }
       } catch (error) {
         console.error('Failed to remove tag:', error);
@@ -44,7 +52,7 @@ const TagDisplay = ({ currentMediaFile, showTagInput }) => {
   };
 
   // Don't show tags if tag input is open or if there are no tags
-  if (showTagInput || mediaTags.length === 0) {
+  if (mediaTags.length === 0) {
     return null;
   }
 
