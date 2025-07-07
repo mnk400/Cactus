@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { CSSTransition, TransitionGroup } from 'react-transition-group';
 import useTags from '../hooks/useTags';
 
 const TagDisplay = ({ currentMediaFile, showTagInput }) => {
@@ -57,33 +58,37 @@ const TagDisplay = ({ currentMediaFile, showTagInput }) => {
   }
 
   return (
-    <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 w-11/12 max-w-xl z-10 animate-fade-in pointer-events-none">
+    <div className="fixed bottom-16 pb-1 left-1/2 transform -translate-x-1/2 w-11/12 max-w-xl z-10 pointer-events-none">
       <div className="pb-3 pointer-events-auto">
         <div className="overflow-x-auto scrollbar-hide">
-          <div className="flex gap-2 min-w-max pb-1">
+          <TransitionGroup component="div" className="flex gap-2 min-w-max pb-1">
             {mediaTags.map((tag, index) => (
-              <span
+              <CSSTransition
                 key={tag.id}
-                className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium text-white shadow-sm whitespace-nowrap flex-shrink-0 transition-all duration-200 hover:scale-105 animate-slide-in"
-                style={{ 
-                  backgroundColor: tag.color,
-                  animationDelay: `${index * 100}ms`
-                }}
+                timeout={500}
+                classNames="tag"
               >
-                {tag.name}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRemoveTag(tag.id);
+                <span
+                  className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium text-white shadow-sm whitespace-nowrap flex-shrink-0 transition-all duration-200"
+                  style={{ 
+                    backgroundColor: tag.color,
                   }}
-                  className="ml-2 text-white hover:text-gray-200 focus:outline-none transition-colors duration-150 hover:bg-white hover:bg-opacity-20 rounded-full w-5 h-5 flex items-center justify-center text-lg leading-none"
-                  aria-label={`Remove ${tag.name} tag`}
                 >
-                  ×
-                </button>
-              </span>
+                  {tag.name}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveTag(tag.id);
+                    }}
+                    className="ml-2 text-white hover:text-gray-200 focus:outline-none transition-colors duration-150 hover:bg-white hover:bg-opacity-20 rounded-full w-5 h-5 flex items-center justify-center text-lg leading-none"
+                    aria-label={`Remove ${tag.name} tag`}
+                  >
+                    ×
+                  </button>
+                </span>
+              </CSSTransition>
             ))}
-          </div>
+          </TransitionGroup>
         </div>
         {mediaTags.length > 3 && (
           <div className="text-center mt-1">

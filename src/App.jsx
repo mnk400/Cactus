@@ -9,6 +9,8 @@ import ErrorMessage from './components/ErrorMessage'
 import DebugInfo from './components/DebugInfo'
 import { useMediaFiles } from './hooks/useMediaFiles'
 import { useKeyboardNavigation } from './hooks/useKeyboardNavigation'
+import { isVideo } from './utils/helpers'
+import VideoProgressBar from './components/VideoProgressBar'
 
 
 function App() {
@@ -193,6 +195,10 @@ function App() {
               )}
             </div>
           </div>
+        )}
+
+        {!isSettingsOpen && currentMediaFile && isVideo(currentMediaFile) && (
+          <VideoProgressBar currentMediaFile={currentMediaFile} />
         )}
 
         {!isSettingsOpen && (

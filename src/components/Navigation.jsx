@@ -17,7 +17,7 @@ function Navigation({
     : ''
   return (
     <div 
-      className="navigation absolute left-1/2 transform -translate-x-1/2 flex items-center justify-end gap-2 z-20 p-2 bg-black-shades-1000 rounded-2xl w-11/12 max-w-xl transition-all duration-300 bottom-6"
+      className="navigation absolute left-1/2 transform -translate-x-1/2 flex items-center justify-end gap-2 z-20 p-2 bg-black-shades-1000 rounded-2xl w-11/12 max-w-xl transition-all duration-300 bottom-4"
     >
       {showNavButtons && (
         <>

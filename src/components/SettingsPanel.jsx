@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { CSSTransition } from 'react-transition-group';
 import { isImage, isVideo } from '../utils/helpers'
 import TagFilter from './TagFilter'
 import TagManager from './TagManager'
@@ -21,8 +22,6 @@ function SettingsPanel({
 }) {
   const [showTagManager, setShowTagManager] = useState(false)
   const { tags, createTag, updateTag, deleteTag } = useTags()
-
-  if (!isOpen) return null
 
   // Calculate statistics
   const totalFiles = allMediaFiles.length
@@ -79,19 +78,23 @@ function SettingsPanel({
   };
 
   return (
+    <CSSTransition
+      in={isOpen}
+      timeout={300}
+      classNames="fade"
+      unmountOnExit
+    >
       <div className="fixed inset-0 bg-black-shades-900 p-4 sm:p-6 text-gray-200 z-50 overflow-y-auto">
-        {/* Close Button */}
-        <button
-          onClick={() => onClose()}
-          className="absolute top-4 right-4 px-3 py-1 bg-red-400 text-white rounded-md hover:bg-red-500 transition-colors duration-200"
-          aria-label="Close settings"
-        >
-          Close
-        </button>
-
-        {/* Header */}
-        <div className="flex items-center gap-2 mb-3 sm:mb-4 max-w-4xl mx-auto">
+        {/* Header with Close Button */}
+        <div className="flex justify-between items-center mb-3 sm:mb-4 max-w-4xl mx-auto">
           <h3 className="text-base sm:text-lg font-semibold text-white m-0">Settings & Stats</h3>
+          <button
+            onClick={() => onClose()}
+            className="px-3 py-1 bg-red-400 text-white rounded-md hover:bg-red-500 transition-colors duration-200"
+            aria-label="Close settings"
+          >
+            Close
+          </button>
         </div>
         
         <div className="max-w-4xl mx-auto">
@@ -246,19 +249,20 @@ function SettingsPanel({
             </button>
           </div>
         </div>
-      </div>
+        </div>
 
-      {/* Tag Manager Modal */}
-      {showTagManager && (
-        <TagManager
-          tags={tags}
-          onCreateTag={handleCreateTag}
-          onUpdateTag={handleUpdateTag}
-          onDeleteTag={handleDeleteTag}
-          onClose={() => setShowTagManager(false)}
-        />
-      )}
-    </div>
+        {/* Tag Manager Modal */}
+        {showTagManager && (
+          <TagManager
+            tags={tags}
+            onCreateTag={handleCreateTag}
+            onUpdateTag={handleUpdateTag}
+            onDeleteTag={handleDeleteTag}
+            onClose={() => setShowTagManager(false)}
+          />
+        )}
+      </div>
+    </CSSTransition>
   )
 }
 

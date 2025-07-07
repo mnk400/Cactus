@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import MediaItem from './MediaItem'
-import VideoProgressBar from './VideoProgressBar'
+
 import { useTouchGestures } from '../hooks/useTouchGestures'
 import { useMediaPreloader } from '../hooks/useMediaPreloader'
 
@@ -60,9 +60,7 @@ function MediaViewer({ mediaFiles, currentIndex, onNavigate, showTagInput, onTog
             setIsTransitioning={setIsTransitioning}
             getPreloadedMedia={getPreloadedMedia}
           />
-          <VideoProgressBar 
-            currentMediaFile={currentMediaFile}
-          />
+          
         </>
       )}
     </div>

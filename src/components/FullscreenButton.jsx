@@ -19,7 +19,7 @@ function FullscreenButton() {
   return (
     <button
       onClick={handleFullscreen}
-      className="nav-button bg-black bg-opacity-40 text-gray-200 border-none p-2 rounded-xl cursor-pointer text-lg transition-all duration-200 ease-in-out hover:bg-white hover:bg-opacity-20 active:scale-95 min-w-10 min-h-10"
+      className="nav-button bg-black-shades-700 text-gray-200 border-none p-2 rounded-xl cursor-pointer text-lg transition-all duration-200 ease-in-out hover:bg-white hover:bg-opacity-20 active:scale-95 min-w-10 min-h-10"
     >
       ⛶
     </button>
