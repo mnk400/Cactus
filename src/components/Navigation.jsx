@@ -1,5 +1,6 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import FullscreenButton from './FullscreenButton'
+import VideoProgressBar from './VideoProgressBar'
 import { isVideo } from '../utils/helpers'
 
 function Navigation({
@@ -9,16 +10,36 @@ function Navigation({
   onToggleTagInput,
   directoryName,
   showNavButtons,
-  currentMediaFile
+  currentMediaFile,
 }) {
+  const [videoElement, setVideoElement] = useState(null);
+
+  useEffect(() => {
+    if (isVideo(currentMediaFile)) {
+      // A delay might be needed for the element to be in the DOM
+      setTimeout(() => {
+        const video = document.querySelector('.media-item video');
+        setVideoElement(video);
+      }, 100);
+    } else {
+      setVideoElement(null);
+    }
+  }, [currentMediaFile]);
+
   // Extract just the directory name for the navigation bar display
   const shortDirectoryName = directoryName 
     ? directoryName.split('/').pop() || directoryName.split('/').slice(-2, -1)[0] || 'Root'
     : ''
+  const isVideoPlaying = isVideo(currentMediaFile);
+
   return (
     <div 
-      className="navigation absolute left-1/2 transform -translate-x-1/2 flex items-center justify-end gap-2 z-20 p-2 bg-black-shades-1000 rounded-2xl w-11/12 max-w-xl transition-all duration-300 bottom-4"
+      className={`navigation absolute left-1/2 transform -translate-x-1/2 flex flex-col items-center justify-end gap-2 z-20 p-2 bg-black-shades-1000 rounded-2xl w-11/12 max-w-xl transition-all duration-300 bottom-4 ${isVideoPlaying ? 'py-2' : 'py-0 pb-2'}`}
     >
+      <div className={`w-full overflow-hidden transition-all duration-300 ${isVideoPlaying ? 'max-h-8' : 'max-h-0'}`}>
+        <VideoProgressBar videoElement={videoElement} />
+      </div>
+      <div className="w-full flex items-center justify-end gap-2">
       {showNavButtons && (
         <>
           <button
@@ -59,6 +80,7 @@ function Navigation({
       
       <div className="directory-name text-gray-200 text-base ml-auto px-4 whitespace-nowrap overflow-hidden text-ellipsis">
         {shortDirectoryName}
+      </div>
       </div>
     </div>
   )

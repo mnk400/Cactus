@@ -10,7 +10,7 @@ import DebugInfo from './components/DebugInfo'
 import { useMediaFiles } from './hooks/useMediaFiles'
 import { useKeyboardNavigation } from './hooks/useKeyboardNavigation'
 import { isVideo } from './utils/helpers'
-import VideoProgressBar from './components/VideoProgressBar'
+
 
 
 function App() {
@@ -197,19 +197,17 @@ function App() {
           </div>
         )}
 
-        {!isSettingsOpen && currentMediaFile && isVideo(currentMediaFile) && (
-          <VideoProgressBar currentMediaFile={currentMediaFile} />
-        )}
+        
 
         {!isSettingsOpen && (
           <Navigation
+            currentMediaFile={currentMediaFile}
             onPrevious={() => handleNavigation(-1)}
             onNext={() => handleNavigation(1)}
             onToggleSettings={() => setIsSettingsOpen(!isSettingsOpen)}
             onToggleTagInput={handleToggleTagInput}
             directoryName={directoryPath}
             showNavButtons={mediaFiles.length > 0}
-            currentMediaFile={currentMediaFile}
           />
         )}
 
@@ -235,6 +233,7 @@ function App() {
         currentMediaFile={currentMediaFile} 
         showTagInput={showTagInput}
         key={tagUpdateTrigger} // Force re-render when tags are updated
+        isVideoPlaying={isVideo(currentMediaFile)}
       />
       
       <TagInputModal

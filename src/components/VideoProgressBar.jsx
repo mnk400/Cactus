@@ -1,15 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { isVideo } from '../utils/helpers';
 
-function VideoProgressBar({ currentMediaFile }) {
+function VideoProgressBar({ videoElement }) {
   const [progress, setProgress] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
   const videoRef = useRef(null);
 
   useEffect(() => {
-    if (isVideo(currentMediaFile)) {
+    if (videoElement) {
       setIsVisible(true);
-      const videoElement = document.querySelector('.media-item video');
       videoRef.current = videoElement;
 
       if (videoElement) {
@@ -27,7 +26,7 @@ function VideoProgressBar({ currentMediaFile }) {
       setIsVisible(false);
       setProgress(0);
     }
-  }, [currentMediaFile]);
+  }, [videoElement]);
 
   const handleProgressClick = (e) => {
     if (!videoRef.current) return;
@@ -41,7 +40,7 @@ function VideoProgressBar({ currentMediaFile }) {
 
   return (
     <div
-      className="video-progress-container absolute left-1/2 transform -translate-x-1/2 w-11/12 max-w-xl h-2 bg-black-shades-800 rounded-full overflow-hidden z-20 cursor-pointer bottom-32"
+      className="video-progress-container w-full h-3 bg-black-shades-600 rounded-full overflow-hidden cursor-pointer"
       onClick={handleProgressClick}
     >
       <div
