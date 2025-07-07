@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import FullscreenButton from "./FullscreenButton";
 import VideoProgressBar from "./VideoProgressBar";
-import { isVideo } from "../utils/helpers";
+import { isVideo, isMobile } from "../utils/helpers";
 
 function Navigation({
   onPrevious,
@@ -11,6 +11,8 @@ function Navigation({
   directoryName,
   showNavButtons,
   currentMediaFile,
+  isFavorited,
+  onToggleFavorite,
 }) {
   const [videoElement, setVideoElement] = useState(null);
 
@@ -44,7 +46,7 @@ function Navigation({
         <VideoProgressBar videoElement={videoElement} />
       </div>
       <div className="w-full flex items-center justify-end gap-2">
-        {showNavButtons && (
+        {showNavButtons && !isMobile() && (
           <>
             <button
               onClick={onPrevious}
@@ -60,6 +62,38 @@ function Navigation({
             </button>
           </>
         )}
+
+        <button
+          onClick={onToggleFavorite}
+          className="nav-button bg-black-shades-700 text-gray-200 border-none p-2 rounded-xl cursor-pointer transition-all duration-200 ease-in-out hover:bg-white hover:bg-opacity-20 active:scale-95 min-w-10 min-h-11 flex items-center justify-center"
+          title={isFavorited ? "Remove from favorites" : "Add to favorites"}
+        >
+          {isFavorited ? (
+            <svg
+              className="w-4 h-4 text-red-400"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+            </svg>
+          ) : (
+            <svg
+              className="w-4 h-4 text-gray-200"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+              />
+            </svg>
+          )}
+        </button>
 
         <button
           onClick={onToggleTagInput}

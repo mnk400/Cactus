@@ -111,7 +111,9 @@ const TagDisplay = ({ currentMediaFile, showTagInput, isVideoPlaying }) => {
       <div className="pb-3 pointer-events-auto">
         <div className="overflow-x-auto scrollbar-hide">
           <div className="flex gap-2 min-w-max pb-1">
-            {mediaTags.map((tag) => (
+            {mediaTags
+              .filter((tag) => tag.name !== "favorites")
+              .map((tag) => (
               <span
                 key={tag.id}
                 data-tag-id={tag.id} // Use data attribute to store tag ID for ref lookup

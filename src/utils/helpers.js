@@ -22,3 +22,7 @@ export function isVideo(filePath) {
   const videoExtensions = [".mp4", ".webm", ".ogg", ".mov", ".avi", ".mkv"];
   return videoExtensions.some((ext) => filePath.toLowerCase().endsWith(ext));
 }
+
+export function isMobile() {
+  return /Mobi|Android/i.test(navigator.userAgent);
+}

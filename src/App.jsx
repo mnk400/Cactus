@@ -10,6 +10,7 @@ import DebugInfo from "./components/DebugInfo";
 import { useMediaFiles } from "./hooks/useMediaFiles";
 import { useKeyboardNavigation } from "./hooks/useKeyboardNavigation";
 import { isVideo } from "./utils/helpers";
+import { useFavorite } from "./hooks/useFavorite";
 
 function App() {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -154,6 +155,8 @@ function App() {
     ? currentMediaFile.split("/").slice(0, -1).join("/") || "/"
     : "";
 
+  const { isFavorited, toggleFavorite } = useFavorite(currentMediaFile);
+
   return (
     <div className="container flex flex-col h-screen w-full max-w-full shadow-2xl overflow-hidden bg-black text-gray-200">
       <DebugInfo show={debugMode} />
@@ -211,6 +214,8 @@ function App() {
             onToggleTagInput={handleToggleTagInput}
             directoryName={directoryPath}
             showNavButtons={mediaFiles.length > 0}
+            isFavorited={isFavorited}
+            onToggleFavorite={toggleFavorite}
           />
         )}
 
