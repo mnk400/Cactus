@@ -9,6 +9,8 @@ const argv = minimist(process.argv.slice(2));
 
 const PORT = argv.p || process.env.PORT || 3000;
 const directoryPath = argv.d;
+const enablePredict = argv['experimental-prediction-test'] || false; // Flag to enable extremely experimental prediction functionality
+const predictApiUrl = argv['predict-api-url'] || 'http://localhost'; // Prediction API URL super WIP
 
 // Simple structured logging
 const log = {
@@ -534,6 +536,14 @@ app.get("/api/stats", (req, res) => {
   }
 });
 
+// API endpoint to check if prediction is enabled
+app.get("/api/config", (req, res) => {
+    res.json({
+      predictEnabled: enablePredict,
+      predictApiUrl: predictApiUrl,
+    });
+  });
+
 // Serve React app for all other routes (SPA routing)
 app.get("*", (req, res) => {
   const indexPath = path.join(reactBuildPath, "index.html");
@@ -552,5 +562,6 @@ app.listen(PORT, () => {
     directory: directoryPath,
     version: "React + SQLite",
     storage: "SQLite Database",
+    predictEnabled: enablePredict,
   });
 });

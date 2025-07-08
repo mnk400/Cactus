@@ -26,6 +26,7 @@ Extremely minimal randomized order media reviewer built with React
 - **Responsive Design**: Works on mobile and desktop
 - **SQLite Storage**: Content-based file identification that survives moves and renames
 - **Enhanced Performance**: Fast database queries and optimized file scanning
+- **Comprehensive Tag Handling**: Supports adding, removing, and managing tags for media files. Also supports filtering media by tag(s).
 
 ## Quick Start
 

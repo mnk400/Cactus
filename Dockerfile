@@ -24,4 +24,4 @@ RUN mkdir -p configuration
 EXPOSE 3000
 
 # Start the server
-ENTRYPOINT ["node", "src/server.js", "-d", "/media"]
+CMD ["node", "src/server.js", "-d", "/media", "$@"]
