@@ -705,9 +705,8 @@ class MediaDatabase {
                 SELECT t.* FROM tags t
                 JOIN media_tags mt ON t.id = mt.tag_id
                 WHERE mt.file_hash = ?
-                ORDER BY t.name
+                ORDER BY mt.created_at
             `);
-
       return stmt.all(fileHash);
     } catch (error) {
       log.error("Failed to get media tags", { fileHash, error: error.message });
