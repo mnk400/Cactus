@@ -63,7 +63,7 @@ function initializeScanner(dirPath) {
   // Create database path based on directory hash for unique database per directory
   const dirHash = crypto.createHash("md5").update(directoryPath).digest("hex");
   const dbFileName = `.${dirHash}_media.db`;
-  const dbPath = path.join(process.cwd(), "configuration", dbFileName);
+  const dbPath = path.join(directoryPath, dbFileName);
 
   // Initialize database
   mediaDatabase = new MediaDatabase(dbPath);
@@ -71,7 +71,7 @@ function initializeScanner(dirPath) {
 
   // Initialize lock file path
   const lockFileName = `.${dirHash}_scan.lock`;
-  LOCK_FILE_PATH = path.join(process.cwd(), "configuration", lockFileName);
+  LOCK_FILE_PATH = path.join(directoryPath, lockFileName);
 
   log.info("SQLite media scanner initialized", {
     directory: directoryPath,

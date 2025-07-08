@@ -9,8 +9,8 @@ const argv = minimist(process.argv.slice(2));
 
 const PORT = argv.p || process.env.PORT || 3000;
 const directoryPath = argv.d;
-const enablePredict = argv['experimental-prediction-test'] || false; // Flag to enable extremely experimental prediction functionality
-const predictApiUrl = argv['predict-api-url'] || 'http://localhost'; // Prediction API URL super WIP
+const enablePredict = argv['experimental-prediction-test'] || process.env.EXPERIMENTAL_PREDICTION_TEST === 'true' || false; // Flag to enable extremely experimental prediction functionality
+const predictApiUrl = argv['predict-api-url'] || process.env.PREDICT_API_URL || 'http://localhost'; // Prediction API URL super WIP
 
 // Simple structured logging
 const log = {
