@@ -114,34 +114,34 @@ const TagDisplay = ({ currentMediaFile, showTagInput, isVideoPlaying }) => {
             {mediaTags
               .filter((tag) => tag.name !== "favorites")
               .map((tag) => (
-              <span
-                key={tag.id}
-                data-tag-id={tag.id} // Use data attribute to store tag ID for ref lookup
-                ref={(el) => {
-                  if (el) {
-                    tagRefs.current.set(tag.id, el);
-                  } else {
-                    tagRefs.current.delete(tag.id); // Cleanup on unmount
-                  }
-                }}
-                className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium text-white shadow-sm whitespace-nowrap flex-shrink-0 tag-animated"
-                style={{
-                  backgroundColor: tag.color,
-                }}
-              >
-                {tag.name}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRemoveTag(tag.id);
+                <span
+                  key={tag.id}
+                  data-tag-id={tag.id} // Use data attribute to store tag ID for ref lookup
+                  ref={(el) => {
+                    if (el) {
+                      tagRefs.current.set(tag.id, el);
+                    } else {
+                      tagRefs.current.delete(tag.id); // Cleanup on unmount
+                    }
                   }}
-                  className="ml-2 text-white hover:text-gray-200 focus:outline-none transition-colors duration-150 hover:bg-white hover:bg-opacity-20 rounded-full w-5 h-5 flex items-center justify-center text-lg leading-none"
-                  aria-label={`Remove ${tag.name} tag`}
+                  className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium text-white shadow-sm whitespace-nowrap flex-shrink-0 tag-animated"
+                  style={{
+                    backgroundColor: tag.color,
+                  }}
                 >
-                  ×
-                </button>
-              </span>
-            ))}
+                  {tag.name}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveTag(tag.id);
+                    }}
+                    className="ml-2 text-white hover:text-gray-200 focus:outline-none transition-colors duration-150 hover:bg-white hover:bg-opacity-20 rounded-full w-5 h-5 flex items-center justify-center text-lg leading-none"
+                    aria-label={`Remove ${tag.name} tag`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
           </div>
         </div>
         {mediaTags.length > 3 && (

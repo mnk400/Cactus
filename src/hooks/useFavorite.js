@@ -5,7 +5,14 @@ const FAVORITE_TAG_NAME = "favorites";
 const FAVORITE_TAG_COLOR = "#FF69B4"; // Pastel red/pink color
 
 export const useFavorite = (currentMediaFile) => {
-  const { tags, fetchTags, createTag, getMediaTags, addTagsToMedia, removeTagFromMedia } = useTags();
+  const {
+    tags,
+    fetchTags,
+    createTag,
+    getMediaTags,
+    addTagsToMedia,
+    removeTagFromMedia,
+  } = useTags();
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteTagId, setFavoriteTagId] = useState(null);
 
@@ -13,7 +20,7 @@ export const useFavorite = (currentMediaFile) => {
   useEffect(() => {
     const ensureFavoriteTag = async () => {
       if (tags.length > 0) {
-        let favTag = tags.find(tag => tag.name === FAVORITE_TAG_NAME);
+        let favTag = tags.find((tag) => tag.name === FAVORITE_TAG_NAME);
         if (!favTag) {
           try {
             favTag = await createTag(FAVORITE_TAG_NAME, FAVORITE_TAG_COLOR);
@@ -33,7 +40,7 @@ export const useFavorite = (currentMediaFile) => {
     const checkFavoriteStatus = async () => {
       if (currentMediaFile && favoriteTagId) {
         const mediaTags = await getMediaTags(currentMediaFile);
-        const favorited = mediaTags.some(tag => tag.id === favoriteTagId);
+        const favorited = mediaTags.some((tag) => tag.id === favoriteTagId);
         setIsFavorited(favorited);
       } else {
         setIsFavorited(false);
@@ -49,7 +56,9 @@ export const useFavorite = (currentMediaFile) => {
       if (isFavorited) {
         // Remove favorite tag
         // Need to get fileHash for removeTagFromMedia
-        const response = await fetch(`/api/media-path/tags?path=${encodeURIComponent(currentMediaFile)}`);
+        const response = await fetch(
+          `/api/media-path/tags?path=${encodeURIComponent(currentMediaFile)}`,
+        );
         const data = await response.json();
         if (data.fileHash) {
           await removeTagFromMedia(data.fileHash, favoriteTagId);
@@ -65,7 +74,13 @@ export const useFavorite = (currentMediaFile) => {
     } catch (error) {
       console.error("Failed to toggle favorite status:", error);
     }
-  }, [currentMediaFile, favoriteTagId, isFavorited, addTagsToMedia, removeTagFromMedia]);
+  }, [
+    currentMediaFile,
+    favoriteTagId,
+    isFavorited,
+    addTagsToMedia,
+    removeTagFromMedia,
+  ]);
 
   return { isFavorited, toggleFavorite, FAVORITE_TAG_NAME };
 };

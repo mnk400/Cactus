@@ -396,9 +396,12 @@ app.post("/api/media-path/tags", (req, res) => {
     // Handle tag names (create if they don't exist)
     if (tagNames && Array.isArray(tagNames)) {
       for (const tagName of tagNames) {
-        let tag = database.getTagByName(tagName);
+        const trimmedTagName = String(tagName).trim(); // Ensure it's a string and trim it
+        if (!trimmedTagName) continue; // Skip empty tag names after trimming
+
+        let tag = database.getTagByName(trimmedTagName);
         if (!tag) {
-          tag = database.createTag(tagName);
+          tag = database.createTag(trimmedTagName);
         }
         const added = database.addTagToMedia(fileHash, tag.id);
         results.push({ tagId: tag.id, tagName: tag.name, added });
@@ -472,12 +475,10 @@ app.post("/rescan-directory", async (req, res) => {
     log.error("Directory rescan failed", { error: error.message });
 
     if (error.message === "Scan already in progress") {
-      res
-        .status(409)
-        .json({
-          error:
-            "Scan already in progress. Please wait for the current scan to complete.",
-        });
+      res.status(409).json({
+        error:
+          "Scan already in progress. Please wait for the current scan to complete.",
+      });
     } else {
       res
         .status(500)
