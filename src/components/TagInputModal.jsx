@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { CSSTransition } from "react-transition-group";
 import TagInput from "./TagInput";
 import useTags from "../hooks/useTags";
-import { isImage } from "../utils/helpers";
+import { isImage, isVideo } from "../utils/helpers";
+import { usePrediction } from "../hooks/usePrediction";
 
 const TagInputModal = ({
   isOpen,
@@ -14,7 +15,20 @@ const TagInputModal = ({
   const [stagedTags, setStagedTags] = useState([]);
   const [predictEnabled, setPredictEnabled] = useState(false);
   const [predictApiUrl, setPredictApiUrl] = useState('');
-  const [isPredicting, setIsPredicting] = useState(false);
+
+  const handleAddStagedTag = (tagNames) => {
+    // Prevent adding duplicate tags
+    tagNames.forEach((tagName) => {
+      if (!stagedTags.some((tag) => tag.name === tagName)) {
+        setStagedTags((prevTags) => [
+          ...prevTags,
+          { name: tagName, id: tagName, color: "#60a5fa" },
+        ]); // Assign a temporary ID and color
+      }
+    });
+  };
+
+  const { isPredicting, predictTags } = usePrediction(predictApiUrl, handleAddStagedTag);
 
   useEffect(() => {
     if (!isOpen) {
@@ -40,18 +54,6 @@ const TagInputModal = ({
     checkPredictEnabled();
   }, []);
 
-  const handleAddStagedTag = (tagNames) => {
-    // Prevent adding duplicate tags
-    tagNames.forEach((tagName) => {
-      if (!stagedTags.some((tag) => tag.name === tagName)) {
-        setStagedTags((prevTags) => [
-          ...prevTags,
-          { name: tagName, id: tagName, color: "#60a5fa" },
-        ]); // Assign a temporary ID and color
-      }
-    });
-  };
-
   const handleRemoveStagedTag = (tagId) => {
     setStagedTags((prevTags) => prevTags.filter((tag) => tag.id !== tagId));
   };
@@ -73,45 +75,8 @@ const TagInputModal = ({
     }
   };
 
-  const handlePredict = async () => {
-    if (!currentMediaFile || !isImage(currentMediaFile) || !predictEnabled) {
-      return;
-    }
-
-    setIsPredicting(true);
-    try {
-      const formData = new FormData();
-
-      const image = await fetch(`/media?path=${encodeURIComponent(currentMediaFile)}`);
-      if (!image.ok) {
-        throw new Error(`Failed to fetch image: ${image.status}`);
-      }
-      
-      const imageBlob = await image.blob();
-      formData.append('image', imageBlob, 'media.jpeg');
-      
-      // Make the prediction request
-      const predictResponse = await fetch(predictApiUrl, {
-        method: 'POST',
-        body: formData,
-      });
-      
-      if (!predictResponse.ok) {
-        throw new Error(`Prediction failed with status: ${predictResponse.status}`);
-      }
-      
-      const data = await predictResponse.json();
-      
-      if (data.tags) {
-        // Split the tags string and add them to staged tags
-        const predictedTags = data.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
-        handleAddStagedTag(predictedTags);
-      }
-    } catch (error) {
-      console.error('Failed to predict tags:', error);
-    } finally {
-      setIsPredicting(false);
-    }
+  const handlePredict = () => {
+    predictTags(currentMediaFile);
   };
 
   // Close modal when clicking the background overlay
@@ -158,7 +123,7 @@ const TagInputModal = ({
           )}
           </div>
           <div className="flex justify-between mt-4">
-            {predictEnabled && isImage(currentMediaFile) && (
+            {(predictEnabled && (isImage(currentMediaFile) || isVideo(currentMediaFile))) && (
               <button
                 onClick={handlePredict}
                 disabled={isPredicting}

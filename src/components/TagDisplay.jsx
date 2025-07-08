@@ -144,13 +144,6 @@ const TagDisplay = ({ currentMediaFile, showTagInput, isVideoPlaying }) => {
               ))}
           </div>
         </div>
-        {mediaTags.length > 3 && (
-          <div className="text-center mt-1">
-            <div className="text-xs text-gray-400 opacity-60">
-              ← Scroll to see all tags →
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
