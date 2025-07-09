@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { CSSTransition } from "react-transition-group";
 import { isImage, isVideo } from "../utils/helpers";
 import TagFilter from "./TagFilter";
+import PathFilter from "./PathFilter";
 import TagManager from "./TagManager";
 import useTags from "../hooks/useTags";
 
@@ -19,6 +20,7 @@ function SettingsPanel({
   excludedTags = [],
   onTagsChange,
   onExcludedTagsChange,
+  onPathChange,
 }) {
   const [showTagManager, setShowTagManager] = useState(false);
   const { tags, createTag, updateTag, deleteTag } = useTags();
@@ -242,6 +244,16 @@ function SettingsPanel({
               onTagsChange={onTagsChange}
               onExcludedTagsChange={onExcludedTagsChange}
             />
+          </div>
+
+          {/* Path Filter Section */}
+          <div className="path-filter-section mb-3 sm:mb-4 p-2 sm:p-3 bg-black bg-opacity-40 backdrop-blur-sm rounded-2xl">
+            <div className="flex items-center gap-2 mb-2 sm:mb-3">
+              <h4 className="text-sm sm:text-base font-medium text-white m-0">
+                Path Filter
+              </h4>
+            </div>
+            <PathFilter onFilterChange={onPathChange} />
           </div>
 
           {/* Actions Section */}

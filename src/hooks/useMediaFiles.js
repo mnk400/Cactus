@@ -9,10 +9,16 @@ export function useMediaFiles() {
   const [isScanning, setIsScanning] = useState(false);
 
   const fetchMediaFiles = useCallback(
-    async (mediaType = "all", includeTags = [], excludeTags = []) => {
+    async (
+      mediaType = "all",
+      includeTags = [],
+      excludeTags = [],
+      pathSubstring = "",
+    ) => {
       console.log(`Fetching ${mediaType} media files...`, {
         includeTags,
         excludeTags,
+        pathSubstring,
       });
 
       try {
@@ -26,6 +32,9 @@ export function useMediaFiles() {
         }
         if (excludeTags.length > 0) {
           url += `&exclude-tags=${excludeTags.join(",")}`;
+        }
+        if (pathSubstring) {
+          url += `&pathSubstring=${encodeURIComponent(pathSubstring)}`;
         }
 
         // Fetch the requested type
@@ -42,7 +51,8 @@ export function useMediaFiles() {
         if (
           mediaType === "all" &&
           includeTags.length === 0 &&
-          excludeTags.length === 0
+          excludeTags.length === 0 &&
+          !pathSubstring
         ) {
           setAllMediaFiles(data.files);
         } else {
@@ -64,7 +74,10 @@ export function useMediaFiles() {
         }
 
         if (!data.files || data.files.length === 0) {
-          const hasFilters = includeTags.length > 0 || excludeTags.length > 0;
+          const hasFilters =
+            includeTags.length > 0 ||
+            excludeTags.length > 0 ||
+            !!pathSubstring;
           const filterText = hasFilters ? " matching the current filters" : "";
           setError(`No ${mediaType} files found${filterText}`);
           setMediaFiles([]);
@@ -84,10 +97,11 @@ export function useMediaFiles() {
   );
 
   const filterMedia = useCallback(
-    async (mediaType, includeTags = [], excludeTags = []) => {
+    async (mediaType, includeTags = [], excludeTags = [], pathSubstring = "") => {
       console.log(`Filtering media by type: ${mediaType}`, {
         includeTags,
         excludeTags,
+        pathSubstring,
       });
 
       try {
@@ -102,6 +116,9 @@ export function useMediaFiles() {
         if (excludeTags.length > 0) {
           url += `&exclude-tags=${excludeTags.join(",")}`;
         }
+        if (pathSubstring) {
+          url += `&pathSubstring=${encodeURIComponent(pathSubstring)}`;
+        }
 
         const response = await fetch(url);
 
@@ -114,7 +131,10 @@ export function useMediaFiles() {
         console.log(`Filter response: Found ${data.count} ${mediaType} files`);
 
         if (!data.files || data.files.length === 0) {
-          const hasFilters = includeTags.length > 0 || excludeTags.length > 0;
+          const hasFilters =
+            includeTags.length > 0 ||
+            excludeTags.length > 0 ||
+            !!pathSubstring;
           const filterText = hasFilters ? " matching the current filters" : "";
           setError(`No ${mediaType} files found${filterText}`);
           setMediaFiles([]);

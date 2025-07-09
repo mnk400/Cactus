@@ -20,6 +20,7 @@ function App() {
   const [debugMode, setDebugMode] = useState(false);
   const [selectedTags, setSelectedTags] = useState([]);
   const [excludedTags, setExcludedTags] = useState([]);
+  const [pathSubstring, setPathSubstring] = useState("");
   const [tagUpdateTrigger, setTagUpdateTrigger] = useState(0);
 
   const {
@@ -80,47 +81,39 @@ function App() {
 
     setCurrentMediaType(mediaType);
     setCurrentIndex(0);
-    await applyFilters(mediaType, selectedTags, excludedTags);
+    await applyFilters(mediaType, selectedTags, excludedTags, pathSubstring);
     setIsSettingsOpen(false);
   };
 
   const handleTagsChange = async (tags) => {
     setSelectedTags(tags);
     setCurrentIndex(0);
-    await applyFilters(currentMediaType, tags, excludedTags);
+    await applyFilters(currentMediaType, tags, excludedTags, pathSubstring);
   };
 
   const handleExcludedTagsChange = async (tags) => {
     setExcludedTags(tags);
     setCurrentIndex(0);
-    await applyFilters(currentMediaType, selectedTags, tags);
+    await applyFilters(currentMediaType, selectedTags, tags, pathSubstring);
   };
 
-  const applyFilters = async (mediaType, includeTags, excludeTags) => {
+  const handlePathChange = async (substring) => {
+    setPathSubstring(substring);
+    setCurrentIndex(0);
+    await applyFilters(currentMediaType, selectedTags, excludedTags, substring);
+  };
+
+  const applyFilters = async (
+    mediaType,
+    includeTags,
+    excludeTags,
+    pathSubstring,
+  ) => {
     try {
       const tagNames = includeTags.map((tag) => tag.name);
       const excludeTagNames = excludeTags.map((tag) => tag.name);
 
-      let url = `/api/media?type=${mediaType}`;
-
-      if (tagNames.length > 0) {
-        url += `&tags=${tagNames.join(",")}`;
-      }
-
-      if (excludeTagNames.length > 0) {
-        url += `&exclude-tags=${excludeTagNames.join(",")}`;
-      }
-
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error("Failed to fetch filtered media");
-      }
-
-      const data = await response.json();
-
-      // Update the media files using the existing hook's internal state
-      // We'll need to modify the useMediaFiles hook to support this
-      await filterMedia(mediaType, tagNames, excludeTagNames);
+      await filterMedia(mediaType, tagNames, excludeTagNames, pathSubstring);
     } catch (error) {
       console.error("Failed to apply filters:", error);
     }
@@ -128,7 +121,7 @@ function App() {
 
   const handleRescan = async () => {
     await rescanDirectory();
-    await applyFilters(currentMediaType, selectedTags, excludedTags);
+    await applyFilters(currentMediaType, selectedTags, excludedTags, pathSubstring);
     setIsSettingsOpen(false);
   };
 
@@ -233,6 +226,7 @@ function App() {
           excludedTags={excludedTags}
           onTagsChange={handleTagsChange}
           onExcludedTagsChange={handleExcludedTagsChange}
+          onPathChange={handlePathChange}
         />
       </div>
 

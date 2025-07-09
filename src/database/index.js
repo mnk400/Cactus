@@ -333,6 +333,29 @@ class MediaDatabase {
   }
 
   /**
+   * Get media files by path substring.
+   */
+  getMediaByPathSubstring(substring) {
+    if (!this.isInitialized) {
+      throw new Error("Database not initialized");
+    }
+
+    try {
+      const stmt = this.db.prepare(
+        "SELECT file_path FROM media_files WHERE file_path LIKE ?",
+      );
+      const rows = stmt.all(`%${substring}%`);
+      return rows.map((row) => row.file_path);
+    } catch (error) {
+      log.error("Failed to get media by path substring", {
+        substring,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  /**
    * Get file hash for a given file path (generates if not in database)
    */
   getFileHashForPath(filePath) {

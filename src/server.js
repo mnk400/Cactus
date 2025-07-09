@@ -87,6 +87,7 @@ app.get("/api/media", (req, res) => {
   const mediaType = req.query.type || "all";
   const tags = req.query.tags;
   const excludeTags = req.query["exclude-tags"];
+  const pathSubstring = req.query.pathSubstring;
 
   // Validate media type
   if (!["all", "photos", "videos"].includes(mediaType)) {
@@ -98,7 +99,10 @@ app.get("/api/media", (req, res) => {
   try {
     let files;
 
-    if (tags || excludeTags) {
+    if (pathSubstring) {
+      log.info("Filtering media by path substring", { pathSubstring });
+      files = mediaScanner.getDatabase().getMediaByPathSubstring(pathSubstring);
+    } else if (tags || excludeTags) {
       const tagList = tags
         ? tags
             .split(",")
@@ -149,6 +153,7 @@ app.get("/api/media", (req, res) => {
               .map((t) => t.trim())
               .filter((t) => t)
           : [],
+        pathSubstring,
       },
     });
   } catch (error) {

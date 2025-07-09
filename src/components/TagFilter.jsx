@@ -68,7 +68,7 @@ const TagFilter = ({
         <div className="relative">
           <button
             onClick={() => setShowIncludeDropdown(!showIncludeDropdown)}
-            className="w-full px-3 py-2 text-left bg-black-shades-700 hover:bg-white hover:bg-opacity-20 text-gray-200 rounded-xl transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
+            className="w-full px-3 py-2 text-left bg-black-shades-700 hover:bg-white hover:bg-opacity-20 text-gray-400 rounded-xl transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
             disabled={
               availableIncludeTags.length === 0 && includeSearchTerm === ""
             }
