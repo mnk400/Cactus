@@ -10,8 +10,12 @@ const argv = minimist(process.argv.slice(2));
 const PORT = argv.p || process.env.PORT || 3000;
 const directoryPath = argv.d;
 const THUMBNAIL_DIR = path.join(directoryPath, ".cactus_thumbnails");
-const enablePredict = argv['experimental-prediction-test'] || process.env.EXPERIMENTAL_PREDICTION_TEST === 'true' || false; // Flag to enable extremely experimental prediction functionality
-const predictApiUrl = argv['predict-api-url'] || process.env.PREDICT_API_URL || 'http://localhost'; // Prediction API URL super WIP
+const enablePredict =
+  argv["experimental-prediction-test"] ||
+  process.env.EXPERIMENTAL_PREDICTION_TEST === "true" ||
+  false; // Flag to enable extremely experimental prediction functionality
+const predictApiUrl =
+  argv["predict-api-url"] || process.env.PREDICT_API_URL || "http://localhost"; // Prediction API URL super WIP
 
 // Simple structured logging
 const log = {
@@ -584,18 +588,20 @@ app.post("/regenerate-thumbnails", async (req, res) => {
         error: "Operation already in progress. Please wait for it to complete.",
       });
     } else {
-      res.status(500).json({ error: error.message || "Failed to regenerate thumbnails" });
+      res
+        .status(500)
+        .json({ error: error.message || "Failed to regenerate thumbnails" });
     }
   }
 });
 
 // API endpoint to check if prediction is enabled
 app.get("/api/config", (req, res) => {
-    res.json({
-      predictEnabled: enablePredict,
-      predictApiUrl: predictApiUrl,
-    });
+  res.json({
+    predictEnabled: enablePredict,
+    predictApiUrl: predictApiUrl,
   });
+});
 
 // Serve React app for all other routes (SPA routing)
 app.get("*", (req, res) => {

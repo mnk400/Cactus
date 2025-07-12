@@ -39,7 +39,7 @@ export const useFavorite = (currentMediaFile) => {
     const checkFavoriteStatus = async () => {
       if (currentMediaFile && favoriteTagId) {
         const response = await fetch(
-          `/api/media-path/tags?path=${encodeURIComponent(currentMediaFile)}`
+          `/api/media-path/tags?path=${encodeURIComponent(currentMediaFile)}`,
         );
         const data = await response.json();
         if (data.tags) {
@@ -60,7 +60,7 @@ export const useFavorite = (currentMediaFile) => {
       if (isFavorited) {
         // Remove favorite tag
         const response = await fetch(
-          `/api/media-path/tags?path=${encodeURIComponent(currentMediaFile)}`
+          `/api/media-path/tags?path=${encodeURIComponent(currentMediaFile)}`,
         );
         const data = await response.json();
         if (data.fileHash) {

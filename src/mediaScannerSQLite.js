@@ -124,7 +124,10 @@ async function generateImageThumbnail(filePath, fileHash) {
     log.info("Generated image thumbnail", { filePath, thumbnailPath });
     return thumbnailPath;
   } catch (error) {
-    log.error("Failed to generate image thumbnail", { filePath, error: error.message });
+    log.error("Failed to generate image thumbnail", {
+      filePath,
+      error: error.message,
+    });
     return null;
   }
 }
@@ -135,11 +138,16 @@ async function generateVideoThumbnail(filePath, fileHash) {
   return new Promise((resolve) => {
     ffmpeg.ffprobe(filePath, (err, metadata) => {
       if (err) {
-        log.error("Failed to probe video for dimensions", { filePath, error: err.message });
+        log.error("Failed to probe video for dimensions", {
+          filePath,
+          error: err.message,
+        });
         return resolve(null);
       }
 
-      const videoStream = metadata.streams.find((s) => s.codec_type === "video");
+      const videoStream = metadata.streams.find(
+        (s) => s.codec_type === "video",
+      );
       if (!videoStream) {
         log.error("No video stream found", { filePath });
         return resolve(null);
@@ -167,11 +175,18 @@ async function generateVideoThumbnail(filePath, fileHash) {
           size: `${newWidth}x${newHeight}`,
         })
         .on("end", () => {
-          log.info("Generated video thumbnail", { filePath, thumbnailPath, size: `${newWidth}x${newHeight}` });
+          log.info("Generated video thumbnail", {
+            filePath,
+            thumbnailPath,
+            size: `${newWidth}x${newHeight}`,
+          });
           resolve(thumbnailPath);
         })
         .on("error", (err) => {
-          log.error("Failed to generate video thumbnail", { filePath, error: err.message });
+          log.error("Failed to generate video thumbnail", {
+            filePath,
+            error: err.message,
+          });
           resolve(null);
         });
     });
@@ -186,7 +201,10 @@ async function createLockFile() {
       timestamp: new Date().toISOString(),
       directory: directoryPath,
     };
-    await fs.promises.writeFile(LOCK_FILE_PATH, JSON.stringify(lockData, null, 2));
+    await fs.promises.writeFile(
+      LOCK_FILE_PATH,
+      JSON.stringify(lockData, null, 2),
+    );
     log.info("Scan lock file created", {
       lockFile: path.basename(LOCK_FILE_PATH),
       lockPath: LOCK_FILE_PATH,
@@ -207,10 +225,10 @@ async function removeLockFile() {
   try {
     await access(LOCK_FILE_PATH);
     await fs.promises.unlink(LOCK_FILE_PATH);
-      log.info("Scan lock file removed", {
-        lockFile: path.basename(LOCK_FILE_PATH),
-        lockPath: LOCK_FILE_PATH,
-      });
+    log.info("Scan lock file removed", {
+      lockFile: path.basename(LOCK_FILE_PATH),
+      lockPath: LOCK_FILE_PATH,
+    });
   } catch (error) {
     log.error("Failed to remove scan lock file", {
       lockFile: path.basename(LOCK_FILE_PATH),
@@ -302,14 +320,18 @@ async function scanDirectory(directoryPath) {
               if (mediaType) {
                 try {
                   const fileHash = mediaDatabase.generateFileHash(filePath);
-                  const existingMediaFile = mediaDatabase.getMediaFileByHash(fileHash);
+                  const existingMediaFile =
+                    mediaDatabase.getMediaFileByHash(fileHash);
 
                   if (existingMediaFile) {
-                    log.info("Media file already exists, skipping thumbnail generation", {
-                      filePath,
-                      mediaType,
-                      fileHash,
-                    });
+                    log.info(
+                      "Media file already exists, skipping thumbnail generation",
+                      {
+                        filePath,
+                        mediaType,
+                        fileHash,
+                      },
+                    );
                   } else {
                     // New file, insert and generate thumbnail
                     const result = mediaDatabase.insertMediaFile(
@@ -320,23 +342,34 @@ async function scanDirectory(directoryPath) {
                     );
                     let thumbnailPath = null;
                     if (mediaType === "image") {
-                      thumbnailPath = await generateImageThumbnail(filePath, fileHash);
+                      thumbnailPath = await generateImageThumbnail(
+                        filePath,
+                        fileHash,
+                      );
                     } else if (mediaType === "video") {
-                      thumbnailPath = await generateVideoThumbnail(filePath, fileHash);
+                      thumbnailPath = await generateVideoThumbnail(
+                        filePath,
+                        fileHash,
+                      );
                     }
                     if (thumbnailPath) {
-                      mediaDatabase.updateMediaFileThumbnail(fileHash, thumbnailPath);
+                      mediaDatabase.updateMediaFileThumbnail(
+                        fileHash,
+                        thumbnailPath,
+                      );
                     }
-                    log.info("New media file discovered and thumbnail generated", {
-                      filePath,
-                      mediaType,
-                      fileHash,
-                    });
+                    log.info(
+                      "New media file discovered and thumbnail generated",
+                      {
+                        filePath,
+                        mediaType,
+                        fileHash,
+                      },
+                    );
                   }
                   mediaFiles.push(filePath);
                   processedFiles.add(filePath);
-                  }
-                 catch (dbError) {
+                } catch (dbError) {
                   log.error("Failed to process media file", {
                     filePath,
                     error: dbError.message,
@@ -389,8 +422,8 @@ async function loadMediaFiles() {
           } catch {
             return false;
           }
-        })
-      ).then(results => sampleFiles.filter((_, i) => results[i]));
+        }),
+      ).then((results) => sampleFiles.filter((_, i) => results[i]));
 
       // If most sample files exist, use database
       if (existingFiles.length >= sampleSize * 0.8) {
@@ -479,14 +512,14 @@ async function rescanDirectory() {
     const maintenanceResult = mediaDatabase.maintenance();
 
     const stats = mediaDatabase.getStats();
-      log.info("Directory rescan completed", {
-        scannedFiles: files.length,
-        totalInDb: stats.total,
-        images: stats.images,
-        videos: stats.videos,
-        orphanedFilesRemovedByDate: maintenanceResult.removedOrphanedFilesByDate,
-        nonExistentFilesRemoved: maintenanceResult.removedNonExistentFiles,
-      });
+    log.info("Directory rescan completed", {
+      scannedFiles: files.length,
+      totalInDb: stats.total,
+      images: stats.images,
+      videos: stats.videos,
+      orphanedFilesRemovedByDate: maintenanceResult.removedOrphanedFilesByDate,
+      nonExistentFilesRemoved: maintenanceResult.removedNonExistentFiles,
+    });
 
     return files;
   } catch (error) {
@@ -538,7 +571,9 @@ async function regenerateThumbnails() {
     const mediaFiles = mediaDatabase.getMediaFiles("all");
     let regeneratedCount = 0;
 
-    log.info(`Found ${mediaFiles.length} files to process for thumbnail regeneration.`);
+    log.info(
+      `Found ${mediaFiles.length} files to process for thumbnail regeneration.`,
+    );
 
     for (const mediaFile of mediaFiles) {
       const filePath = mediaFile.file_path;
@@ -546,13 +581,17 @@ async function regenerateThumbnails() {
         try {
           await access(filePath);
         } catch {
-          log.warn("File not accessible, skipping thumbnail regeneration", { filePath });
+          log.warn("File not accessible, skipping thumbnail regeneration", {
+            filePath,
+          });
           continue;
         }
 
         const mediaType = getMediaType(filePath);
         if (!mediaType) {
-          log.warn("Unknown media type, skipping thumbnail regeneration", { filePath });
+          log.warn("Unknown media type, skipping thumbnail regeneration", {
+            filePath,
+          });
           continue;
         }
 
@@ -570,10 +609,15 @@ async function regenerateThumbnails() {
           regeneratedCount++;
           log.info("Successfully regenerated thumbnail", { filePath });
         } else {
-          log.warn("Thumbnail generation returned null, skipping update", { filePath });
+          log.warn("Thumbnail generation returned null, skipping update", {
+            filePath,
+          });
         }
       } catch (error) {
-        log.error("Failed to regenerate thumbnail for a specific file", { filePath, error: error.message });
+        log.error("Failed to regenerate thumbnail for a specific file", {
+          filePath,
+          error: error.message,
+        });
       }
     }
 

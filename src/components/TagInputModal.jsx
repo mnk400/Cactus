@@ -14,7 +14,7 @@ const TagInputModal = ({
   const { tags, addTagsToMedia } = useTags();
   const [stagedTags, setStagedTags] = useState([]);
   const [predictEnabled, setPredictEnabled] = useState(false);
-  const [predictApiUrl, setPredictApiUrl] = useState('');
+  const [predictApiUrl, setPredictApiUrl] = useState("");
 
   const handleAddStagedTag = (tagNames) => {
     // Prevent adding duplicate tags
@@ -28,7 +28,10 @@ const TagInputModal = ({
     });
   };
 
-  const { isPredicting, predictTags } = usePrediction(predictApiUrl, handleAddStagedTag);
+  const { isPredicting, predictTags } = usePrediction(
+    predictApiUrl,
+    handleAddStagedTag,
+  );
 
   useEffect(() => {
     if (!isOpen) {
@@ -40,17 +43,17 @@ const TagInputModal = ({
   useEffect(() => {
     const checkPredictEnabled = async () => {
       try {
-        const response = await fetch('/api/config');
+        const response = await fetch("/api/config");
         if (response.ok) {
           const data = await response.json();
           setPredictEnabled(data.predictEnabled);
           setPredictApiUrl(data.predictApiUrl);
         }
       } catch (error) {
-        console.error('Failed to check if prediction is enabled:', error);
+        console.error("Failed to check if prediction is enabled:", error);
       }
     };
-    
+
     checkPredictEnabled();
   }, []);
 
@@ -102,36 +105,38 @@ const TagInputModal = ({
           </p>
           <div className="flex-grow overflow-y-auto">
             {stagedTags.length > 0 && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {stagedTags.map((tag) => (
-                <span
-                  key={tag.id}
-                  className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium text-white shadow-sm whitespace-nowrap flex-shrink-0"
-                  style={{ backgroundColor: tag.color }}
-                >
-                  {tag.name}
-                  <button
-                    onClick={() => handleRemoveStagedTag(tag.id)}
-                    className="ml-2 text-white hover:text-gray-200 focus:outline-none transition-colors duration-150 hover:bg-white hover:bg-opacity-20 rounded-full w-5 h-5 flex items-center justify-center text-lg leading-none"
-                    aria-label={`Remove ${tag.name} tag`}
+              <div className="mt-4 flex flex-wrap gap-2">
+                {stagedTags.map((tag) => (
+                  <span
+                    key={tag.id}
+                    className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium text-white shadow-sm whitespace-nowrap flex-shrink-0"
+                    style={{ backgroundColor: tag.color }}
                   >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
+                    {tag.name}
+                    <button
+                      onClick={() => handleRemoveStagedTag(tag.id)}
+                      className="ml-2 text-white hover:text-gray-200 focus:outline-none transition-colors duration-150 hover:bg-white hover:bg-opacity-20 rounded-full w-5 h-5 flex items-center justify-center text-lg leading-none"
+                      aria-label={`Remove ${tag.name} tag`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
           <div className="flex justify-between mt-4">
-            {(predictEnabled && (isImage(currentMediaFile?.file_path) || isVideo(currentMediaFile?.file_path))) && (
-              <button
-                onClick={handlePredict}
-                disabled={isPredicting}
-                className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isPredicting ? 'Predicting...' : 'Predict'}
-              </button>
-            )}
+            {predictEnabled &&
+              (isImage(currentMediaFile?.file_path) ||
+                isVideo(currentMediaFile?.file_path)) && (
+                <button
+                  onClick={handlePredict}
+                  disabled={isPredicting}
+                  className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isPredicting ? "Predicting..." : "Predict"}
+                </button>
+              )}
             <button
               onClick={handleConfirmAdd}
               disabled={stagedTags.length === 0}

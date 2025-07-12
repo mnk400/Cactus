@@ -475,16 +475,23 @@ class MediaDatabase {
 
     let removedCount = 0;
     try {
-      const allFiles = this.db.prepare("SELECT file_hash, file_path FROM media_files").all();
+      const allFiles = this.db
+        .prepare("SELECT file_hash, file_path FROM media_files")
+        .all();
 
       this.db.transaction(() => {
         for (const file of allFiles) {
           if (!fs.existsSync(file.file_path)) {
-            const stmt = this.db.prepare("DELETE FROM media_files WHERE file_hash = ?");
+            const stmt = this.db.prepare(
+              "DELETE FROM media_files WHERE file_hash = ?",
+            );
             const result = stmt.run(file.file_hash);
             if (result.changes > 0) {
               removedCount += result.changes;
-              log.info("Removed non-existent file from database", { filePath: file.file_path, fileHash: file.file_hash });
+              log.info("Removed non-existent file from database", {
+                filePath: file.file_path,
+                fileHash: file.file_hash,
+              });
             }
           }
         }
@@ -496,7 +503,9 @@ class MediaDatabase {
 
       return removedCount;
     } catch (error) {
-      log.error("Failed to cleanup non-existent files", { error: error.message });
+      log.error("Failed to cleanup non-existent files", {
+        error: error.message,
+      });
       throw error;
     }
   }

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState } from "react";
 
 const LazyImage = ({ src, alt, className }) => {
   const imgRef = useRef(null);
@@ -12,7 +12,7 @@ const LazyImage = ({ src, alt, className }) => {
           observer.unobserve(imgRef.current);
         }
       },
-      { rootMargin: '100px' } // Load images when they are 100px away from the viewport
+      { rootMargin: "100px" }, // Load images when they are 100px away from the viewport
     );
 
     if (imgRef.current) {
@@ -29,11 +29,14 @@ const LazyImage = ({ src, alt, className }) => {
   return (
     <img
       ref={imgRef}
-      src={isVisible ? src : ''}
+      src={isVisible ? src : ""}
       alt={alt}
       className={className}
       loading="lazy"
-      style={{ opacity: isVisible ? 1 : 0, transition: 'opacity 0.3s ease-in-out' }}
+      style={{
+        opacity: isVisible ? 1 : 0,
+        transition: "opacity 0.3s ease-in-out",
+      }}
     />
   );
 };

@@ -7,7 +7,8 @@ export function useMediaFiles() {
   const [loading, setLoading] = useState(null);
   const [error, setError] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
-  const [isRegeneratingThumbnails, setIsRegeneratingThumbnails] = useState(false);
+  const [isRegeneratingThumbnails, setIsRegeneratingThumbnails] =
+    useState(false);
 
   const fetchMediaFiles = useCallback(
     async (
@@ -76,9 +77,7 @@ export function useMediaFiles() {
 
         if (!data.files || data.files.length === 0) {
           const hasFilters =
-            includeTags.length > 0 ||
-            excludeTags.length > 0 ||
-            !!pathSubstring;
+            includeTags.length > 0 || excludeTags.length > 0 || !!pathSubstring;
           const filterText = hasFilters ? " matching the current filters" : "";
           setError(`No ${mediaType} files found${filterText}`);
           setMediaFiles([]);
@@ -98,7 +97,12 @@ export function useMediaFiles() {
   );
 
   const filterMedia = useCallback(
-    async (mediaType, includeTags = [], excludeTags = [], pathSubstring = "") => {
+    async (
+      mediaType,
+      includeTags = [],
+      excludeTags = [],
+      pathSubstring = "",
+    ) => {
       console.log(`Filtering media by type: ${mediaType}`, {
         includeTags,
         excludeTags,
@@ -133,9 +137,7 @@ export function useMediaFiles() {
 
         if (!data.files || data.files.length === 0) {
           const hasFilters =
-            includeTags.length > 0 ||
-            excludeTags.length > 0 ||
-            !!pathSubstring;
+            includeTags.length > 0 || excludeTags.length > 0 || !!pathSubstring;
           const filterText = hasFilters ? " matching the current filters" : "";
           setError(`No ${mediaType} files found${filterText}`);
           setMediaFiles([]);
@@ -193,7 +195,9 @@ export function useMediaFiles() {
 
   const regenerateThumbnails = useCallback(async () => {
     if (isRegeneratingThumbnails) {
-      console.log("Thumbnail regeneration already in progress, ignoring request");
+      console.log(
+        "Thumbnail regeneration already in progress, ignoring request",
+      );
       return;
     }
 
@@ -211,7 +215,7 @@ export function useMediaFiles() {
 
         if (response.status === 409) {
           throw new Error(
-            "Operation already in progress. Please wait for it to complete."
+            "Operation already in progress. Please wait for it to complete.",
           );
         } else {
           throw new Error(errorData.error || "Failed to regenerate thumbnails");

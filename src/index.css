@@ -540,7 +540,9 @@ textarea {
 .fade-scale-enter-active {
   opacity: 1;
   transform: scale(1);
-  transition: opacity 300ms ease-in-out, transform 300ms ease-in-out;
+  transition:
+    opacity 300ms ease-in-out,
+    transform 300ms ease-in-out;
 }
 
 .fade-scale-exit {
@@ -551,5 +553,7 @@ textarea {
 .fade-scale-exit-active {
   opacity: 0;
   transform: scale(0.9);
-  transition: opacity 300ms ease-in-out, transform 300ms ease-in-out;
+  transition:
+    opacity 300ms ease-in-out,
+    transform 300ms ease-in-out;
 }

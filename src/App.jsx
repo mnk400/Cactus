@@ -126,7 +126,12 @@ function App() {
 
   const handleRescan = async () => {
     await rescanDirectory();
-    await applyFilters(currentMediaType, selectedTags, excludedTags, pathSubstring);
+    await applyFilters(
+      currentMediaType,
+      selectedTags,
+      excludedTags,
+      pathSubstring,
+    );
     setIsSettingsOpen(false);
   };
 
@@ -153,7 +158,9 @@ function App() {
     ? currentMediaFile.file_path.split("/").slice(0, -1).join("/") || "/"
     : "";
 
-  const { isFavorited, toggleFavorite } = useFavorite(currentMediaFile?.file_path);
+  const { isFavorited, toggleFavorite } = useFavorite(
+    currentMediaFile?.file_path,
+  );
 
   return (
     <div className="container flex flex-col h-screen w-full max-w-full shadow-2xl overflow-hidden bg-black text-gray-200">

@@ -17,7 +17,10 @@ function GalleryView({ mediaFiles, currentIndex, onSelectMedia }) {
   }, [currentIndex, mediaFiles]);
 
   return (
-    <div ref={galleryRef} className="gallery-view flex flex-wrap justify-center items-center pt-5 gap-4 overflow-y-auto h-full bg-black">
+    <div
+      ref={galleryRef}
+      className="gallery-view flex flex-wrap justify-center items-center pt-5 gap-4 overflow-y-auto h-full bg-black"
+    >
       {mediaFiles.map((file, index) => (
         <div
           key={file.file_hash}

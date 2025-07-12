@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 
 const PathFilter = ({ onFilterChange }) => {
-  const [substring, setSubstring] = useState('');
+  const [substring, setSubstring] = useState("");
 
   const handleFilterClick = () => {
     onFilterChange(substring);
