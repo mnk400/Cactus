@@ -89,7 +89,7 @@ function SettingsPanel({
 
   return (
     <CSSTransition in={isOpen} timeout={300} classNames="fade" unmountOnExit>
-      <div className="fixed inset-0 bg-black-shades-900 p-4 sm:p-6 text-gray-200 z-50 overflow-y-auto">
+      <div className="fixed inset-0 bg-black-shades-900 p-4 sm:p-6 text-gray-200 z-50 overflow-y-auto rounded-2xl border border-gray-700">
         {/* Header with Close Button */}
         <div className="flex justify-between items-center mb-3 sm:mb-4 max-w-4xl mx-auto">
           <h3 className="text-base sm:text-lg font-semibold text-white m-0">
@@ -97,7 +97,7 @@ function SettingsPanel({
           </h3>
           <button
             onClick={() => onClose()}
-            className="px-3 py-1 bg-red-400 text-white rounded-md hover:bg-red-500 transition-colors duration-200"
+            className="px-3 py-1 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition-colors duration-200"
             aria-label="Close settings"
           >
             Close
@@ -232,7 +232,7 @@ function SettingsPanel({
           </div>
 
           {/* Tag Filter Section */}
-          <div className="tag-filter-section mb-3 sm:mb-4 p-2 sm:p-3 bg-black bg-opacity-40 backdrop-blur-sm rounded-2xl">
+          <div className="tag-filter-section mb-3 sm:mb-4 p-2 sm:p-3 bg-black bg-opacity-40 backdrop-blur-sm rounded-2xl z-10 relative">
             <div className="flex items-center gap-2 mb-2 sm:mb-3">
               <h4 className="text-sm sm:text-base font-medium text-white m-0">
                 Tag Filters

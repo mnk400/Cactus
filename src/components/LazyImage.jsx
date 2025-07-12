@@ -12,7 +12,7 @@ const LazyImage = ({ src, alt, className }) => {
           observer.unobserve(imgRef.current);
         }
       },
-      { rootMargin: "100px" }, // Load images when they are 100px away from the viewport
+      { rootMargin: "400px" }, // Load images when they are 100px away from the viewport
     );
 
     if (imgRef.current) {

@@ -16,9 +16,9 @@ export function useMediaPreloader(mediaFiles, currentIndex) {
 
       const mediaFile = mediaFiles[index];
 
-      if (isImage(mediaFile)) {
+      if (isImage(mediaFile.file_path)) {
         const img = new Image();
-        img.src = `/media?path=${encodeURIComponent(mediaFile)}`;
+        img.src = `/media?path=${encodeURIComponent(mediaFile.file_path)}`;
         img.onload = () => {
           preloadedMedia.current.set(index, img);
           console.log(`Preloaded image at index ${index}`);
@@ -26,9 +26,9 @@ export function useMediaPreloader(mediaFiles, currentIndex) {
         img.onerror = () => {
           console.warn(`Failed to preload image at index ${index}`);
         };
-      } else if (isVideo(mediaFile)) {
+      } else if (isVideo(mediaFile.file_path)) {
         const video = document.createElement("video");
-        video.src = `/media?path=${encodeURIComponent(mediaFile)}`;
+        video.src = `/media?path=${encodeURIComponent(mediaFile.file_path)}`;
         video.preload = "metadata";
         video.setAttribute("playsinline", "");
         video.muted = true;

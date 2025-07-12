@@ -70,27 +70,15 @@ const TagManager = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-black bg-opacity-90 backdrop-blur-md rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto border border-gray-600">
+      <div className="bg-black-shades-900 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold text-white">Manage Tags</h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-white focus:outline-none transition-colors duration-200"
+              className="px-3 py-1 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition-colors duration-200"
             >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+              Close
             </button>
           </div>
 
@@ -124,7 +112,7 @@ const TagManager = ({
               ></div>
               <button
                 type="submit"
-                className="px-4 py-2 bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-white rounded-xl transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
+                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
               >
                 Create
               </button>
@@ -179,7 +167,7 @@ const TagManager = ({
                         ></div>
                         <button
                           type="submit"
-                          className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors duration-200 text-sm"
+                          className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-colors duration-200 text-sm"
                         >
                           Save
                         </button>
@@ -214,7 +202,7 @@ const TagManager = ({
                           </button>
                           <button
                             onClick={() => handleDeleteTag(tag.id)}
-                            className="px-3 py-1 text-sm text-red-400 hover:text-red-300 focus:outline-none transition-colors duration-200"
+                            className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors duration-200 text-sm"
                           >
                             Delete
                           </button>

@@ -24,7 +24,7 @@ function GalleryView({ mediaFiles, currentIndex, onSelectMedia }) {
       {mediaFiles.map((file, index) => (
         <div
           key={file.file_hash}
-          className={`gallery-item sm:w-64 sm:h-64 w-40 h-40 flex-shrink-0 relative rounded-lg overflow-hidden cursor-pointer transform transition-transform duration-300 border-4 ${index === currentIndex ? "border-blue-500" : "border-transparent"}`}
+          className={`gallery-item sm:w-64 sm:h-64 w-40 h-40 flex-shrink-0 relative rounded-xl overflow-hidden cursor-pointer transform transition-transform duration-300 border-4 ${index === currentIndex ? "border-blue-500" : "border-transparent"}`}
           onClick={() => onSelectMedia(index)}
         >
           <LazyImage

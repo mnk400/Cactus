@@ -70,6 +70,7 @@ function MediaItem({
 
   if (isImage(mediaFile.file_path)) {
     const preloadedImg = getPreloadedMedia(index);
+    console.log("preloadedImg", preloadedImg); //empty ??
     const imgSrc = preloadedImg
       ? preloadedImg.src
       : `/media?path=${encodeURIComponent(mediaFile.file_path)}`;
