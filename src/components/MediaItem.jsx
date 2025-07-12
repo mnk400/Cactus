@@ -68,11 +68,11 @@ function MediaItem({
     return null;
   }
 
-  if (isImage(mediaFile)) {
+  if (isImage(mediaFile.file_path)) {
     const preloadedImg = getPreloadedMedia(index);
     const imgSrc = preloadedImg
       ? preloadedImg.src
-      : `/media?path=${encodeURIComponent(mediaFile)}`;
+      : `/media?path=${encodeURIComponent(mediaFile.file_path)}`;
 
     return (
       <div
@@ -84,7 +84,7 @@ function MediaItem({
           alt="Media content"
           className="max-h-full max-w-full object-cover"
           onError={(e) => {
-            console.error("Failed to load image:", mediaFile);
+            console.error("Failed to load image:", mediaFile.file_path);
             e.target.style.display = "none";
           }}
         />
@@ -92,11 +92,11 @@ function MediaItem({
     );
   }
 
-  if (isVideo(mediaFile)) {
+  if (isVideo(mediaFile.file_path)) {
     const preloadedVideo = getPreloadedMedia(index);
     const videoSrc = preloadedVideo
       ? preloadedVideo.src
-      : `/media?path=${encodeURIComponent(mediaFile)}`;
+      : `/media?path=${encodeURIComponent(mediaFile.file_path)}`;
 
     return (
       <div
@@ -116,7 +116,7 @@ function MediaItem({
     >
       <div className="text-gray-500 text-center">
         <p>Unsupported media type</p>
-        <p className="text-sm">{mediaFile}</p>
+        <p className="text-sm">{mediaFile.file_path}</p>
       </div>
     </div>
   );
@@ -142,7 +142,7 @@ const VideoPlayer = React.forwardRef(({ src, mediaFile }, ref) => {
     };
 
     const handleError = () => {
-      console.error("Failed to load video:", mediaFile);
+      console.error("Failed to load video:", mediaFile.file_path);
     };
 
     video.addEventListener("play", handlePlay);

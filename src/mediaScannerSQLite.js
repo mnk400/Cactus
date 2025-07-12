@@ -130,21 +130,48 @@ async function generateImageThumbnail(filePath, fileHash) {
 async function generateVideoThumbnail(filePath, fileHash) {
   const thumbnailPath = path.join(THUMBNAIL_DIR, `${fileHash}.webp`);
   return new Promise((resolve) => {
-    ffmpeg(filePath)
-      .screenshots({
-        timestamps: ["0%"],
-        filename: `${fileHash}.webp`,
-        folder: THUMBNAIL_DIR,
-        size: "250x250",
-      })
-      .on("end", () => {
-        log.info("Generated video thumbnail", { filePath, thumbnailPath });
-        resolve(thumbnailPath);
-      })
-      .on("error", (err) => {
-        log.error("Failed to generate video thumbnail", { filePath, error: err.message });
-        resolve(null);
-      });
+    ffmpeg.ffprobe(filePath, (err, metadata) => {
+      if (err) {
+        log.error("Failed to probe video for dimensions", { filePath, error: err.message });
+        return resolve(null);
+      }
+
+      const videoStream = metadata.streams.find((s) => s.codec_type === "video");
+      if (!videoStream) {
+        log.error("No video stream found", { filePath });
+        return resolve(null);
+      }
+
+      const originalWidth = videoStream.width;
+      const originalHeight = videoStream.height;
+      const maxDim = 250;
+
+      let newWidth, newHeight;
+
+      if (originalWidth > originalHeight) {
+        newWidth = maxDim;
+        newHeight = Math.round((originalHeight / originalWidth) * maxDim);
+      } else {
+        newHeight = maxDim;
+        newWidth = Math.round((originalWidth / originalHeight) * maxDim);
+      }
+
+      ffmpeg(filePath)
+        .screenshots({
+          timestamps: ["0%"],
+          filename: `${fileHash}.webp`,
+          folder: THUMBNAIL_DIR,
+          size: `${newWidth}x${newHeight}`,
+        })
+        .on("end", () => {
+          log.info("Generated video thumbnail", { filePath, thumbnailPath, size: `${newWidth}x${newHeight}` });
+          resolve(thumbnailPath);
+        })
+        .on("error", (err) => {
+          log.error("Failed to generate video thumbnail", { filePath, error: err.message });
+          resolve(null);
+        });
+    });
   });
 }
 
@@ -251,6 +278,12 @@ async function scanDirectory(directoryPath) {
           continue;
         }
 
+        // Skip the thumbnail directory
+        if (filePath === THUMBNAIL_DIR) {
+          log.info("Skipping thumbnail directory", { directory: filePath });
+          continue;
+        }
+
         try {
           const fileStat = await stat(filePath);
 
@@ -264,32 +297,42 @@ async function scanDirectory(directoryPath) {
               const mediaType = getMediaType(filePath);
               if (mediaType) {
                 try {
-                  // Add/update file in database
-                  const result = mediaDatabase.upsertMediaFile(
-                    filePath,
-                    mediaType,
-                    null,
-                  );
-                  let thumbnailPath = null;
-                  if (mediaType === "image") {
-                    thumbnailPath = await generateImageThumbnail(filePath, result.fileHash);
-                  } else if (mediaType === "video") {
-                    thumbnailPath = await generateVideoThumbnail(filePath, result.fileHash);
-                  }
-                  if (thumbnailPath) {
-                    mediaDatabase.updateMediaFileThumbnail(result.fileHash, thumbnailPath);
+                  const fileHash = mediaDatabase.generateFileHash(filePath);
+                  const existingMediaFile = mediaDatabase.getMediaFileByHash(fileHash);
+
+                  if (existingMediaFile) {
+                    log.info("Media file already exists, skipping thumbnail generation", {
+                      filePath,
+                      mediaType,
+                      fileHash,
+                    });
+                  } else {
+                    // New file, insert and generate thumbnail
+                    const result = mediaDatabase.insertMediaFile(
+                      filePath,
+                      mediaType,
+                      fileHash,
+                      null,
+                    );
+                    let thumbnailPath = null;
+                    if (mediaType === "image") {
+                      thumbnailPath = await generateImageThumbnail(filePath, fileHash);
+                    } else if (mediaType === "video") {
+                      thumbnailPath = await generateVideoThumbnail(filePath, fileHash);
+                    }
+                    if (thumbnailPath) {
+                      mediaDatabase.updateMediaFileThumbnail(fileHash, thumbnailPath);
+                    }
+                    log.info("New media file discovered and thumbnail generated", {
+                      filePath,
+                      mediaType,
+                      fileHash,
+                    });
                   }
                   mediaFiles.push(filePath);
                   processedFiles.add(filePath);
-
-                  if (result.isNew) {
-                    log.info("New media file discovered", {
-                      filePath,
-                      mediaType,
-                      fileHash: result.fileHash,
-                    });
                   }
-                } catch (dbError) {
+                 catch (dbError) {
                   log.error("Failed to process media file", {
                     filePath,
                     error: dbError.message,
@@ -429,13 +472,14 @@ async function rescanDirectory() {
     const maintenanceResult = mediaDatabase.maintenance();
 
     const stats = mediaDatabase.getStats();
-    log.info("Directory rescan completed", {
-      scannedFiles: files.length,
-      totalInDb: stats.total,
-      images: stats.images,
-      videos: stats.videos,
-      orphanedFilesRemoved: maintenanceResult.removedOrphanedFiles,
-    });
+      log.info("Directory rescan completed", {
+        scannedFiles: files.length,
+        totalInDb: stats.total,
+        images: stats.images,
+        videos: stats.videos,
+        orphanedFilesRemovedByDate: maintenanceResult.removedOrphanedFilesByDate,
+        nonExistentFilesRemoved: maintenanceResult.removedNonExistentFiles,
+      });
 
     return files;
   } catch (error) {

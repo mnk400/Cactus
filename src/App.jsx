@@ -148,10 +148,10 @@ function App() {
       : null;
 
   const directoryPath = currentMediaFile
-    ? currentMediaFile.split("/").slice(0, -1).join("/") || "/"
+    ? currentMediaFile.file_path.split("/").slice(0, -1).join("/") || "/"
     : "";
 
-  const { isFavorited, toggleFavorite } = useFavorite(currentMediaFile);
+  const { isFavorited, toggleFavorite } = useFavorite(currentMediaFile?.file_path);
 
   return (
     <div className="container flex flex-col h-screen w-full max-w-full shadow-2xl overflow-hidden bg-black text-gray-200">
@@ -232,6 +232,7 @@ function App() {
             isFavorited={isFavorited}
             onToggleFavorite={toggleFavorite}
             onToggleGalleryView={() => setIsGalleryView(!isGalleryView)}
+            isGalleryView={isGalleryView}
           />
         )}
 
@@ -258,7 +259,7 @@ function App() {
         currentMediaFile={currentMediaFile}
         showTagInput={showTagInput}
         key={tagUpdateTrigger} // Force re-render when tags are updated
-        isVideoPlaying={isVideo(currentMediaFile)}
+        isVideoPlaying={isVideo(currentMediaFile?.file_path)}
       />
 
       <TagInputModal

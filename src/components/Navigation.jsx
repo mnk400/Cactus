@@ -14,11 +14,12 @@ function Navigation({
   isFavorited,
   onToggleFavorite,
   onToggleGalleryView,
+  isGalleryView,
 }) {
   const [videoElement, setVideoElement] = useState(null);
 
   useEffect(() => {
-    if (isVideo(currentMediaFile)) {
+    if (isVideo(currentMediaFile?.file_path)) {
       // A delay might be needed for the element to be in the DOM
       setTimeout(() => {
         const video = document.querySelector(".media-item video");
@@ -35,14 +36,14 @@ function Navigation({
       directoryName.split("/").slice(-2, -1)[0] ||
       "Root"
     : "";
-  const isVideoPlaying = isVideo(currentMediaFile);
+  const isVideoPlaying = isVideo(currentMediaFile?.file_path);
 
   return (
     <div
       className={`navigation absolute left-1/2 transform -translate-x-1/2 flex flex-col items-center justify-end gap-2 z-20 p-2 bg-black-shades-1000 rounded-2xl w-11/12 max-w-xl transition-all duration-300 bottom-4 ${isVideoPlaying ? "py-2" : "py-0 pb-2"}`}
     >
       <div
-        className={`w-full overflow-hidden transition-all duration-300 ${isVideoPlaying ? "max-h-8" : "max-h-0"}`}
+        className={`w-full overflow-hidden transition-all duration-300 ${isVideoPlaying && !isGalleryView ? "max-h-8" : "max-h-0"}`}
       >
         <VideoProgressBar videoElement={videoElement} />
       </div>
@@ -144,7 +145,7 @@ function Navigation({
           ⋯
         </button>
 
-        {isVideo(currentMediaFile) && <FullscreenButton />}
+        {isVideo(currentMediaFile?.file_path) && <FullscreenButton />}
 
         <div className="directory-name text-gray-200 text-base ml-auto px-4 whitespace-nowrap overflow-hidden text-ellipsis">
           {shortDirectoryName}

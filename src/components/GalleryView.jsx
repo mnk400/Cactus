@@ -20,7 +20,7 @@ function GalleryView({ mediaFiles, currentIndex, onSelectMedia }) {
     <div ref={galleryRef} className="gallery-view flex flex-wrap justify-center items-center pt-5 gap-4 overflow-y-auto h-full bg-black">
       {mediaFiles.map((file, index) => (
         <div
-          key={file}
+          key={file.file_hash}
           className={`gallery-item sm:w-64 sm:h-64 w-40 h-40 flex-shrink-0 relative rounded-lg overflow-hidden cursor-pointer transform transition-transform duration-300 border-4 ${index === currentIndex ? "border-blue-500" : "border-transparent"}`}
           onClick={() => onSelectMedia(index)}
         >

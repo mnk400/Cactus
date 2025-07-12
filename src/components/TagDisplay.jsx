@@ -13,7 +13,7 @@ const TagDisplay = ({ currentMediaFile, showTagInput, isVideoPlaying }) => {
     const loadMediaTags = async () => {
       if (currentMediaFile) {
         try {
-          const tags = await getMediaTags(currentMediaFile);
+          const tags = await getMediaTags(currentMediaFile.file_path);
           setMediaTags(tags);
         } catch (error) {
           console.error("Failed to load media tags:", error);
@@ -39,14 +39,16 @@ const TagDisplay = ({ currentMediaFile, showTagInput, isVideoPlaying }) => {
       try {
         // We need the file hash for removal, let's get it from the API
         const response = await fetch(
-          `/api/media-path/tags?path=${encodeURIComponent(currentMediaFile)}`,
+          `/api/media-path/tags?path=${encodeURIComponent(
+            currentMediaFile.file_path,
+          )}`,
         );
         const data = await response.json();
 
         if (data.fileHash) {
           await removeTagFromMedia(data.fileHash, tagId);
           // Reload tags for current media
-          const updatedTags = await getMediaTags(currentMediaFile);
+          const updatedTags = await getMediaTags(currentMediaFile.file_path);
           setMediaTags(updatedTags);
           window.dispatchEvent(new CustomEvent("tags-updated"));
         }

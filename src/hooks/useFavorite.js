@@ -35,19 +35,23 @@ export const useFavorite = (currentMediaFile) => {
     ensureFavoriteTag();
   }, [tags, createTag]);
 
-  // Check if current media file is favorited
   useEffect(() => {
     const checkFavoriteStatus = async () => {
       if (currentMediaFile && favoriteTagId) {
-        const mediaTags = await getMediaTags(currentMediaFile);
-        const favorited = mediaTags.some((tag) => tag.id === favoriteTagId);
-        setIsFavorited(favorited);
+        const response = await fetch(
+          `/api/media-path/tags?path=${encodeURIComponent(currentMediaFile)}`
+        );
+        const data = await response.json();
+        if (data.tags) {
+          const favorited = data.tags.some((tag) => tag.id === favoriteTagId);
+          setIsFavorited(favorited);
+        }
       } else {
         setIsFavorited(false);
       }
     };
     checkFavoriteStatus();
-  }, [currentMediaFile, favoriteTagId, getMediaTags]);
+  }, [currentMediaFile, favoriteTagId]);
 
   const toggleFavorite = useCallback(async () => {
     if (!currentMediaFile || !favoriteTagId) return;
@@ -55,9 +59,8 @@ export const useFavorite = (currentMediaFile) => {
     try {
       if (isFavorited) {
         // Remove favorite tag
-        // Need to get fileHash for removeTagFromMedia
         const response = await fetch(
-          `/api/media-path/tags?path=${encodeURIComponent(currentMediaFile)}`,
+          `/api/media-path/tags?path=${encodeURIComponent(currentMediaFile)}`
         );
         const data = await response.json();
         if (data.fileHash) {

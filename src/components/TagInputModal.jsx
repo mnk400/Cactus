@@ -62,7 +62,7 @@ const TagInputModal = ({
     if (currentMediaFile && stagedTags.length > 0) {
       try {
         const tagNames = stagedTags.map((tag) => tag.name);
-        await addTagsToMedia(currentMediaFile, tagNames);
+        await addTagsToMedia(currentMediaFile.file_path, tagNames);
         window.dispatchEvent(new CustomEvent("tags-updated"));
         if (onTagsUpdated) {
           onTagsUpdated();
@@ -76,7 +76,7 @@ const TagInputModal = ({
   };
 
   const handlePredict = () => {
-    predictTags(currentMediaFile);
+    predictTags(currentMediaFile.file_path);
   };
 
   // Close modal when clicking the background overlay
@@ -123,7 +123,7 @@ const TagInputModal = ({
           )}
           </div>
           <div className="flex justify-between mt-4">
-            {(predictEnabled && (isImage(currentMediaFile) || isVideo(currentMediaFile))) && (
+            {(predictEnabled && (isImage(currentMediaFile?.file_path) || isVideo(currentMediaFile?.file_path))) && (
               <button
                 onClick={handlePredict}
                 disabled={isPredicting}

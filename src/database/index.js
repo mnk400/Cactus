@@ -88,7 +88,6 @@ class MediaDatabase {
    */
   initializeSchema() {
     const schema = `
-            -- Media files table with content-based identification
             CREATE TABLE IF NOT EXISTS media_files (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 file_hash TEXT UNIQUE NOT NULL,
@@ -102,7 +101,6 @@ class MediaDatabase {
                 last_seen DATETIME DEFAULT CURRENT_TIMESTAMP
             );
 
-            -- Tags table to store unique tag names
             CREATE TABLE IF NOT EXISTS tags (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT UNIQUE NOT NULL,
@@ -110,7 +108,6 @@ class MediaDatabase {
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
 
-            -- Junction table linking media files to tags (many-to-many relationship)
             CREATE TABLE IF NOT EXISTS media_tags (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 file_hash TEXT NOT NULL,
@@ -121,7 +118,6 @@ class MediaDatabase {
                 UNIQUE(file_hash, tag_id)
             );
 
-            -- Indexes for performance
             CREATE INDEX IF NOT EXISTS idx_media_files_hash ON media_files(file_hash);
             CREATE INDEX IF NOT EXISTS idx_media_files_path ON media_files(file_path);
             CREATE INDEX IF NOT EXISTS idx_media_files_type ON media_files(media_type);
@@ -130,14 +126,12 @@ class MediaDatabase {
             CREATE INDEX IF NOT EXISTS idx_media_tags_tag_id ON media_tags(tag_id);
             CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name);
 
-            -- Database metadata table
             CREATE TABLE IF NOT EXISTS database_metadata (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
 
-            -- Insert database version
             INSERT OR REPLACE INTO database_metadata (key, value) VALUES ('version', '1.2.0');
             INSERT OR REPLACE INTO database_metadata (key, value) VALUES ('created_at', datetime('now'));
         `;
@@ -163,8 +157,10 @@ class MediaDatabase {
       }
 
       const hash = crypto.createHash("sha256");
+      const filename = path.basename(filePath);
+
       hash.update(fileSize.toString());
-      hash.update(path.basename(filePath)); // Include filename for additional uniqueness
+      hash.update(filename);
 
       const fd = fs.openSync(filePath, "r");
 
@@ -182,7 +178,8 @@ class MediaDatabase {
           hash.update(lastChunk);
         }
 
-        return hash.digest("hex");
+        const generatedHash = hash.digest("hex");
+        return generatedHash;
       } finally {
         fs.closeSync(fd);
       }
@@ -193,6 +190,54 @@ class MediaDatabase {
       });
       // Fallback to path-based hash if file reading fails
       return crypto.createHash("sha256").update(filePath).digest("hex");
+    }
+  }
+
+  /**
+   * Insert a new media file into the database
+   */
+  insertMediaFile(filePath, mediaType, fileHash, thumbnailPath = null) {
+    if (!this.isInitialized) {
+      throw new Error("Database not initialized");
+    }
+
+    try {
+      const stats = fs.statSync(filePath);
+      const filename = path.basename(filePath);
+      const fileSize = stats.size;
+      const now = new Date().toISOString();
+
+      const stmt = this.db.prepare(`
+                INSERT INTO media_files (file_hash, file_path, filename, file_size, media_type, thumbnail_path, date_added, last_seen)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `);
+
+      const result = stmt.run(
+        fileHash,
+        filePath,
+        filename,
+        fileSize,
+        mediaType,
+        thumbnailPath,
+        now,
+        now,
+      );
+
+      return {
+        id: result.lastInsertRowid,
+        fileHash,
+        filePath,
+        filename,
+        fileSize,
+        mediaType,
+        thumbnailPath,
+      };
+    } catch (error) {
+      log.error("Failed to insert media file", {
+        filePath,
+        error: error.message,
+      });
+      throw error;
     }
   }
 
@@ -281,8 +326,7 @@ class MediaDatabase {
       const stmt = this.db.prepare(query);
       const rows = stmt.all(...params);
 
-      // Convert to the format expected by the frontend (array of file paths)
-      return rows.map((row) => row.file_path);
+      return rows;
     } catch (error) {
       log.error("Failed to get media files", {
         mediaType,
@@ -346,10 +390,10 @@ class MediaDatabase {
 
     try {
       const stmt = this.db.prepare(
-        "SELECT file_path FROM media_files WHERE file_path LIKE ?",
+        "SELECT * FROM media_files WHERE file_path LIKE ?",
       );
       const rows = stmt.all(`%${substring}%`);
-      return rows.map((row) => row.file_path);
+      return rows;
     } catch (error) {
       log.error("Failed to get media by path substring", {
         substring,
@@ -417,6 +461,42 @@ class MediaDatabase {
       return result.changes;
     } catch (error) {
       log.error("Failed to cleanup orphaned files", { error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * Remove entries for files that no longer exist on the filesystem.
+   */
+  cleanupNonExistentFiles() {
+    if (!this.isInitialized) {
+      throw new Error("Database not initialized");
+    }
+
+    let removedCount = 0;
+    try {
+      const allFiles = this.db.prepare("SELECT file_hash, file_path FROM media_files").all();
+
+      this.db.transaction(() => {
+        for (const file of allFiles) {
+          if (!fs.existsSync(file.file_path)) {
+            const stmt = this.db.prepare("DELETE FROM media_files WHERE file_hash = ?");
+            const result = stmt.run(file.file_hash);
+            if (result.changes > 0) {
+              removedCount += result.changes;
+              log.info("Removed non-existent file from database", { filePath: file.file_path, fileHash: file.file_hash });
+            }
+          }
+        }
+      })();
+
+      if (removedCount > 0) {
+        log.info("Cleaned up non-existent files", { removedCount });
+      }
+
+      return removedCount;
+    } catch (error) {
+      log.error("Failed to cleanup non-existent files", { error: error.message });
       throw error;
     }
   }
@@ -498,8 +578,11 @@ class MediaDatabase {
     }
 
     try {
-      // Cleanup orphaned files
-      const removedCount = this.cleanupOrphanedFiles();
+      // Cleanup orphaned files (not seen in the last X days)
+      const removedOrphanedByDate = this.cleanupOrphanedFiles();
+
+      // Cleanup files that no longer exist on the filesystem
+      const removedNonExistentFiles = this.cleanupNonExistentFiles();
 
       // Cleanup orphaned tags
       const removedTags = this.cleanupOrphanedTags();
@@ -509,12 +592,14 @@ class MediaDatabase {
       this.db.exec("VACUUM");
 
       log.info("Database maintenance completed", {
-        removedOrphanedFiles: removedCount,
+        removedOrphanedFilesByDate: removedOrphanedByDate,
+        removedNonExistentFiles: removedNonExistentFiles,
         removedOrphanedTags: removedTags,
       });
 
       return {
-        removedOrphanedFiles: removedCount,
+        removedOrphanedFilesByDate: removedOrphanedByDate,
+        removedNonExistentFiles: removedNonExistentFiles,
         removedOrphanedTags: removedTags,
       };
     } catch (error) {
@@ -782,7 +867,7 @@ class MediaDatabase {
         excludeCount: excludeTags.length,
       });
 
-      let query = `SELECT DISTINCT mf.file_path FROM media_files mf`;
+      let query = `SELECT DISTINCT mf.* FROM media_files mf`;
       let params = [];
       let whereConditions = [];
 
