@@ -21,11 +21,11 @@ function GalleryView({ mediaFiles, currentIndex, onSelectMedia }) {
       {mediaFiles.map((file, index) => (
         <div
           key={file}
-          className={`gallery-item sm:w-64 sm:h-80 w-40 h-56 flex-shrink-0 relative rounded-lg overflow-hidden cursor-pointer transform transition-transform duration-300 border-4 ${index === currentIndex ? "border-blue-500" : "border-transparent"}`}
+          className={`gallery-item sm:w-64 sm:h-64 w-40 h-40 flex-shrink-0 relative rounded-lg overflow-hidden cursor-pointer transform transition-transform duration-300 border-4 ${index === currentIndex ? "border-blue-500" : "border-transparent"}`}
           onClick={() => onSelectMedia(index)}
         >
           <LazyImage
-            src={`/media?path=${encodeURIComponent(file)}`}
+            src={`/thumbnails?hash=${file.file_hash}`}
             alt={`media-${index}`}
             className="w-full h-full object-cover"
           />

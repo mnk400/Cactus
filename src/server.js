@@ -9,6 +9,7 @@ const argv = minimist(process.argv.slice(2));
 
 const PORT = argv.p || process.env.PORT || 3000;
 const directoryPath = argv.d;
+const THUMBNAIL_DIR = path.join(directoryPath, ".cactus_thumbnails");
 const enablePredict = argv['experimental-prediction-test'] || process.env.EXPERIMENTAL_PREDICTION_TEST === 'true' || false; // Flag to enable extremely experimental prediction functionality
 const predictApiUrl = argv['predict-api-url'] || process.env.PREDICT_API_URL || 'http://localhost'; // Prediction API URL super WIP
 
@@ -519,6 +520,31 @@ app.get("/media", (req, res) => {
       error: error.message,
     });
     res.status(500).send("Failed to serve media file");
+  }
+});
+
+// API endpoint to serve thumbnails
+app.get("/thumbnails", (req, res) => {
+  try {
+    const { hash: fileHash } = req.query;
+
+    if (!fileHash) {
+      return res.status(400).send("File hash is required");
+    }
+
+    const thumbnailPath = path.join(THUMBNAIL_DIR, `${fileHash}.webp`);
+
+    if (!fs.existsSync(thumbnailPath)) {
+      return res.status(404).send("Thumbnail not found");
+    }
+
+    res.sendFile(thumbnailPath);
+  } catch (error) {
+    log.error("Failed to serve thumbnail file", {
+      fileHash: req.query.hash,
+      error: error.message,
+    });
+    res.status(500).send("Failed to serve thumbnail file");
   }
 });
 

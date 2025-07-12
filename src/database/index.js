@@ -96,6 +96,7 @@ class MediaDatabase {
                 filename TEXT NOT NULL,
                 file_size INTEGER NOT NULL,
                 media_type TEXT NOT NULL CHECK (media_type IN ('image', 'video')),
+                thumbnail_path TEXT,
                 date_added DATETIME DEFAULT CURRENT_TIMESTAMP,
                 date_modified DATETIME DEFAULT CURRENT_TIMESTAMP,
                 last_seen DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -137,7 +138,7 @@ class MediaDatabase {
             );
 
             -- Insert database version
-            INSERT OR REPLACE INTO database_metadata (key, value) VALUES ('version', '1.1.0');
+            INSERT OR REPLACE INTO database_metadata (key, value) VALUES ('version', '1.2.0');
             INSERT OR REPLACE INTO database_metadata (key, value) VALUES ('created_at', datetime('now'));
         `;
 
@@ -198,7 +199,7 @@ class MediaDatabase {
   /**
    * Add or update a media file in the database
    */
-  upsertMediaFile(filePath, mediaType) {
+  upsertMediaFile(filePath, mediaType, thumbnailPath = null) {
     if (!this.isInitialized) {
       throw new Error("Database not initialized");
     }
@@ -211,11 +212,12 @@ class MediaDatabase {
       const now = new Date().toISOString();
 
       const stmt = this.db.prepare(`
-                INSERT INTO media_files (file_hash, file_path, filename, file_size, media_type, last_seen)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO media_files (file_hash, file_path, filename, file_size, media_type, thumbnail_path, last_seen)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(file_hash) DO UPDATE SET
                     file_path = excluded.file_path,
                     filename = excluded.filename,
+                    thumbnail_path = excluded.thumbnail_path,
                     last_seen = excluded.last_seen,
                     date_modified = CASE 
                         WHEN file_size != excluded.file_size THEN excluded.last_seen 
@@ -230,6 +232,7 @@ class MediaDatabase {
         filename,
         fileSize,
         mediaType,
+        thumbnailPath,
         now,
       );
 
@@ -239,6 +242,7 @@ class MediaDatabase {
         filename,
         fileSize,
         mediaType,
+        thumbnailPath,
         isNew: result.changes > 0 && result.lastInsertRowid > 0,
       };
     } catch (error) {
@@ -581,6 +585,30 @@ class MediaDatabase {
   }
 
   /**
+   * Update thumbnail path for a media file
+   */
+  updateMediaFileThumbnail(fileHash, thumbnailPath) {
+    if (!this.isInitialized) {
+      throw new Error("Database not initialized");
+    }
+
+    try {
+      const stmt = this.db.prepare(`
+                UPDATE media_files SET thumbnail_path = ? WHERE file_hash = ?
+            `);
+      const result = stmt.run(thumbnailPath, fileHash);
+      return result.changes > 0;
+    } catch (error) {
+      log.error("Failed to update media file thumbnail", {
+        fileHash,
+        thumbnailPath,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  /**
    * Delete a tag (removes from all media)
    */
   deleteTag(id) {
@@ -829,7 +857,7 @@ class MediaDatabase {
       const stmt = this.db.prepare(query);
       const rows = stmt.all(...params);
 
-      const result = rows.map((row) => row.file_path);
+      const result = rows;
 
       log.info("Tag filtering query completed", {
         includeTags,

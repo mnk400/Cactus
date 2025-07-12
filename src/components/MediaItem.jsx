@@ -181,7 +181,7 @@ const VideoPlayer = React.forwardRef(({ src, mediaFile }, ref) => {
         playsInline
         className={`max-h-full max-w-full object-cover cursor-pointer ${isPaused ? "filter brightness-50" : ""}`}
         onClick={togglePlayPause}
-        onError={() => console.error("Video load error:", mediaFile)}
+        onError={() => console.error("Video load error:", mediaFile.file_path)}
       />
 
       {showOverlay && (

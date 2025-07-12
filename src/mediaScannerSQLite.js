@@ -1,6 +1,8 @@
 const path = require("path");
 const fs = require("fs");
 const { promisify } = require("util");
+const sharp = require("sharp");
+const ffmpeg = require("fluent-ffmpeg");
 const crypto = require("crypto");
 const MediaDatabase = require("./database");
 
@@ -44,6 +46,7 @@ let mediaDatabase;
 
 // Lock file path for preventing concurrent scans
 let LOCK_FILE_PATH;
+let THUMBNAIL_DIR;
 
 // Define media type extensions
 const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"];
@@ -73,6 +76,12 @@ function initializeScanner(dirPath) {
   const lockFileName = `.${dirHash}_scan.lock`;
   LOCK_FILE_PATH = path.join(directoryPath, lockFileName);
 
+  // Initialize thumbnail directory
+  THUMBNAIL_DIR = path.join(directoryPath, ".cactus_thumbnails");
+  if (!fs.existsSync(THUMBNAIL_DIR)) {
+    fs.mkdirSync(THUMBNAIL_DIR, { recursive: true });
+  }
+
   log.info("SQLite media scanner initialized", {
     directory: directoryPath,
     database: dbFileName,
@@ -99,6 +108,44 @@ function getMediaType(filePath) {
   if (isImage(filePath)) return "image";
   if (isVideo(filePath)) return "video";
   return null;
+}
+
+// Function to generate thumbnail for an image
+async function generateImageThumbnail(filePath, fileHash) {
+  const thumbnailPath = path.join(THUMBNAIL_DIR, `${fileHash}.webp`);
+  try {
+    await sharp(filePath)
+      .resize(250, 250, { fit: sharp.fit.inside, withoutEnlargement: true })
+      .webp({ quality: 80 })
+      .toFile(thumbnailPath);
+    log.info("Generated image thumbnail", { filePath, thumbnailPath });
+    return thumbnailPath;
+  } catch (error) {
+    log.error("Failed to generate image thumbnail", { filePath, error: error.message });
+    return null;
+  }
+}
+
+// Function to generate thumbnail for a video
+async function generateVideoThumbnail(filePath, fileHash) {
+  const thumbnailPath = path.join(THUMBNAIL_DIR, `${fileHash}.webp`);
+  return new Promise((resolve) => {
+    ffmpeg(filePath)
+      .screenshots({
+        timestamps: ["0%"],
+        filename: `${fileHash}.webp`,
+        folder: THUMBNAIL_DIR,
+        size: "250x250",
+      })
+      .on("end", () => {
+        log.info("Generated video thumbnail", { filePath, thumbnailPath });
+        resolve(thumbnailPath);
+      })
+      .on("error", (err) => {
+        log.error("Failed to generate video thumbnail", { filePath, error: err.message });
+        resolve(null);
+      });
+  });
 }
 
 // Lock management functions (same as before)
@@ -221,7 +268,17 @@ async function scanDirectory(directoryPath) {
                   const result = mediaDatabase.upsertMediaFile(
                     filePath,
                     mediaType,
+                    null,
                   );
+                  let thumbnailPath = null;
+                  if (mediaType === "image") {
+                    thumbnailPath = await generateImageThumbnail(filePath, result.fileHash);
+                  } else if (mediaType === "video") {
+                    thumbnailPath = await generateVideoThumbnail(filePath, result.fileHash);
+                  }
+                  if (thumbnailPath) {
+                    mediaDatabase.updateMediaFileThumbnail(result.fileHash, thumbnailPath);
+                  }
                   mediaFiles.push(filePath);
                   processedFiles.add(filePath);
 
