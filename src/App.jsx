@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { CSSTransition, TransitionGroup } from "react-transition-group";
 import MediaViewer from "./components/MediaViewer";
 import Navigation from "./components/Navigation";
 import SettingsPanel from "./components/SettingsPanel";
@@ -7,6 +8,7 @@ import TagInputModal from "./components/TagInputModal";
 import LoadingMessage from "./components/LoadingMessage";
 import ErrorMessage from "./components/ErrorMessage";
 import DebugInfo from "./components/DebugInfo";
+import GalleryView from "./components/GalleryView";
 import { useMediaFiles } from "./hooks/useMediaFiles";
 import { useKeyboardNavigation } from "./hooks/useKeyboardNavigation";
 import { isVideo } from "./utils/helpers";
@@ -22,6 +24,7 @@ function App() {
   const [excludedTags, setExcludedTags] = useState([]);
   const [pathSubstring, setPathSubstring] = useState("");
   const [tagUpdateTrigger, setTagUpdateTrigger] = useState(0);
+  const [isGalleryView, setIsGalleryView] = useState(false);
 
   const {
     mediaFiles,
@@ -159,13 +162,32 @@ function App() {
         {error && <ErrorMessage message={error} />}
 
         {!loading && !error && mediaFiles.length > 0 && currentMediaFile && (
-          <MediaViewer
-            mediaFiles={mediaFiles}
-            currentIndex={currentIndex}
-            onNavigate={handleNavigation}
-            showTagInput={showTagInput}
-            onToggleTagInput={handleToggleTagInput}
-          />
+          <TransitionGroup component={null}>
+            <CSSTransition
+              key={isGalleryView ? "gallery" : "single"}
+              timeout={300}
+              classNames="fade-scale"
+            >
+              {isGalleryView ? (
+                <GalleryView
+                  mediaFiles={mediaFiles}
+                  currentIndex={currentIndex}
+                  onSelectMedia={(index) => {
+                    setCurrentIndex(index);
+                    setIsGalleryView(false);
+                  }}
+                />
+              ) : (
+                <MediaViewer
+                  mediaFiles={mediaFiles}
+                  currentIndex={currentIndex}
+                  onNavigate={handleNavigation}
+                  showTagInput={showTagInput}
+                  onToggleTagInput={handleToggleTagInput}
+                />
+              )}
+            </CSSTransition>
+          </TransitionGroup>
         )}
 
         {!loading && !error && mediaFiles.length === 0 && (
@@ -209,6 +231,7 @@ function App() {
             showNavButtons={mediaFiles.length > 0}
             isFavorited={isFavorited}
             onToggleFavorite={toggleFavorite}
+            onToggleGalleryView={() => setIsGalleryView(!isGalleryView)}
           />
         )}
 
