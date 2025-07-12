@@ -7,6 +7,7 @@ export function useMediaFiles() {
   const [loading, setLoading] = useState(null);
   const [error, setError] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [isRegeneratingThumbnails, setIsRegeneratingThumbnails] = useState(false);
 
   const fetchMediaFiles = useCallback(
     async (
@@ -190,14 +191,56 @@ export function useMediaFiles() {
     }
   }, [isScanning]);
 
+  const regenerateThumbnails = useCallback(async () => {
+    if (isRegeneratingThumbnails) {
+      console.log("Thumbnail regeneration already in progress, ignoring request");
+      return;
+    }
+
+    try {
+      setIsRegeneratingThumbnails(true);
+      setLoading("Regenerating thumbnails...");
+      setError(null);
+
+      const response = await fetch("/regenerate-thumbnails", {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+
+        if (response.status === 409) {
+          throw new Error(
+            "Operation already in progress. Please wait for it to complete."
+          );
+        } else {
+          throw new Error(errorData.error || "Failed to regenerate thumbnails");
+        }
+      }
+
+      const data = await response.json();
+      console.log(data.message);
+
+      // Refresh the current view to show new thumbnails
+      await fetchMediaFiles("all");
+    } catch (err) {
+      setError(`Thumbnail regeneration failed: ${err.message}`);
+    } finally {
+      setIsRegeneratingThumbnails(false);
+      setLoading(null);
+    }
+  }, [isRegeneratingThumbnails, fetchMediaFiles]);
+
   return {
     mediaFiles,
     allMediaFiles,
     loading,
     error,
     isScanning,
+    isRegeneratingThumbnails,
     fetchMediaFiles,
     filterMedia,
     rescanDirectory,
+    regenerateThumbnails,
   };
 }

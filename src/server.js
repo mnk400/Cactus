@@ -567,6 +567,28 @@ app.get("/api/stats", (req, res) => {
   }
 });
 
+// API endpoint to regenerate thumbnails
+app.post("/regenerate-thumbnails", async (req, res) => {
+  try {
+    const regeneratedCount = await mediaScanner.regenerateThumbnails();
+    log.info("Thumbnail regeneration completed", { regeneratedCount });
+    res.json({
+      message: `Thumbnail regeneration complete. Regenerated ${regeneratedCount} thumbnails.`,
+      regeneratedCount,
+    });
+  } catch (error) {
+    log.error("Thumbnail regeneration failed", { error: error.message });
+
+    if (error.message === "Scan already in progress") {
+      res.status(409).json({
+        error: "Operation already in progress. Please wait for it to complete.",
+      });
+    } else {
+      res.status(500).json({ error: error.message || "Failed to regenerate thumbnails" });
+    }
+  }
+});
+
 // API endpoint to check if prediction is enabled
 app.get("/api/config", (req, res) => {
     res.json({

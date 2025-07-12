@@ -557,15 +557,12 @@ class MediaDatabase {
   /**
    * Close the database connection
    */
-  close() {
+  async close() {
     if (this.db) {
-      try {
-        this.db.close();
-        this.isInitialized = false;
-        log.info("Database connection closed");
-      } catch (error) {
-        log.error("Error closing database", { error: error.message });
-      }
+      await this.db.close();
+      this.db = null;
+      this.isInitialized = false;
+      log.info("Database connection closed.", { dbPath: this.dbPath });
     }
   }
 

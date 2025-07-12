@@ -35,6 +35,8 @@ function App() {
     filterMedia,
     rescanDirectory,
     isScanning,
+    regenerateThumbnails,
+    isRegeneratingThumbnails,
   } = useMediaFiles();
 
   // Handle mobile viewport issues
@@ -251,6 +253,8 @@ function App() {
           onTagsChange={handleTagsChange}
           onExcludedTagsChange={handleExcludedTagsChange}
           onPathChange={handlePathChange}
+          onRegenerateThumbnails={regenerateThumbnails}
+          isRegeneratingThumbnails={isRegeneratingThumbnails}
         />
       </div>
 

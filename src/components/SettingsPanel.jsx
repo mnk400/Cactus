@@ -21,6 +21,8 @@ function SettingsPanel({
   onTagsChange,
   onExcludedTagsChange,
   onPathChange,
+  onRegenerateThumbnails,
+  isRegeneratingThumbnails = false,
 }) {
   const [showTagManager, setShowTagManager] = useState(false);
   const { tags, createTag, updateTag, deleteTag } = useTags();
@@ -274,9 +276,9 @@ function SettingsPanel({
 
               <button
                 onClick={onRescan}
-                disabled={isScanning}
+                disabled={isScanning || isRegeneratingThumbnails}
                 className={`rescan-btn w-full flex items-center justify-center gap-2 border-none py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl cursor-pointer text-xs sm:text-sm font-medium transition-all duration-200 ease-in-out active:scale-95 ${
-                  isScanning
+                  isScanning || isRegeneratingThumbnails
                     ? "bg-black bg-opacity-50 text-gray-500 cursor-not-allowed opacity-50"
                     : "bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-white shadow-lg hover:shadow-xl"
                 }`}
@@ -289,6 +291,27 @@ function SettingsPanel({
                 ) : (
                   <>
                     <span>Rescan Directory</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={onRegenerateThumbnails}
+                disabled={isScanning || isRegeneratingThumbnails}
+                className={`w-full flex items-center justify-center gap-2 border-none py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl cursor-pointer text-xs sm:text-sm font-medium transition-all duration-200 ease-in-out active:scale-95 ${
+                  isScanning || isRegeneratingThumbnails
+                    ? "bg-black bg-opacity-50 text-gray-500 cursor-not-allowed opacity-50"
+                    : "bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-white shadow-lg hover:shadow-xl"
+                }`}
+              >
+                {isRegeneratingThumbnails ? (
+                  <>
+                    <div className="animate-spin w-3 h-3 sm:w-4 sm:h-4 border-2 border-gray-500 border-t-transparent rounded-full"></div>
+                    <span>Generating...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Regenerate All Thumbnails</span>
                   </>
                 )}
               </button>

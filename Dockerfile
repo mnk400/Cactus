@@ -2,6 +2,8 @@ FROM node:lts-alpine
 
 WORKDIR /app
 
+RUN apk add --no-cache ffmpeg
+
 # Copy package files
 COPY package*.json ./
 COPY vite.config.js ./

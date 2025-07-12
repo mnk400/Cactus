@@ -8,6 +8,7 @@ const MediaDatabase = require("./database");
 
 const readdir = promisify(fs.readdir);
 const stat = promisify(fs.stat);
+const access = promisify(fs.access);
 
 // Simple structured logging
 const log = {
@@ -60,7 +61,7 @@ const VIDEO_EXTENSIONS = [
   ".ogg",
 ];
 
-function initializeScanner(dirPath) {
+async function initializeScanner(dirPath) {
   directoryPath = dirPath;
 
   // Create database path based on directory hash for unique database per directory
@@ -78,8 +79,10 @@ function initializeScanner(dirPath) {
 
   // Initialize thumbnail directory
   THUMBNAIL_DIR = path.join(directoryPath, ".cactus_thumbnails");
-  if (!fs.existsSync(THUMBNAIL_DIR)) {
-    fs.mkdirSync(THUMBNAIL_DIR, { recursive: true });
+  try {
+    await access(THUMBNAIL_DIR);
+  } catch {
+    await fs.promises.mkdir(THUMBNAIL_DIR, { recursive: true });
   }
 
   log.info("SQLite media scanner initialized", {
@@ -176,14 +179,14 @@ async function generateVideoThumbnail(filePath, fileHash) {
 }
 
 // Lock management functions (same as before)
-function createLockFile() {
+async function createLockFile() {
   try {
     const lockData = {
       pid: process.pid,
       timestamp: new Date().toISOString(),
       directory: directoryPath,
     };
-    fs.writeFileSync(LOCK_FILE_PATH, JSON.stringify(lockData, null, 2));
+    await fs.promises.writeFile(LOCK_FILE_PATH, JSON.stringify(lockData, null, 2));
     log.info("Scan lock file created", {
       lockFile: path.basename(LOCK_FILE_PATH),
       lockPath: LOCK_FILE_PATH,
@@ -200,15 +203,14 @@ function createLockFile() {
   }
 }
 
-function removeLockFile() {
+async function removeLockFile() {
   try {
-    if (fs.existsSync(LOCK_FILE_PATH)) {
-      fs.unlinkSync(LOCK_FILE_PATH);
+    await access(LOCK_FILE_PATH);
+    await fs.promises.unlink(LOCK_FILE_PATH);
       log.info("Scan lock file removed", {
         lockFile: path.basename(LOCK_FILE_PATH),
         lockPath: LOCK_FILE_PATH,
       });
-    }
   } catch (error) {
     log.error("Failed to remove scan lock file", {
       lockFile: path.basename(LOCK_FILE_PATH),
@@ -218,8 +220,10 @@ function removeLockFile() {
   }
 }
 
-function isLocked() {
-  if (!fs.existsSync(LOCK_FILE_PATH)) {
+async function isLocked() {
+  try {
+    await access(LOCK_FILE_PATH);
+  } catch {
     return false;
   }
 
@@ -238,7 +242,7 @@ function isLocked() {
         lockAge: Math.round((now - lockTime) / 1000) + "s",
         lockedByPid: lockData.pid,
       });
-      removeLockFile();
+      await removeLockFile();
       return false;
     }
 
@@ -255,7 +259,7 @@ function isLocked() {
       lockPath: LOCK_FILE_PATH,
       error: error.message,
     });
-    removeLockFile();
+    await removeLockFile();
     return false;
   }
 }
@@ -278,8 +282,8 @@ async function scanDirectory(directoryPath) {
           continue;
         }
 
-        // Skip the thumbnail directory
-        if (filePath === THUMBNAIL_DIR) {
+        // Skip if path contains the thumbnail directory
+        if (filePath.includes(THUMBNAIL_DIR)) {
           log.info("Skipping thumbnail directory", { directory: filePath });
           continue;
         }
@@ -377,13 +381,16 @@ async function loadMediaFiles() {
       // Verify that some of the files still exist
       const sampleSize = Math.min(5, dbFiles.length);
       const sampleFiles = dbFiles.slice(0, sampleSize);
-      const existingFiles = sampleFiles.filter((filePath) => {
-        try {
-          return fs.existsSync(filePath);
-        } catch {
-          return false;
-        }
-      });
+      const existingFiles = await Promise.all(
+        sampleFiles.map(async (filePath) => {
+          try {
+            await access(filePath);
+            return true;
+          } catch {
+            return false;
+          }
+        })
+      ).then(results => sampleFiles.filter((_, i) => results[i]));
 
       // If most sample files exist, use database
       if (existingFiles.length >= sampleSize * 0.8) {
@@ -453,12 +460,12 @@ async function rescanDirectory() {
   }
 
   // Check if a scan is already in progress
-  if (isLocked()) {
+  if (await isLocked()) {
     throw new Error("Scan already in progress");
   }
 
   // Create lock file
-  if (!createLockFile()) {
+  if (!(await createLockFile())) {
     throw new Error("Failed to create lock file");
   }
 
@@ -509,6 +516,77 @@ function getDatabase() {
   return mediaDatabase;
 }
 
+// Function to regenerate thumbnails for all media files
+async function regenerateThumbnails() {
+  if (!directoryPath || !mediaDatabase) {
+    log.error("Media scanner not initialized");
+    throw new Error("Media scanner not initialized");
+  }
+
+  // Check if a scan is already in progress
+  if (await isLocked()) {
+    throw new Error("Scan already in progress");
+  }
+
+  // Create lock file
+  if (!(await createLockFile())) {
+    throw new Error("Failed to create lock file");
+  }
+
+  try {
+    log.info("Starting thumbnail regeneration");
+    const mediaFiles = mediaDatabase.getMediaFiles("all");
+    let regeneratedCount = 0;
+
+    log.info(`Found ${mediaFiles.length} files to process for thumbnail regeneration.`);
+
+    for (const mediaFile of mediaFiles) {
+      const filePath = mediaFile.file_path;
+      try {
+        try {
+          await access(filePath);
+        } catch {
+          log.warn("File not accessible, skipping thumbnail regeneration", { filePath });
+          continue;
+        }
+
+        const mediaType = getMediaType(filePath);
+        if (!mediaType) {
+          log.warn("Unknown media type, skipping thumbnail regeneration", { filePath });
+          continue;
+        }
+
+        const fileHash = mediaDatabase.generateFileHash(filePath);
+        let thumbnailPath = null;
+
+        if (mediaType === "image") {
+          thumbnailPath = await generateImageThumbnail(filePath, fileHash);
+        } else if (mediaType === "video") {
+          thumbnailPath = await generateVideoThumbnail(filePath, fileHash);
+        }
+
+        if (thumbnailPath) {
+          mediaDatabase.updateMediaFileThumbnail(fileHash, thumbnailPath);
+          regeneratedCount++;
+          log.info("Successfully regenerated thumbnail", { filePath });
+        } else {
+          log.warn("Thumbnail generation returned null, skipping update", { filePath });
+        }
+      } catch (error) {
+        log.error("Failed to regenerate thumbnail for a specific file", { filePath, error: error.message });
+      }
+    }
+
+    log.info("Thumbnail regeneration completed", { regeneratedCount });
+    return regeneratedCount;
+  } catch (error) {
+    log.error("Thumbnail regeneration failed", { error: error.message });
+    throw new Error("Failed to regenerate thumbnails");
+  } finally {
+    removeLockFile();
+  }
+}
+
 module.exports = {
   initializeScanner,
   loadMediaFiles,
@@ -516,6 +594,7 @@ module.exports = {
   filterMediaByType,
   getStats,
   getDatabase,
+  regenerateThumbnails,
   // Backward compatibility
   get scannedMediaFiles() {
     try {
@@ -528,31 +607,31 @@ module.exports = {
 };
 
 // Cleanup lock file and close database on process exit
-process.on("exit", () => {
+process.on("exit", async () => {
   if (LOCK_FILE_PATH) {
-    removeLockFile();
+    await removeLockFile();
   }
   if (mediaDatabase) {
-    mediaDatabase.close();
+    await mediaDatabase.close();
   }
 });
 
-process.on("SIGINT", () => {
+process.on("SIGINT", async () => {
   if (LOCK_FILE_PATH) {
-    removeLockFile();
+    await removeLockFile();
   }
   if (mediaDatabase) {
-    mediaDatabase.close();
+    await mediaDatabase.close();
   }
   process.exit(0);
 });
 
-process.on("SIGTERM", () => {
+process.on("SIGTERM", async () => {
   if (LOCK_FILE_PATH) {
-    removeLockFile();
+    await removeLockFile();
   }
   if (mediaDatabase) {
-    mediaDatabase.close();
+    await mediaDatabase.close();
   }
   process.exit(0);
 });
