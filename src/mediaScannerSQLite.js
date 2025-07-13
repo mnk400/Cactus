@@ -409,16 +409,16 @@ async function loadMediaFiles() {
 
   try {
     // First, try to get files from database
-    const dbFiles = mediaDatabase.getMediaFiles("all");
+    const dbFiles = mediaDatabase.getAllMedia("all");
 
     if (dbFiles.length > 0) {
       // Verify that some of the files still exist
       const sampleSize = Math.min(5, dbFiles.length);
       const sampleFiles = dbFiles.slice(0, sampleSize);
       const existingFiles = await Promise.all(
-        sampleFiles.map(async (filePath) => {
+        sampleFiles.map(async (mediaFile) => {
           try {
-            await access(filePath);
+            await access(mediaFile.file_path);
             return true;
           } catch {
             return false;
@@ -460,7 +460,8 @@ async function loadMediaFiles() {
     scannedFiles: scannedFiles.length,
   });
 
-  return scannedFiles;
+  // Return all media from the database, ensuring a consistent return type
+  return mediaDatabase.getAllMedia("all");
 }
 
 // Function to filter media files by type
@@ -571,7 +572,7 @@ async function regenerateThumbnails() {
 
   try {
     log.info("Starting thumbnail regeneration");
-    const mediaFiles = mediaDatabase.getMediaFiles("all");
+    const mediaFiles = mediaDatabase.getAllMedia("all");
     let regeneratedCount = 0;
 
     log.info(
@@ -645,7 +646,7 @@ module.exports = {
   // Backward compatibility
   get scannedMediaFiles() {
     try {
-      return mediaDatabase ? mediaDatabase.getMediaFiles("all") : [];
+      return mediaDatabase ? mediaDatabase.getAllMedia("all") : [];
     } catch (error) {
       log.error("Failed to get scanned media files", { error: error.message });
       return [];

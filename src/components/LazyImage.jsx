@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from "react";
 
 const LazyImage = ({ src, alt, className }) => {
-  const imgRef = useRef(null);
+  const containerRef = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -9,35 +9,48 @@ const LazyImage = ({ src, alt, className }) => {
       ([entry]) => {
         if (entry.isIntersecting) {
           setIsVisible(true);
-          observer.unobserve(imgRef.current);
+          observer.unobserve(containerRef.current);
         }
       },
-      { rootMargin: "400px" }, // Load images when they are 100px away from the viewport
+      { rootMargin: "400px" }, // Load images when they are 400px away from the viewport
     );
 
-    if (imgRef.current) {
-      observer.observe(imgRef.current);
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
     }
 
     return () => {
-      if (imgRef.current) {
-        observer.unobserve(imgRef.current);
+      if (containerRef.current) {
+        observer.unobserve(containerRef.current);
       }
     };
   }, []);
 
+  const placeholder =
+    "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==";
+
   return (
-    <img
-      ref={imgRef}
-      src={isVisible ? src : ""}
-      alt={alt}
+    <div
+      ref={containerRef}
       className={className}
-      loading="lazy"
       style={{
-        opacity: isVisible ? 1 : 0,
-        transition: "opacity 0.3s ease-in-out",
+        aspectRatio: "1 / 1",
+        backgroundColor: "#888",
       }}
-    />
+    >
+      <img
+        src={isVisible ? src : placeholder}
+        alt={alt}
+        loading="lazy"
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          opacity: isVisible ? 1 : 0,
+          transition: "opacity 0.3s ease-in-out",
+        }}
+      />
+    </div>
   );
 };
 
