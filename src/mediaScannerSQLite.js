@@ -339,6 +339,7 @@ async function scanDirectory(directoryPath) {
                       mediaType,
                       fileHash,
                       null,
+                      fileStat.birthtime,
                     );
                     let thumbnailPath = null;
                     if (mediaType === "image") {
@@ -463,22 +464,24 @@ async function loadMediaFiles() {
 }
 
 // Function to filter media files by type
-function filterMediaByType(mediaType) {
+function filterMediaByType(mediaType, sortBy = "random") {
   if (!mediaDatabase) {
     log.warn("Database not initialized for filtering");
     return [];
   }
 
   try {
-    const filteredFiles = mediaDatabase.getMediaFiles(mediaType);
+    const filteredFiles = mediaDatabase.getAllMedia(sortBy, mediaType);
     log.info("Media files filtered", {
       mediaType,
+      sortBy,
       count: filteredFiles.length,
     });
     return filteredFiles;
   } catch (error) {
     log.error("Failed to filter media files", {
       mediaType,
+      sortBy,
       error: error.message,
     });
     return [];

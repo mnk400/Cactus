@@ -16,6 +16,7 @@ export function useMediaFiles() {
       includeTags = [],
       excludeTags = [],
       pathSubstring = "",
+      sortBy = "random",
     ) => {
       console.log(`Fetching ${mediaType} media files...`, {
         includeTags,
@@ -28,7 +29,7 @@ export function useMediaFiles() {
         setError(null);
 
         // Build URL with filters
-        let url = `/api/media?type=${mediaType}`;
+        let url = `/api/media?type=${mediaType}&sortBy=${sortBy}`;
         if (includeTags.length > 0) {
           url += `&tags=${includeTags.join(",")}`;
         }
@@ -84,8 +85,7 @@ export function useMediaFiles() {
           return;
         }
 
-        const shuffledFiles = shuffleArray(data.files);
-        setMediaFiles(shuffledFiles);
+        setMediaFiles(data.files);
       } catch (err) {
         setError(err.message);
         setMediaFiles([]);
@@ -102,6 +102,7 @@ export function useMediaFiles() {
       includeTags = [],
       excludeTags = [],
       pathSubstring = "",
+      sortBy = "random",
     ) => {
       console.log(`Filtering media by type: ${mediaType}`, {
         includeTags,
@@ -114,7 +115,7 @@ export function useMediaFiles() {
         setError(null);
 
         // Build URL with filters
-        let url = `/api/media?type=${mediaType}`;
+        let url = `/api/media?type=${mediaType}&sortBy=${sortBy}`;
         if (includeTags.length > 0) {
           url += `&tags=${includeTags.join(",")}`;
         }
@@ -144,8 +145,7 @@ export function useMediaFiles() {
           return;
         }
 
-        const shuffledFiles = shuffleArray(data.files);
-        setMediaFiles(shuffledFiles);
+        setMediaFiles(data.files);
       } catch (err) {
         setError(`Failed to load ${mediaType}: ${err.message}`);
         setMediaFiles([]);

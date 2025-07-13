@@ -93,6 +93,7 @@ app.get("/api/media", (req, res) => {
   const tags = req.query.tags;
   const excludeTags = req.query["exclude-tags"];
   const pathSubstring = req.query.pathSubstring;
+  const sortBy = req.query.sortBy || "random";
 
   // Validate media type
   if (!["all", "photos", "videos"].includes(mediaType)) {
@@ -138,7 +139,7 @@ app.get("/api/media", (req, res) => {
         resultCount: files.length,
       });
     } else {
-      files = mediaScanner.filterMediaByType(mediaType);
+      files = mediaScanner.filterMediaByType(mediaType, sortBy);
     }
 
     res.json({

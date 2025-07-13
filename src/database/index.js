@@ -97,6 +97,7 @@ class MediaDatabase {
                 media_type TEXT NOT NULL CHECK (media_type IN ('image', 'video')),
                 thumbnail_path TEXT,
                 date_added DATETIME DEFAULT CURRENT_TIMESTAMP,
+                date_created DATETIME,
                 date_modified DATETIME DEFAULT CURRENT_TIMESTAMP,
                 last_seen DATETIME DEFAULT CURRENT_TIMESTAMP
             );
@@ -196,7 +197,13 @@ class MediaDatabase {
   /**
    * Insert a new media file into the database
    */
-  insertMediaFile(filePath, mediaType, fileHash, thumbnailPath = null) {
+  insertMediaFile(
+    filePath,
+    mediaType,
+    fileHash,
+    thumbnailPath = null,
+    dateCreated = null,
+  ) {
     if (!this.isInitialized) {
       throw new Error("Database not initialized");
     }
@@ -206,10 +213,13 @@ class MediaDatabase {
       const filename = path.basename(filePath);
       const fileSize = stats.size;
       const now = new Date().toISOString();
+      const fileCreationTime = dateCreated
+        ? new Date(dateCreated).toISOString()
+        : now;
 
       const stmt = this.db.prepare(`
-                INSERT INTO media_files (file_hash, file_path, filename, file_size, media_type, thumbnail_path, date_added, last_seen)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO media_files (file_hash, file_path, filename, file_size, media_type, thumbnail_path, date_added, date_created, last_seen)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             `);
 
       const result = stmt.run(
@@ -220,6 +230,7 @@ class MediaDatabase {
         mediaType,
         thumbnailPath,
         now,
+        fileCreationTime,
         now,
       );
 
@@ -302,13 +313,26 @@ class MediaDatabase {
   /**
    * Get all media files, optionally filtered by type
    */
-  getMediaFiles(mediaType = "all") {
+  getAllMedia(sortBy = "random", mediaType = "all") {
     if (!this.isInitialized) {
       throw new Error("Database not initialized");
     }
 
     try {
-      let query = "SELECT * FROM media_files ORDER BY date_added DESC";
+      let orderByClause;
+      switch (sortBy) {
+        case "date_created":
+          orderByClause = "ORDER BY date_created DESC";
+          break;
+        case "date_added":
+          orderByClause = "ORDER BY date_added DESC";
+          break;
+        default:
+          orderByClause = "ORDER BY RANDOM()";
+          break;
+      }
+
+      let query = `SELECT * FROM media_files ${orderByClause}`;
       let params = [];
 
       if (mediaType !== "all") {
@@ -316,10 +340,9 @@ class MediaDatabase {
           mediaType === "photos"
             ? "image"
             : mediaType === "videos"
-              ? "video"
-              : mediaType;
-        query =
-          "SELECT * FROM media_files WHERE media_type = ? ORDER BY date_added DESC";
+            ? "video"
+            : mediaType;
+        query = `SELECT * FROM media_files WHERE media_type = ? ${orderByClause}`;
         params = [dbMediaType];
       }
 
@@ -328,7 +351,8 @@ class MediaDatabase {
 
       return rows;
     } catch (error) {
-      log.error("Failed to get media files", {
+      log.error("Failed to get all media", {
+        sortBy,
         mediaType,
         error: error.message,
       });

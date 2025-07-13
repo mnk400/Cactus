@@ -23,6 +23,7 @@ function App() {
   const [selectedTags, setSelectedTags] = useState([]);
   const [excludedTags, setExcludedTags] = useState([]);
   const [pathSubstring, setPathSubstring] = useState("");
+  const [sortBy, setSortBy] = useState("random");
   const [tagUpdateTrigger, setTagUpdateTrigger] = useState(0);
   const [isGalleryView, setIsGalleryView] = useState(false);
 
@@ -113,12 +114,19 @@ function App() {
     includeTags,
     excludeTags,
     pathSubstring,
+    sortByValue = sortBy,
   ) => {
     try {
       const tagNames = includeTags.map((tag) => tag.name);
       const excludeTagNames = excludeTags.map((tag) => tag.name);
 
-      await filterMedia(mediaType, tagNames, excludeTagNames, pathSubstring);
+      await filterMedia(
+        mediaType,
+        tagNames,
+        excludeTagNames,
+        pathSubstring,
+        sortByValue,
+      );
     } catch (error) {
       console.error("Failed to apply filters:", error);
     }
@@ -262,6 +270,18 @@ function App() {
           onPathChange={handlePathChange}
           onRegenerateThumbnails={regenerateThumbnails}
           isRegeneratingThumbnails={isRegeneratingThumbnails}
+          sortBy={sortBy}
+          onSortByChange={async (newSortBy) => {
+            setSortBy(newSortBy);
+            await applyFilters(
+              currentMediaType,
+              selectedTags,
+              excludedTags,
+              pathSubstring,
+              newSortBy,
+            );
+            setIsSettingsOpen(false);
+          }}
         />
       </div>
 

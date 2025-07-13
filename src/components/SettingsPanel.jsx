@@ -23,6 +23,8 @@ function SettingsPanel({
   onPathChange,
   onRegenerateThumbnails,
   isRegeneratingThumbnails = false,
+  sortBy,
+  onSortByChange,
 }) {
   const [showTagManager, setShowTagManager] = useState(false);
   const { tags, createTag, updateTag, deleteTag } = useTags();
@@ -38,6 +40,16 @@ function SettingsPanel({
     totalFiles > 0 ? Math.round((totalPhotos / totalFiles) * 100) : 0;
   const videoPercentage =
     totalFiles > 0 ? Math.round((totalVideos / totalFiles) * 100) : 0;
+
+  const getSortButtonClass = (sortOption) => {
+    const baseClass =
+      "media-type-btn flex-1 border-none py-2 px-3 rounded-xl cursor-pointer text-sm font-medium transition-all duration-200 ease-in-out active:scale-95";
+
+    if (sortBy === sortOption) {
+      return `${baseClass} bg-white bg-opacity-20 text-white shadow-lg`;
+    }
+    return `${baseClass} bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-gray-300`;
+  };
 
   const getButtonClass = (mediaType) => {
     const baseClass =
@@ -226,6 +238,41 @@ function SettingsPanel({
                 <div className="flex items-center justify-center gap-1">
                   <span className="opacity-80 text-xs sm:text-sm">🎥</span>
                   <span className="text-xs sm:text-sm">Videos</span>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Sort By Options */}
+          <div className="filter-section mb-3 sm:mb-4">
+            <div className="flex items-center gap-2 mb-2 sm:mb-3">
+              <h4 className="text-sm sm:text-base font-medium text-white m-0">
+                Sort By
+              </h4>
+            </div>
+            <div className="media-type-selector flex gap-1.5 sm:gap-2">
+              <button
+                onClick={() => onSortByChange("random")}
+                className={getSortButtonClass("random")}
+              >
+                <div className="flex items-center justify-center gap-1">
+                  <span className="text-xs sm:text-sm">Random</span>
+                </div>
+              </button>
+              <button
+                onClick={() => onSortByChange("date_added")}
+                className={getSortButtonClass("date_added")}
+              >
+                <div className="flex items-center justify-center gap-1">
+                  <span className="text-xs sm:text-sm">Date Added</span>
+                </div>
+              </button>
+              <button
+                onClick={() => onSortByChange("date_created")}
+                className={getSortButtonClass("date_created")}
+              >
+                <div className="flex items-center justify-center gap-1">
+                  <span className="text-xs sm:text-sm">Date Created</span>
                 </div>
               </button>
             </div>
