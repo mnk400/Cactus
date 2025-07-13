@@ -1,25 +1,33 @@
 import React, { useRef, useEffect } from "react";
 import LazyImage from "./LazyImage";
 
-function GalleryView({ mediaFiles, currentIndex, onSelectMedia }) {
+function GalleryView({ mediaFiles, currentIndex, onSelectMedia, scrollPosition, setScrollPosition, style }) {
   const galleryRef = useRef(null);
 
   useEffect(() => {
     if (galleryRef.current) {
-      const selectedItem = galleryRef.current.children[currentIndex];
-      if (selectedItem) {
-        selectedItem.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
-      }
+      galleryRef.current.scrollTop = scrollPosition;
     }
-  }, [currentIndex, mediaFiles]);
+  }, []);
+
+  useEffect(() => {
+    const galleryElement = galleryRef.current;
+    if (galleryElement) {
+      const handleScroll = () => {
+        setScrollPosition(galleryElement.scrollTop);
+      };
+      galleryElement.addEventListener("scroll", handleScroll);
+      return () => {
+        galleryElement.removeEventListener("scroll", handleScroll);
+      };
+    }
+  }, [setScrollPosition]);
 
   return (
     <div
       ref={galleryRef}
       className="gallery-view flex flex-wrap justify-center items-center pt-5 gap-4 overflow-y-auto h-full bg-black"
+      style={style}
     >
       {mediaFiles.map((file, index) => (
         <div

@@ -26,6 +26,7 @@ function App() {
   const [sortBy, setSortBy] = useState("random");
   const [tagUpdateTrigger, setTagUpdateTrigger] = useState(0);
   const [isGalleryView, setIsGalleryView] = useState(false);
+  const [galleryScrollPosition, setGalleryScrollPosition] = useState(0);
 
   const {
     mediaFiles,
@@ -179,32 +180,27 @@ function App() {
         {error && <ErrorMessage message={error} />}
 
         {!loading && !error && mediaFiles.length > 0 && currentMediaFile && (
-          <TransitionGroup component={null}>
-            <CSSTransition
-              key={isGalleryView ? "gallery" : "single"}
-              timeout={300}
-              classNames="fade-scale"
-            >
-              {isGalleryView ? (
-                <GalleryView
-                  mediaFiles={mediaFiles}
-                  currentIndex={currentIndex}
-                  onSelectMedia={(index) => {
-                    setCurrentIndex(index);
-                    setIsGalleryView(false);
-                  }}
-                />
-              ) : (
-                <MediaViewer
-                  mediaFiles={mediaFiles}
-                  currentIndex={currentIndex}
-                  onNavigate={handleNavigation}
-                  showTagInput={showTagInput}
-                  onToggleTagInput={handleToggleTagInput}
-                />
-              )}
-            </CSSTransition>
-          </TransitionGroup>
+          <>
+            <GalleryView
+              mediaFiles={mediaFiles}
+              currentIndex={currentIndex}
+              onSelectMedia={(index) => {
+                setCurrentIndex(index);
+                setIsGalleryView(false);
+              }}
+              style={{ display: isGalleryView ? "flex" : "none" }}
+              scrollPosition={galleryScrollPosition}
+              setScrollPosition={setGalleryScrollPosition}
+            />
+            <MediaViewer
+              mediaFiles={mediaFiles}
+              currentIndex={currentIndex}
+              onNavigate={handleNavigation}
+              showTagInput={showTagInput}
+              onToggleTagInput={handleToggleTagInput}
+              style={{ display: isGalleryView ? "none" : "block" }}
+            />
+          </>
         )}
 
         {!loading && !error && mediaFiles.length === 0 && (
