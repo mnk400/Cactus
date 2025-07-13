@@ -14,11 +14,11 @@ const PathFilter = ({ onFilterChange }) => {
         placeholder="Filter by path..."
         value={substring}
         onChange={(e) => setSubstring(e.target.value)}
-        className="w-full p-2 px-3 bg-black-shades-700 hover:bg-white hover:bg-opacity-20 rounded-xl placeholder-gray-400"
+        className="w-full px-3 py-1 bg-black-shades-700 hover:bg-white hover:bg-opacity-20 rounded-lg placeholder-gray-400"
       />
       <button
         onClick={handleFilterClick}
-        className="px-4 py-2 bg-blue-400 hover:bg-white hover:bg-opacity-20 text-white rounded-xl transition-colors duration-200"
+        className="px-4 py-1 bg-blue-400 hover:bg-blue-500 text-white rounded-lg transition-colors duration-200"
       >
         Filter
       </button>

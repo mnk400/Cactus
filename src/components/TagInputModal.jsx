@@ -109,7 +109,7 @@ const TagInputModal = ({
                 {stagedTags.map((tag) => (
                   <span
                     key={tag.id}
-                    className="inline-flex items-center px-3 py-1 rounded-xl text-xs font-medium text-white shadow-sm whitespace-nowrap flex-shrink-0"
+                    className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-medium text-white shadow-sm whitespace-nowrap flex-shrink-0"
                     style={{ backgroundColor: tag.color }}
                   >
                     {tag.name}
@@ -132,7 +132,7 @@ const TagInputModal = ({
                 <button
                   onClick={handlePredict}
                   disabled={isPredicting}
-                  className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-xl hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-3 py-1.5 text-sm bg-red-400 text-white rounded-lg hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isPredicting ? "Predicting..." : "Predict"}
                 </button>
@@ -140,7 +140,7 @@ const TagInputModal = ({
             <button
               onClick={handleConfirmAdd}
               disabled={stagedTags.length === 0}
-              className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-xl hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Confirm ({stagedTags.length})
             </button>

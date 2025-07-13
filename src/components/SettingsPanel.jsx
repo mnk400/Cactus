@@ -29,8 +29,8 @@ function SettingsPanel({
 
   // Calculate statistics
   const totalFiles = allMediaFiles.length;
-  const totalPhotos = allMediaFiles.filter((file) => isImage(file)).length;
-  const totalVideos = allMediaFiles.filter((file) => isVideo(file)).length;
+  const totalPhotos = allMediaFiles.filter((file) => isImage(file.file_path)).length;
+  const totalVideos = allMediaFiles.filter((file) => isVideo(file.file_path)).length;
   const currentCount = currentMediaFiles.length;
 
   // Calculate percentages for visual representation
@@ -89,7 +89,7 @@ function SettingsPanel({
 
   return (
     <CSSTransition in={isOpen} timeout={300} classNames="fade" unmountOnExit>
-      <div className="fixed inset-0 bg-black-shades-900 p-4 sm:p-6 text-gray-200 z-50 overflow-y-auto rounded-2xl border border-gray-700">
+      <div className="fixed inset-0 bg-black-shades-900 p-4 sm:p-6 text-gray-200 z-50 overflow-y-auto rounded-2xl">
         {/* Header with Close Button */}
         <div className="flex justify-between items-center mb-3 sm:mb-4 max-w-4xl mx-auto">
           <h3 className="text-base sm:text-lg font-semibold text-white m-0">
@@ -97,7 +97,7 @@ function SettingsPanel({
           </h3>
           <button
             onClick={() => onClose()}
-            className="px-3 py-1 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition-colors duration-200"
+            className="px-3 py-1 bg-red-400 text-white rounded-lg hover:bg-red-500 transition-colors duration-200"
             aria-label="Close settings"
           >
             Close
