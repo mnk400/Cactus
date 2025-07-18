@@ -13,8 +13,6 @@ export default defineConfig({
     proxy: {
       "/api": "http://localhost:3000",
       "/media": "http://localhost:3000",
-      "/get-media-files": "http://localhost:3000",
-      "/filter-media": "http://localhost:3000",
       "/rescan-directory": "http://localhost:3000",
     },
   },

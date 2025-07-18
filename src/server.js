@@ -1,7 +1,7 @@
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
-const mediaScanner = require("./mediaScannerSQLite");
+const { LocalMediaProvider } = require("./providers");
 const minimist = require("minimist");
 
 const app = express();
@@ -16,6 +16,9 @@ const enablePredict =
   false; // Flag to enable extremely experimental prediction functionality
 const predictApiUrl =
   argv["predict-api-url"] || process.env.PREDICT_API_URL || "http://localhost"; // Prediction API URL super WIP
+  
+// Media provider instance
+let mediaProvider;
 
 // Simple structured logging
 const log = {
@@ -83,12 +86,20 @@ app.use(express.json());
 
 // Initialize and load media files on server startup
 (async () => {
-  mediaScanner.initializeScanner(directoryPath);
-  await mediaScanner.loadMediaFiles();
+  // Initialize the local media provider
+  mediaProvider = new LocalMediaProvider(directoryPath);
+  const initResult = await mediaProvider.initialize();
+  
+  if (!initResult.success) {
+    log.error("Failed to initialize media provider", {
+      error: initResult.error,
+    });
+    process.exit(1);
+  }
 })();
 
 // Unified API endpoint to get media files with optional filtering
-app.get("/api/media", (req, res) => {
+app.get("/api/media", async (req, res) => {
   const mediaType = req.query.type || "all";
   const tags = req.query.tags;
   const excludeTags = req.query["exclude-tags"];
@@ -107,7 +118,7 @@ app.get("/api/media", (req, res) => {
 
     if (pathSubstring) {
       log.info("Filtering media by path substring", { pathSubstring });
-      files = mediaScanner.getDatabase().getMediaByPathSubstring(pathSubstring);
+      files = await mediaProvider.getMediaByPathSubstring(pathSubstring, mediaType, sortBy);
     } else if (tags || excludeTags) {
       const tagList = tags
         ? tags
@@ -128,9 +139,7 @@ app.get("/api/media", (req, res) => {
         excludeTags: excludeTagList,
       });
 
-      files = mediaScanner
-        .getDatabase()
-        .getMediaByTagsAndType(tagList, excludeTagList, mediaType);
+      files = await mediaProvider.getMediaByTags(tagList, excludeTagList, mediaType, sortBy);
 
       log.info("Tag filtering completed", {
         mediaType,
@@ -139,7 +148,7 @@ app.get("/api/media", (req, res) => {
         resultCount: files.length,
       });
     } else {
-      files = mediaScanner.filterMediaByType(mediaType, sortBy);
+      files = await mediaProvider.getAllMedia(mediaType, sortBy);
     }
 
     res.json({
@@ -176,10 +185,9 @@ app.get("/api/media", (req, res) => {
 // ===== TAG MANAGEMENT API ENDPOINTS =====
 
 // Get all tags
-app.get("/api/tags", (req, res) => {
+app.get("/api/tags", async (req, res) => {
   try {
-    const database = mediaScanner.getDatabase();
-    const tags = database.getAllTags();
+    const tags = await mediaProvider.getAllTags();
     res.json({ tags });
   } catch (error) {
     log.error("Failed to get tags", { error: error.message });
@@ -188,7 +196,7 @@ app.get("/api/tags", (req, res) => {
 });
 
 // Create a new tag
-app.post("/api/tags", (req, res) => {
+app.post("/api/tags", async (req, res) => {
   const { name, color } = req.body;
 
   if (!name || typeof name !== "string" || name.trim().length === 0) {
@@ -196,8 +204,7 @@ app.post("/api/tags", (req, res) => {
   }
 
   try {
-    const database = mediaScanner.getDatabase();
-    const tag = database.createTag(name, color);
+    const tag = await mediaProvider.createTag(name, color);
     log.info("Tag created", { tagId: tag.id, name: tag.name });
     res.json({ tag });
   } catch (error) {
@@ -211,7 +218,7 @@ app.post("/api/tags", (req, res) => {
 });
 
 // Update a tag
-app.put("/api/tags/:id", (req, res) => {
+app.put("/api/tags/:id", async (req, res) => {
   const { id } = req.params;
   const { name, color } = req.body;
 
@@ -220,8 +227,7 @@ app.put("/api/tags/:id", (req, res) => {
   }
 
   try {
-    const database = mediaScanner.getDatabase();
-    const tag = database.updateTag(parseInt(id), name, color);
+    const tag = await mediaProvider.updateTag(id, name, color);
     log.info("Tag updated", { tagId: id, name: tag.name });
     res.json({ tag });
   } catch (error) {
@@ -237,12 +243,11 @@ app.put("/api/tags/:id", (req, res) => {
 });
 
 // Delete a tag
-app.delete("/api/tags/:id", (req, res) => {
+app.delete("/api/tags/:id", async (req, res) => {
   const { id } = req.params;
 
   try {
-    const database = mediaScanner.getDatabase();
-    const deleted = database.deleteTag(parseInt(id));
+    const deleted = await mediaProvider.deleteTag(id);
     log.info("Tag deleted", { tagId: id });
     res.json({ message: "Tag deleted successfully" });
   } catch (error) {
@@ -258,12 +263,11 @@ app.delete("/api/tags/:id", (req, res) => {
 // ===== MEDIA TAGGING API ENDPOINTS =====
 
 // Get tags for a specific media file
-app.get("/api/media/:fileHash/tags", (req, res) => {
+app.get("/api/media/:fileHash/tags", async (req, res) => {
   const { fileHash } = req.params;
 
   try {
-    const database = mediaScanner.getDatabase();
-    const tags = database.getMediaTags(fileHash);
+    const tags = await mediaProvider.getMediaTags(fileHash);
     res.json({ tags });
   } catch (error) {
     log.error("Failed to get media tags", { fileHash, error: error.message });
@@ -272,7 +276,7 @@ app.get("/api/media/:fileHash/tags", (req, res) => {
 });
 
 // Add tag(s) to a media file
-app.post("/api/media/:fileHash/tags", (req, res) => {
+app.post("/api/media/:fileHash/tags", async (req, res) => {
   const { fileHash } = req.params;
   const { tagIds, tagNames } = req.body;
 
@@ -286,13 +290,12 @@ app.post("/api/media/:fileHash/tags", (req, res) => {
   }
 
   try {
-    const database = mediaScanner.getDatabase();
     const results = [];
 
     // Handle tag IDs
     if (tagIds && Array.isArray(tagIds)) {
       for (const tagId of tagIds) {
-        const added = database.addTagToMedia(fileHash, parseInt(tagId));
+        const added = await mediaProvider.addTagToMedia(fileHash, tagId);
         results.push({ tagId: parseInt(tagId), added });
       }
     }
@@ -300,16 +303,20 @@ app.post("/api/media/:fileHash/tags", (req, res) => {
     // Handle tag names (create if they don't exist)
     if (tagNames && Array.isArray(tagNames)) {
       for (const tagName of tagNames) {
-        let tag = database.getTagByName(tagName);
+        // Get all tags to find by name
+        const allTags = await mediaProvider.getAllTags();
+        let tag = allTags.find(t => t.name === tagName);
+        
         if (!tag) {
-          tag = database.createTag(tagName);
+          tag = await mediaProvider.createTag(tagName);
         }
-        const added = database.addTagToMedia(fileHash, tag.id);
+        
+        const added = await mediaProvider.addTagToMedia(fileHash, tag.id);
         results.push({
           tagId: tag.id,
           tagName: tag.name,
           added,
-          created: !database.getTagByName(tagName),
+          created: !allTags.find(t => t.name === tagName),
         });
       }
     }
@@ -326,12 +333,11 @@ app.post("/api/media/:fileHash/tags", (req, res) => {
 });
 
 // Remove tag from media file
-app.delete("/api/media/:fileHash/tags/:tagId", (req, res) => {
+app.delete("/api/media/:fileHash/tags/:tagId", async (req, res) => {
   const { fileHash, tagId } = req.params;
 
   try {
-    const database = mediaScanner.getDatabase();
-    const removed = database.removeTagFromMedia(fileHash, parseInt(tagId));
+    const removed = await mediaProvider.removeTagFromMedia(fileHash, tagId);
 
     if (removed) {
       log.info("Tag removed from media", { fileHash, tagId });
@@ -350,7 +356,7 @@ app.delete("/api/media/:fileHash/tags/:tagId", (req, res) => {
 });
 
 // Convenience endpoint: Get tags for media by file path
-app.get("/api/media-path/tags", (req, res) => {
+app.get("/api/media-path/tags", async (req, res) => {
   const { path: filePath } = req.query;
 
   if (!filePath) {
@@ -358,9 +364,8 @@ app.get("/api/media-path/tags", (req, res) => {
   }
 
   try {
-    const database = mediaScanner.getDatabase();
-    const fileHash = database.getFileHashForPath(filePath);
-    const tags = database.getMediaTags(fileHash);
+    const fileHash = mediaProvider.getFileHashForPath(filePath);
+    const tags = await mediaProvider.getMediaTags(fileHash);
     res.json({ tags, fileHash });
   } catch (error) {
     log.error("Failed to get media tags by path", {
@@ -372,7 +377,7 @@ app.get("/api/media-path/tags", (req, res) => {
 });
 
 // Convenience endpoint: Add tags to media by file path
-app.post("/api/media-path/tags", (req, res) => {
+app.post("/api/media-path/tags", async (req, res) => {
   const { path: filePath } = req.query;
   const { tagIds, tagNames } = req.body;
 
@@ -390,18 +395,13 @@ app.post("/api/media-path/tags", (req, res) => {
   }
 
   try {
-    const database = mediaScanner.getDatabase();
-    const fileHash = database.getFileHashForPath(filePath);
-
-    // Forward to the hash-based endpoint logic
-    req.params.fileHash = fileHash;
-
+    const fileHash = mediaProvider.getFileHashForPath(filePath);
     const results = [];
 
     // Handle tag IDs
     if (tagIds && Array.isArray(tagIds)) {
       for (const tagId of tagIds) {
-        const added = database.addTagToMedia(fileHash, parseInt(tagId));
+        const added = await mediaProvider.addTagToMedia(fileHash, tagId);
         results.push({ tagId: parseInt(tagId), added });
       }
     }
@@ -412,11 +412,15 @@ app.post("/api/media-path/tags", (req, res) => {
         const trimmedTagName = String(tagName).trim(); // Ensure it's a string and trim it
         if (!trimmedTagName) continue; // Skip empty tag names after trimming
 
-        let tag = database.getTagByName(trimmedTagName);
+        // Get all tags to find by name
+        const allTags = await mediaProvider.getAllTags();
+        let tag = allTags.find(t => t.name === trimmedTagName);
+        
         if (!tag) {
-          tag = database.createTag(trimmedTagName);
+          tag = await mediaProvider.createTag(trimmedTagName);
         }
-        const added = database.addTagToMedia(fileHash, tag.id);
+        
+        const added = await mediaProvider.addTagToMedia(fileHash, tag.id);
         results.push({ tagId: tag.id, tagName: tag.name, added });
       }
     }
@@ -432,53 +436,10 @@ app.post("/api/media-path/tags", (req, res) => {
   }
 });
 
-// Backward compatibility endpoints (deprecated)
-app.get("/get-media-files", (req, res) => {
-  log.warn(
-    "Using deprecated endpoint /get-media-files, please use /api/media instead",
-  );
-  const mediaType = req.query.type || "all";
-
-  try {
-    const files = mediaScanner.filterMediaByType(mediaType);
-    res.json({ files: files });
-  } catch (error) {
-    log.error("Failed to retrieve media files", {
-      mediaType,
-      error: error.message,
-    });
-    res.status(500).json({ error: "Failed to get media files" });
-  }
-});
-
-app.get("/filter-media", (req, res) => {
-  log.warn(
-    "Using deprecated endpoint /filter-media, please use /api/media instead",
-  );
-  const { type } = req.query;
-
-  if (!type || !["all", "photos", "videos"].includes(type)) {
-    return res
-      .status(400)
-      .json({ error: 'Invalid media type. Use "all", "photos", or "videos".' });
-  }
-
-  try {
-    const filteredFiles = mediaScanner.filterMediaByType(type);
-    res.json({
-      files: filteredFiles,
-      message: `Filtered to ${filteredFiles.length} ${type} files.`,
-    });
-  } catch (error) {
-    log.error("Failed to filter media files", { type, error: error.message });
-    res.status(500).json({ error: "Failed to filter media files" });
-  }
-});
-
 // API endpoint to trigger a rescan of the directory
 app.post("/rescan-directory", async (req, res) => {
   try {
-    const files = await mediaScanner.rescanDirectory();
+    const files = await mediaProvider.rescanDirectory();
     log.info("Directory rescan completed", { fileCount: files.length });
     res.json({
       files: files,
@@ -554,17 +515,16 @@ app.get("/thumbnails", (req, res) => {
 });
 
 // API endpoint to get database statistics
-app.get("/api/stats", (req, res) => {
+app.get("/api/stats", async (req, res) => {
   try {
-    const stats = mediaScanner.getStats();
-    const database = mediaScanner.getDatabase();
-
+    const stats = await mediaProvider.getStats();
+    
     res.json({
       ...stats,
-      database: {
-        version: database ? database.getDatabaseVersion() : "unknown",
-        path: database ? database.dbPath : "unknown",
-      },
+      provider: {
+        type: "local",
+        directory: directoryPath
+      }
     });
   } catch (error) {
     log.error("Failed to get database statistics", { error: error.message });
@@ -575,7 +535,7 @@ app.get("/api/stats", (req, res) => {
 // API endpoint to regenerate thumbnails
 app.post("/regenerate-thumbnails", async (req, res) => {
   try {
-    const regeneratedCount = await mediaScanner.regenerateThumbnails();
+    const regeneratedCount = await mediaProvider.regenerateThumbnails();
     log.info("Thumbnail regeneration completed", { regeneratedCount });
     res.json({
       message: `Thumbnail regeneration complete. Regenerated ${regeneratedCount} thumbnails.`,
@@ -620,8 +580,30 @@ app.listen(PORT, () => {
   log.info("Cactus media server started", {
     port: PORT,
     directory: directoryPath,
-    version: "React + SQLite",
+    version: "React + Provider Architecture",
+    provider: "LocalMediaProvider",
     storage: "SQLite Database",
     predictEnabled: enablePredict,
   });
+});
+
+// Cleanup on process exit
+process.on("exit", async () => {
+  if (mediaProvider) {
+    await mediaProvider.close();
+  }
+});
+
+process.on("SIGINT", async () => {
+  if (mediaProvider) {
+    await mediaProvider.close();
+  }
+  process.exit(0);
+});
+
+process.on("SIGTERM", async () => {
+  if (mediaProvider) {
+    await mediaProvider.close();
+  }
+  process.exit(0);
 });

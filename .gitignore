@@ -3,3 +3,5 @@ package-lock.json
 *_media.db*
 test-media/
 dist
+sample/
+.kiro/
