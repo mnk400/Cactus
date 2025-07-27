@@ -187,6 +187,11 @@ function App() {
               mediaFiles={mediaFiles}
               currentIndex={currentIndex}
               onSelectMedia={(index) => {
+                // Save current scroll position before switching to fullscreen
+                const galleryContainer = document.querySelector('.gallery-view');
+                if (galleryContainer) {
+                  setGalleryScrollPosition(galleryContainer.scrollTop);
+                }
                 setCurrentIndex(index);
                 setIsGalleryView(false);
               }}
