@@ -11,8 +11,8 @@ import DebugInfo from "./components/DebugInfo";
 import GalleryView from "./components/GalleryView";
 import { useMediaFiles } from "./hooks/useMediaFiles";
 import { useKeyboardNavigation } from "./hooks/useKeyboardNavigation";
-import { isVideo } from "./utils/helpers";
 import { useFavorite } from "./hooks/useFavorite";
+import { useConfig } from "./hooks/useConfig";
 
 function App() {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -40,6 +40,8 @@ function App() {
     regenerateThumbnails,
     isRegeneratingThumbnails,
   } = useMediaFiles();
+
+  const { config } = useConfig();
 
   // Handle mobile viewport issues
 
@@ -258,7 +260,7 @@ function App() {
           isScanning={isScanning}
           allMediaFiles={allMediaFiles}
           currentMediaFiles={mediaFiles}
-          directoryName={directoryPath}
+          directoryName={config.provider?.directory || config.provider?.sbUrl || ""}
           selectedTags={selectedTags}
           excludedTags={excludedTags}
           onTagsChange={handleTagsChange}
@@ -267,6 +269,7 @@ function App() {
           onRegenerateThumbnails={regenerateThumbnails}
           isRegeneratingThumbnails={isRegeneratingThumbnails}
           sortBy={sortBy}
+          providerType={config.provider?.type || "local"}
           onSortByChange={async (newSortBy) => {
             setSortBy(newSortBy);
             await applyFilters(
@@ -286,7 +289,7 @@ function App() {
         currentMediaFile={currentMediaFile}
         showTagInput={showTagInput}
         key={tagUpdateTrigger} // Force re-render when tags are updated
-        isVideoPlaying={isVideo(currentMediaFile?.file_path)}
+        isVideoPlaying={currentMediaFile?.media_type === "video"}
       />
 
       <TagInputModal

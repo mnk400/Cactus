@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import FullscreenButton from "./FullscreenButton";
 import VideoProgressBar from "./VideoProgressBar";
-import { isVideo, isMobile } from "../utils/helpers";
+import { isMobile } from "../utils/helpers";
 
 function Navigation({
   onPrevious,
@@ -19,7 +19,7 @@ function Navigation({
   const [videoElement, setVideoElement] = useState(null);
 
   useEffect(() => {
-    if (isVideo(currentMediaFile?.file_path)) {
+    if (currentMediaFile?.media_type === "video") {
       // A delay might be needed for the element to be in the DOM
       setTimeout(() => {
         const video = document.querySelector(".media-item video");
@@ -36,7 +36,7 @@ function Navigation({
       directoryName.split("/").slice(-2, -1)[0] ||
       "Root"
     : "";
-  const isVideoPlaying = isVideo(currentMediaFile?.file_path);
+  const isVideoPlaying = currentMediaFile?.media_type === "video";
 
   return (
     <div
@@ -145,7 +145,7 @@ function Navigation({
           ⋯
         </button>
 
-        {isVideo(currentMediaFile?.file_path) && <FullscreenButton />}
+        {currentMediaFile?.media_type === "video" && <FullscreenButton />}
 
         <div className="directory-name text-gray-200 text-base ml-auto px-4 whitespace-nowrap overflow-hidden text-ellipsis">
           {shortDirectoryName}

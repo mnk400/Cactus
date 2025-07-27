@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { CSSTransition } from "react-transition-group";
 import TagInput from "./TagInput";
 import useTags from "../hooks/useTags";
-import { isImage, isVideo } from "../utils/helpers";
+
 import { usePrediction } from "../hooks/usePrediction";
 
 const TagInputModal = ({
@@ -30,6 +30,7 @@ const TagInputModal = ({
 
   const { isPredicting, predictTags } = usePrediction(
     predictApiUrl,
+    currentMediaFile,
     handleAddStagedTag,
   );
 
@@ -127,8 +128,8 @@ const TagInputModal = ({
           </div>
           <div className="flex justify-between mt-4">
             {predictEnabled &&
-              (isImage(currentMediaFile?.file_path) ||
-                isVideo(currentMediaFile?.file_path)) && (
+              (currentMediaFile?.media_type === "image" ||
+                currentMediaFile?.media_type === "video") && (
                 <button
                   onClick={handlePredict}
                   disabled={isPredicting}

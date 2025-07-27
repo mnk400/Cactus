@@ -2,7 +2,7 @@
  * MediaSourceProvider Interface
  * 
  * This abstract class defines the interface that all media source providers must implement.
- * It serves as a contract for both LocalMediaProvider and StashMediaProvider.
+ * It serves as a contract for both LocalMediaProvider and sbMediaProvider.
  */
 class MediaSourceProvider {
   /**

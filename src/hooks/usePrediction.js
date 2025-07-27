@@ -1,24 +1,24 @@
 import { useState } from "react";
-import { isImage, isVideo } from "../utils/helpers";
 
-export const usePrediction = (predictApiUrl, onTagsPredicted) => {
+export const usePrediction = (predictApiUrl, currentMediaFile, onTagsPredicted) => {
   const [isPredicting, setIsPredicting] = useState(false);
 
-  const predictTags = async (currentMediaFile) => {
+  const predictTags = async (filePath) => {
     if (
+      !filePath ||
       !currentMediaFile ||
-      (!isImage(currentMediaFile) && !isVideo(currentMediaFile)) ||
-      !predictApiUrl
+      !predictApiUrl ||
+      (currentMediaFile.media_type !== "image" && currentMediaFile.media_type !== "video")
     ) {
       return;
     }
 
     setIsPredicting(true);
     try {
-      if (isImage(currentMediaFile)) {
+      if (currentMediaFile.media_type === "image") {
         const formData = new FormData();
         const image = await fetch(
-          `/media?path=${encodeURIComponent(currentMediaFile)}`,
+          `/media?path=${encodeURIComponent(filePath)}`,
         );
         if (!image.ok) {
           throw new Error(`Failed to fetch image: ${image.status}`);
@@ -46,9 +46,9 @@ export const usePrediction = (predictApiUrl, onTagsPredicted) => {
             .filter((tag) => tag);
           onTagsPredicted(predictedTags);
         }
-      } else if (isVideo(currentMediaFile)) {
+      } else if (currentMediaFile.media_type === "video") {
         const video = document.createElement("video");
-        video.src = `/media?path=${encodeURIComponent(currentMediaFile)}`;
+        video.src = `/media?path=${encodeURIComponent(filePath)}`;
         video.crossOrigin = "anonymous";
 
         const captureFrame = (videoElement, time) => {
@@ -109,21 +109,21 @@ export const usePrediction = (predictApiUrl, onTagsPredicted) => {
 
               const tags1 = data1.tags
                 ? data1.tags
-                    .split(",")
-                    .map((tag) => tag.trim())
-                    .filter((tag) => tag)
+                  .split(",")
+                  .map((tag) => tag.trim())
+                  .filter((tag) => tag)
                 : [];
               const tags2 = data2.tags
                 ? data2.tags
-                    .split(",")
-                    .map((tag) => tag.trim())
-                    .filter((tag) => tag)
+                  .split(",")
+                  .map((tag) => tag.trim())
+                  .filter((tag) => tag)
                 : [];
               const tags3 = data3.tags
                 ? data3.tags
-                    .split(",")
-                    .map((tag) => tag.trim())
-                    .filter((tag) => tag)
+                  .split(",")
+                  .map((tag) => tag.trim())
+                  .filter((tag) => tag)
                 : [];
 
               const allTags = [...tags1, ...tags2, ...tags3];

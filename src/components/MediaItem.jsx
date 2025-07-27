@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { isImage, isVideo } from "../utils/helpers";
+
 
 function MediaItem({
   mediaFile,
@@ -10,7 +10,6 @@ function MediaItem({
   getPreloadedMedia,
 }) {
   const mediaRef = useRef(null);
-
   useEffect(() => {
     if (!mediaFile || !mediaRef.current) return;
 
@@ -67,8 +66,7 @@ function MediaItem({
   if (!mediaFile) {
     return null;
   }
-
-  if (isImage(mediaFile.file_path)) {
+  if (mediaFile.media_type === "image") {
     const preloadedImg = getPreloadedMedia(index);
     console.log("preloadedImg", preloadedImg); //empty ??
     const imgSrc = preloadedImg
@@ -93,7 +91,7 @@ function MediaItem({
     );
   }
 
-  if (isVideo(mediaFile.file_path)) {
+  if (mediaFile.media_type === "video") {
     const preloadedVideo = getPreloadedMedia(index);
     const videoSrc = preloadedVideo
       ? preloadedVideo.src
@@ -118,6 +116,7 @@ function MediaItem({
       <div className="text-gray-500 text-center">
         <p>Unsupported media type</p>
         <p className="text-sm">{mediaFile.file_path}</p>
+        <p className="text-sm">{mediaFile.media_type}</p>
       </div>
     </div>
   );

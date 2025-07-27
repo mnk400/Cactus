@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import { isVideo } from "../utils/helpers";
 
 function VideoProgressBar({ videoElement }) {
   const [progress, setProgress] = useState(0);

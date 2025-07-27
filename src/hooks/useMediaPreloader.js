@@ -1,5 +1,4 @@
 import { useRef, useEffect } from "react";
-import { isImage, isVideo } from "../utils/helpers";
 
 export function useMediaPreloader(mediaFiles, currentIndex) {
   const preloadedMedia = useRef(new Map());
@@ -16,7 +15,7 @@ export function useMediaPreloader(mediaFiles, currentIndex) {
 
       const mediaFile = mediaFiles[index];
 
-      if (isImage(mediaFile.file_path)) {
+      if (mediaFile.media_type === "image") {
         const img = new Image();
         img.src = `/media?path=${encodeURIComponent(mediaFile.file_path)}`;
         img.onload = () => {
@@ -26,7 +25,7 @@ export function useMediaPreloader(mediaFiles, currentIndex) {
         img.onerror = () => {
           console.warn(`Failed to preload image at index ${index}`);
         };
-      } else if (isVideo(mediaFile.file_path)) {
+      } else if (mediaFile.media_type === "video") {
         const video = document.createElement("video");
         video.src = `/media?path=${encodeURIComponent(mediaFile.file_path)}`;
         video.preload = "metadata";

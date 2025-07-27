@@ -6,9 +6,10 @@
 
 const MediaSourceProvider = require('./MediaSourceProvider');
 const LocalMediaProvider = require('./LocalMediaProvider');
+const SbMediaProvider = require('./SbMediaProvider');
 
 module.exports = {
   MediaSourceProvider,
   LocalMediaProvider,
-  // StashMediaProvider will be added here when implemented
+  SbMediaProvider,
 };

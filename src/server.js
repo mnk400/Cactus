@@ -1,15 +1,20 @@
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
-const { LocalMediaProvider } = require("./providers");
+const { LocalMediaProvider, SbMediaProvider } = require("./providers");
 const minimist = require("minimist");
+
+// Import fetch for Node.js (if not available globally)
+const fetch = globalThis.fetch || require('node-fetch');
 
 const app = express();
 const argv = minimist(process.argv.slice(2));
 
 const PORT = argv.p || process.env.PORT || 3000;
 const directoryPath = argv.d;
-const THUMBNAIL_DIR = path.join(directoryPath, ".cactus_thumbnails");
+const providerType = argv.provider || process.env.PROVIDER || "local";
+const sbUrl = argv["sb-url"] || process.env.sb_URL || "http://localhost";
+const THUMBNAIL_DIR = directoryPath ? path.join(directoryPath, ".cactus_thumbnails") : null;
 const enablePredict =
   argv["experimental-prediction-test"] ||
   process.env.EXPERIMENTAL_PREDICTION_TEST === "true" ||
@@ -51,25 +56,45 @@ const log = {
     ),
 };
 
-if (!directoryPath) {
-  log.error("Directory path is required", {
-    usage: "node server.js -d /path/to/media -p 3000",
+// Validate provider type
+if (!["local", "sb"].includes(providerType)) {
+  log.error("Invalid provider type", {
+    provider: providerType,
+    validProviders: ["local", "sb"],
+    usage: "node server.js --provider local -d /path/to/media -p 3000 OR node server.js --provider sb --sb-url http://192.168.0.23:9999/graphql -p 3000",
   });
   process.exit(1);
 }
 
-try {
-  const dirStat = fs.statSync(directoryPath);
-  if (!dirStat.isDirectory()) {
-    log.error("Provided path is not a directory", { path: directoryPath });
+// Validate arguments based on provider type
+if (providerType === "local") {
+  if (!directoryPath) {
+    log.error("Directory path is required for local provider", {
+      usage: "node server.js --provider local -d /path/to/media -p 3000",
+    });
     process.exit(1);
   }
-} catch (error) {
-  log.error("Directory does not exist or is not accessible", {
-    path: directoryPath,
-    error: error.message,
-  });
-  process.exit(1);
+
+  try {
+    const dirStat = fs.statSync(directoryPath);
+    if (!dirStat.isDirectory()) {
+      log.error("Provided path is not a directory", { path: directoryPath });
+      process.exit(1);
+    }
+  } catch (error) {
+    log.error("Directory does not exist or is not accessible", {
+      path: directoryPath,
+      error: error.message,
+    });
+    process.exit(1);
+  }
+} else if (providerType === "sb") {
+  if (!sbUrl) {
+    log.error("sb URL is required for sb provider", {
+      usage: "node server.js --provider sb --sb-url http://192.168.0.23:9999/graphql -p 3000",
+    });
+    process.exit(1);
+  }
 }
 
 // Serve React build from dist directory
@@ -86,16 +111,27 @@ app.use(express.json());
 
 // Initialize and load media files on server startup
 (async () => {
-  // Initialize the local media provider
-  mediaProvider = new LocalMediaProvider(directoryPath);
+  // Initialize the appropriate media provider
+  if (providerType === "local") {
+    mediaProvider = new LocalMediaProvider(directoryPath);
+  } else if (providerType === "sb") {
+    mediaProvider = new SbMediaProvider(sbUrl);
+  }
+  
   const initResult = await mediaProvider.initialize();
   
   if (!initResult.success) {
     log.error("Failed to initialize media provider", {
+      provider: providerType,
       error: initResult.error,
     });
     process.exit(1);
   }
+
+  log.info("Media provider initialized successfully", {
+    provider: providerType,
+    ...(providerType === "local" ? { directory: directoryPath } : { sbUrl }),
+  });
 })();
 
 // Unified API endpoint to get media files with optional filtering
@@ -438,6 +474,12 @@ app.post("/api/media-path/tags", async (req, res) => {
 
 // API endpoint to trigger a rescan of the directory
 app.post("/rescan-directory", async (req, res) => {
+  if (providerType === "sb") {
+    return res.status(400).json({
+      error: "Directory rescan not supported for sb provider. Media is fetched dynamically from sb server.",
+    });
+  }
+
   try {
     const files = await mediaProvider.rescanDirectory();
     log.info("Directory rescan completed", { fileCount: files.length });
@@ -462,7 +504,7 @@ app.post("/rescan-directory", async (req, res) => {
 });
 
 // API endpoint to serve media files
-app.get("/media", (req, res) => {
+app.get("/media", async (req, res) => {
   try {
     const { path: filePath } = req.query;
 
@@ -470,16 +512,49 @@ app.get("/media", (req, res) => {
       return res.status(400).send("File path is required");
     }
 
-    // Convert relative path to absolute path
-    const absolutePath = path.isAbsolute(filePath)
-      ? filePath
-      : path.resolve(filePath);
+    // Handle sb URLs
+    if (filePath.startsWith("sb://") || (providerType === "sb" && filePath.startsWith("http"))) {
+      // For sb, proxy the image request
+      try {
+        const response = await fetch(filePath);
+        if (!response.ok) {
+          log.error("sb server returned error", {
+            filePath,
+            status: response.status,
+            statusText: response.statusText,
+          });
+          return res.status(404).send("Media not found on sb server");
+        }
+        
+        // Set appropriate headers
+        const contentType = response.headers.get('content-type');
+        if (contentType) {
+          res.set('Content-Type', contentType);
+        }
+        
+        // Get the response as a buffer and send it
+        const buffer = await response.arrayBuffer();
+        res.send(Buffer.from(buffer));
+      } catch (fetchError) {
+        log.error("Failed to fetch media from sb", {
+          filePath,
+          error: fetchError.message,
+          stack: fetchError.stack,
+        });
+        return res.status(500).send("Failed to fetch media from sb server");
+      }
+    } else {
+      // Handle local files (existing logic)
+      const absolutePath = path.isAbsolute(filePath)
+        ? filePath
+        : path.resolve(filePath);
 
-    if (!fs.existsSync(absolutePath)) {
-      return res.status(404).send("File not found");
+      if (!fs.existsSync(absolutePath)) {
+        return res.status(404).send("File not found");
+      }
+
+      res.sendFile(absolutePath);
     }
-
-    res.sendFile(absolutePath);
   } catch (error) {
     log.error("Failed to serve media file", {
       filePath: req.query.path,
@@ -490,7 +565,7 @@ app.get("/media", (req, res) => {
 });
 
 // API endpoint to serve thumbnails
-app.get("/thumbnails", (req, res) => {
+app.get("/thumbnails", async (req, res) => {
   try {
     const { hash: fileHash } = req.query;
 
@@ -498,13 +573,57 @@ app.get("/thumbnails", (req, res) => {
       return res.status(400).send("File hash is required");
     }
 
-    const thumbnailPath = path.join(THUMBNAIL_DIR, `${fileHash}.webp`);
+    if (providerType === "sb") {
+      // For sb, we need to get the thumbnail URL from the media data
+      try {
+        const allMedia = await mediaProvider.getAllMedia("all");
+        const mediaItem = allMedia.find(item => item.file_hash === fileHash);
+        
+        if (!mediaItem || !mediaItem.thumbnail_path) {
+          return res.status(404).send("Thumbnail not found");
+        }
 
-    if (!fs.existsSync(thumbnailPath)) {
-      return res.status(404).send("Thumbnail not found");
+        // Proxy the thumbnail from sb
+        const response = await fetch(mediaItem.thumbnail_path);
+        if (!response.ok) {
+          log.error("sb server returned error for thumbnail", {
+            thumbnailPath: mediaItem.thumbnail_path,
+            status: response.status,
+            statusText: response.statusText,
+          });
+          return res.status(404).send("Thumbnail not found on sb server");
+        }
+        
+        // Set appropriate headers
+        const contentType = response.headers.get('content-type');
+        if (contentType) {
+          res.set('Content-Type', contentType);
+        }
+        
+        // Get the response as a buffer and send it
+        const buffer = await response.arrayBuffer();
+        res.send(Buffer.from(buffer));
+      } catch (fetchError) {
+        log.error("Failed to fetch thumbnail from sb", {
+          fileHash,
+          error: fetchError.message,
+        });
+        return res.status(500).send("Failed to fetch thumbnail from sb server");
+      }
+    } else {
+      // Handle local thumbnails (existing logic)
+      if (!THUMBNAIL_DIR) {
+        return res.status(500).send("Thumbnail directory not configured");
+      }
+      
+      const thumbnailPath = path.join(THUMBNAIL_DIR, `${fileHash}.webp`);
+
+      if (!fs.existsSync(thumbnailPath)) {
+        return res.status(404).send("Thumbnail not found");
+      }
+
+      res.sendFile(thumbnailPath);
     }
-
-    res.sendFile(thumbnailPath);
   } catch (error) {
     log.error("Failed to serve thumbnail file", {
       fileHash: req.query.hash,
@@ -522,8 +641,8 @@ app.get("/api/stats", async (req, res) => {
     res.json({
       ...stats,
       provider: {
-        type: "local",
-        directory: directoryPath
+        type: providerType,
+        ...(providerType === "local" ? { directory: directoryPath } : { sbUrl })
       }
     });
   } catch (error) {
@@ -534,6 +653,12 @@ app.get("/api/stats", async (req, res) => {
 
 // API endpoint to regenerate thumbnails
 app.post("/regenerate-thumbnails", async (req, res) => {
+  if (providerType === "sb") {
+    return res.status(400).json({
+      error: "Thumbnail regeneration not supported for sb provider. Thumbnails are managed by sb server.",
+    });
+  }
+
   try {
     const regeneratedCount = await mediaProvider.regenerateThumbnails();
     log.info("Thumbnail regeneration completed", { regeneratedCount });
@@ -561,6 +686,10 @@ app.get("/api/config", (req, res) => {
   res.json({
     predictEnabled: enablePredict,
     predictApiUrl: predictApiUrl,
+    provider: {
+      type: providerType,
+      ...(providerType === "local" ? { directory: directoryPath } : { sbUrl })
+    }
   });
 });
 
@@ -579,10 +708,10 @@ app.get("*", (req, res) => {
 app.listen(PORT, () => {
   log.info("Cactus media server started", {
     port: PORT,
-    directory: directoryPath,
     version: "React + Provider Architecture",
-    provider: "LocalMediaProvider",
-    storage: "SQLite Database",
+    provider: providerType === "local" ? "LocalMediaProvider" : "sbMediaProvider",
+    storage: providerType === "local" ? "SQLite Database" : "sb GraphQL API",
+    ...(providerType === "local" ? { directory: directoryPath } : { sbUrl }),
     predictEnabled: enablePredict,
   });
 });
