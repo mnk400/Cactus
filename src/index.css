@@ -557,3 +557,50 @@ textarea {
     opacity 300ms ease-in-out,
     transform 300ms ease-in-out;
 }
+/* Enhanced touch scrolling optimizations for MediaViewer */
+.media-wrapper {
+  /* Hardware acceleration for smoother scrolling */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  
+  /* Better touch scrolling on iOS */
+  -webkit-overflow-scrolling: touch;
+  
+  /* Prevent overscroll bounce */
+  overscroll-behavior-y: contain;
+  
+  /* Smooth momentum scrolling */
+  scroll-behavior: smooth;
+  
+  /* Optimize for touch interactions */
+  touch-action: pan-y;
+}
+
+/* Optimize media item containers for better performance */
+.media-item-container {
+  /* Hardware acceleration */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  
+  /* Optimize rendering */
+  will-change: transform;
+  
+  /* Better compositing */
+  contain: layout style paint;
+}
+
+/* Smooth transitions for programmatic scrolling */
+.media-wrapper.smooth-scroll {
+  scroll-behavior: smooth;
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Disable scroll snap during touch interactions */
+.media-wrapper.touch-active {
+  scroll-snap-type: none;
+}
+
+/* Re-enable scroll snap after touch ends */
+.media-wrapper.touch-inactive {
+  scroll-snap-type: y mandatory;
+}

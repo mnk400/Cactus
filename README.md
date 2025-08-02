@@ -121,7 +121,6 @@ Built with modern React architecture and SQLite for robust data persistence:
 ### **Custom Hooks**
 
 - `useMediaFiles.js` - Media loading, filtering, and rescanning
-- `useTouchGestures.js` - Smooth swipe navigation
 - `useKeyboardNavigation.js` - Arrow key navigation
 - `useMediaPreloader.js` - Adjacent media preloading
 - `useMobileViewport.js` - Mobile viewport optimization
