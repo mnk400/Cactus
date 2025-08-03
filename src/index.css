@@ -20,6 +20,105 @@ body {
   background-color: #000;
 }
 
+#root {
+  height: 100%;
+  height: calc(var(--vh, 1vh) * 100);
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #000;
+}
+
+/* Fix for mobile viewport height issues */
+.container {
+  height: 100vh;
+  height: calc(var(--vh, 1vh) * 100);
+  min-height: 100vh;
+  min-height: calc(var(--vh, 1vh) * 100);
+  width: 100%;
+  max-width: 100%;
+  background-color: #000;
+}
+
+/* Ensure media container takes full height */
+.media-container {
+  height: 100%;
+  width: 100%;
+  position: relative;
+  background-color: #000;
+}
+
+/* Enhanced Framer Motion optimizations for MediaViewer */
+.media-wrapper {
+  height: 100%;
+  width: 100%;
+  position: relative;
+  /* Hardware acceleration */
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+  
+  /* Prevent overscroll bounce */
+  overscroll-behavior: contain;
+  
+  /* Optimize for touch interactions */
+  touch-action: pan-y;
+  
+  /* Better compositing layer */
+  will-change: transform;
+  
+  /* Optimize performance */
+  contain: layout style paint;
+  
+  /* Better mobile performance */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  
+  /* Prevent text selection during drag */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Media items - properly centered */
+.media-item {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Optimize media item containers for better performance */
+.media-item-container {
+  /* Hardware acceleration with 3D transform */
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+  
+  /* Better compositing */
+  contain: layout style paint;
+  
+  /* Prevent subpixel rendering issues */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  
+  /* Optimize for mobile */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ensure media elements are properly sized and centered */
+.media-item img,
+.media-item video {
+  max-height: 100%;
+  max-width: 100%;
+  object-fit: cover;
+}
+
 /* Hide scrollbars for horizontal tag scrolling */
 .scrollbar-hide {
   -ms-overflow-style: none; /* Internet Explorer 10+ */
@@ -29,95 +128,6 @@ body {
   display: none; /* Safari and Chrome */
 }
 
-/* Media sizing based on orientation and screen size */
-@media (orientation: portrait) and (max-width: 768px) {
-  .media-item img,
-  .media-item video {
-    width: 100% !important;
-    height: auto !important;
-    max-height: 100% !important;
-    max-width: none !important;
-  }
-}
-
-@media (orientation: landscape) and (min-width: 769px) {
-  .media-item img,
-  .media-item video {
-    width: auto !important;
-    height: 100% !important;
-    max-width: 100% !important;
-    max-height: none !important;
-  }
-}
-
-/* Tablet portrait - still use full width */
-@media (orientation: portrait) and (min-width: 769px) and (max-width: 1024px) {
-  .media-item img,
-  .media-item video {
-    width: 100% !important;
-    height: auto !important;
-    max-height: 100% !important;
-    max-width: none !important;
-  }
-}
-
-#root {
-  height: 100%;
-  height: calc(var(--vh, 1vh) * 100);
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: #000;
-}
-
-/* Fix for mobile viewport height issues */
-.container {
-  height: 100vh;
-  height: calc(var(--vh, 1vh) * 100);
-  min-height: 100vh;
-  min-height: calc(var(--vh, 1vh) * 100);
-  width: 100%;
-  max-width: 100%;
-  background-color: #000;
-}
-
-/* Ensure media container takes full height */
-.media-container {
-  height: 100%;
-  width: 100%;
-  position: relative;
-  background-color: #000;
-}
-
-/* Media wrapper - this is what gets transformed during touch gestures */
-.media-wrapper {
-  height: 100%;
-  width: 100%;
-  position: relative;
-  /* Remove default transition - will be added dynamically during touch */
-}
-
-/* Media items - properly centered like original */
-.media-item {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-/* Ensure media elements are properly sized and centered */
-.media-item img,
-.media-item video {
-  max-height: 100%;
-  max-width: 100%;
-  object-fit: cover;
-}
-
 /* Custom styles for black shades used in the original app */
 .bg-black-shades-500 {
   background-color: rgba(64, 64, 64, 1);
@@ -155,70 +165,6 @@ body {
   }
 }
 
-/* Mobile-specific fixes */
-@media screen and (max-width: 768px) {
-  /* Ensure proper height on mobile */
-  html,
-  body,
-  #root,
-  .container {
-    height: 100vh;
-    height: calc(var(--vh, 1vh) * 100);
-    min-height: 100vh;
-    min-height: calc(var(--vh, 1vh) * 100);
-  }
-
-  /* Fix for iOS Safari */
-  @supports (-webkit-touch-callout: none) {
-    html,
-    body,
-    #root,
-    .container {
-      height: var(--actual-height, 100vh);
-      min-height: var(--actual-height, 100vh);
-    }
-  }
-
-  /* Ensure navigation is visible */
-  .navigation {
-    position: fixed;
-    z-index: 1000;
-  }
-}
-
-/* Portrait orientation specific fixes */
-@media screen and (max-width: 768px) and (orientation: portrait) {
-  .container {
-    height: 100vh;
-    height: calc(var(--vh, 1vh) * 100);
-    min-height: 100vh;
-    min-height: calc(var(--vh, 1vh) * 100);
-  }
-
-  /* Ensure media is properly centered and sized in portrait */
-  .media-item {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .media-item img,
-  .media-item video {
-    max-height: calc(100vh - 120px); /* Account for navigation */
-    max-height: calc(calc(var(--vh, 1vh) * 100) - 120px);
-    max-width: 100%;
-    object-fit: contain; /* Use contain for portrait to ensure full visibility */
-  }
-}
-
-/* Landscape orientation - use cover for better fill */
-@media screen and (orientation: landscape) {
-  .media-item img,
-  .media-item video {
-    object-fit: cover;
-  }
-}
-
 /* Prevent zoom on input focus (mobile) */
 input,
 select,
@@ -251,229 +197,7 @@ textarea {
   justify-content: center;
 }
 
-/* Debug helper - remove in production */
-.debug-height {
-  border: 2px solid red;
-  background: rgba(255, 0, 0, 0.1);
-}
-
-@media (orientation: landscape) and (min-width: 769px) {
-  .media-item img,
-  .media-item video {
-    width: auto !important;
-    height: 100% !important;
-    max-width: 100% !important;
-    max-height: none !important;
-  }
-}
-
-/* Tablet portrait - still use full width */
-@media (orientation: portrait) and (min-width: 769px) and (max-width: 1024px) {
-  .media-item img,
-  .media-item video {
-    width: 100% !important;
-    height: auto !important;
-    max-height: 100% !important;
-    max-width: none !important;
-  }
-}
-
-#root {
-  height: 100%;
-  height: calc(var(--vh, 1vh) * 100);
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: #000;
-}
-
-/* Fix for mobile viewport height issues */
-.container {
-  height: 100vh;
-  height: calc(var(--vh, 1vh) * 100);
-  min-height: 100vh;
-  min-height: calc(var(--vh, 1vh) * 100);
-  width: 100%;
-  max-width: 100%;
-  background-color: #000;
-}
-
-/* Ensure media container takes full height */
-.media-container {
-  height: 100%;
-  width: 100%;
-  position: relative;
-  background-color: #000;
-}
-
-/* Media wrapper - this is what gets transformed during touch gestures */
-.media-wrapper {
-  height: 100%;
-  width: 100%;
-  position: relative;
-  /* Remove default transition - will be added dynamically during touch */
-}
-
-/* Media items - properly centered like original */
-.media-item {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-/* Ensure media elements are properly sized and centered */
-.media-item img,
-.media-item video {
-  max-height: 100%;
-  max-width: 100%;
-  object-fit: cover;
-}
-
-/* Custom styles for black shades used in the original app */
-.bg-black-shades-500 {
-  background-color: rgba(64, 64, 64, 1);
-}
-
-.bg-black-shades-600 {
-  background-color: rgba(48, 48, 48, 1);
-}
-
-.bg-black-shades-700 {
-  background-color: rgba(32, 32, 32, 1);
-}
-
-.bg-black-shades-800 {
-  background-color: rgba(16, 16, 16, 1);
-}
-
-/* Video progress bar styles */
-.video-progress-container {
-  transition: bottom 0.3s ease;
-}
-
-/* Animation classes */
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-/* Mobile-specific fixes */
-@media screen and (max-width: 768px) {
-  /* Ensure proper height on mobile */
-  html,
-  body,
-  #root,
-  .container {
-    height: 100vh;
-    height: calc(var(--vh, 1vh) * 100);
-    min-height: 100vh;
-    min-height: calc(var(--vh, 1vh) * 100);
-  }
-
-  /* Fix for iOS Safari */
-  @supports (-webkit-touch-callout: none) {
-    html,
-    body,
-    #root,
-    .container {
-      height: var(--actual-height, 100vh);
-      min-height: var(--actual-height, 100vh);
-    }
-  }
-
-  /* Ensure navigation is visible */
-  .navigation {
-    position: fixed;
-    z-index: 1000;
-  }
-}
-
-/* Portrait orientation specific fixes */
-@media screen and (max-width: 768px) and (orientation: portrait) {
-  .container {
-    height: 100vh;
-    height: calc(var(--vh, 1vh) * 100);
-    min-height: 100vh;
-    min-height: calc(var(--vh, 1vh) * 100);
-  }
-
-  /* Ensure media is properly centered and sized in portrait */
-  .media-item {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .media-item img,
-  .media-item video {
-    max-height: calc(100vh - 120px); /* Account for navigation */
-    max-height: calc(calc(var(--vh, 1vh) * 100) - 120px);
-    max-width: 100%;
-    object-fit: contain; /* Use contain for portrait to ensure full visibility */
-  }
-}
-
-/* Landscape orientation - use cover for better fill */
-@media screen and (orientation: landscape) {
-  .media-item img,
-  .media-item video {
-    object-fit: cover;
-  }
-}
-
-/* Prevent zoom on input focus (mobile) */
-input,
-select,
-textarea {
-  font-size: 16px;
-}
-
-/* Loading and error message positioning */
-.placeholder-message,
-.error-message {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 50;
-  text-align: center;
-  padding: 20px;
-  max-width: 90%;
-}
-
-/* Video overlay positioning */
-.video-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Debug helper - remove in production */
-.debug-height {
-  border: 2px solid red;
-  background: rgba(255, 0, 0, 0.1);
-}
-
+/* Transition animations for UI elements */
 .slide-enter {
   transform: translateY(-100%);
 }
@@ -557,50 +281,129 @@ textarea {
     opacity 300ms ease-in-out,
     transform 300ms ease-in-out;
 }
-/* Enhanced touch scrolling optimizations for MediaViewer */
-.media-wrapper {
-  /* Hardware acceleration for smoother scrolling */
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
-  
-  /* Better touch scrolling on iOS */
-  -webkit-overflow-scrolling: touch;
-  
-  /* Prevent overscroll bounce */
-  overscroll-behavior-y: contain;
-  
-  /* Smooth momentum scrolling */
-  scroll-behavior: smooth;
-  
-  /* Optimize for touch interactions */
-  touch-action: pan-y;
+
+/* Media sizing based on orientation and screen size */
+@media (orientation: portrait) and (max-width: 768px) {
+  .media-item img,
+  .media-item video {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 100% !important;
+    max-width: none !important;
+  }
 }
 
-/* Optimize media item containers for better performance */
-.media-item-container {
-  /* Hardware acceleration */
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
+@media (orientation: landscape) and (min-width: 769px) {
+  .media-item img,
+  .media-item video {
+    width: auto !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: none !important;
+  }
+}
+
+/* Tablet portrait - still use full width */
+@media (orientation: portrait) and (min-width: 769px) and (max-width: 1024px) {
+  .media-item img,
+  .media-item video {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 100% !important;
+    max-width: none !important;
+  }
+}
+
+/* Mobile-specific fixes */
+@media screen and (max-width: 768px) {
+  /* Ensure proper height on mobile */
+  html,
+  body,
+  #root,
+  .container {
+    height: 100vh;
+    height: calc(var(--vh, 1vh) * 100);
+    min-height: 100vh;
+    min-height: calc(var(--vh, 1vh) * 100);
+  }
+
+  /* Fix for iOS Safari */
+  @supports (-webkit-touch-callout: none) {
+    html,
+    body,
+    #root,
+    .container {
+      height: var(--actual-height, 100vh);
+      min-height: var(--actual-height, 100vh);
+    }
+  }
+
+  /* Ensure navigation is visible */
+  .navigation {
+    position: fixed;
+    z-index: 1000;
+  }
+
+  .media-wrapper {
+    /* Reduce scroll jank */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    
+    /* Optimize for 60fps */
+    will-change: transform;
+  }
   
-  /* Optimize rendering */
-  will-change: transform;
-  
-  /* Better compositing */
-  contain: layout style paint;
+  .media-item-container {
+    /* Mobile-specific optimizations */
+    -webkit-transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0);
+    
+    /* Better mobile rendering */
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: optimize-contrast;
+  }
 }
 
-/* Smooth transitions for programmatic scrolling */
-.media-wrapper.smooth-scroll {
-  scroll-behavior: smooth;
-  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+/* Portrait orientation specific fixes */
+@media screen and (max-width: 768px) and (orientation: portrait) {
+  .container {
+    height: 100vh;
+    height: calc(var(--vh, 1vh) * 100);
+    min-height: 100vh;
+    min-height: calc(var(--vh, 1vh) * 100);
+  }
+
+  /* Ensure media is properly centered and sized in portrait */
+  .media-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .media-item img,
+  .media-item video {
+    max-height: calc(100vh - 120px); /* Account for navigation */
+    max-height: calc(calc(var(--vh, 1vh) * 100) - 120px);
+    max-width: 100%;
+    object-fit: contain; /* Use contain for portrait to ensure full visibility */
+  }
 }
 
-/* Disable scroll snap during touch interactions */
-.media-wrapper.touch-active {
-  scroll-snap-type: none;
+/* Landscape orientation - use cover for better fill */
+@media screen and (orientation: landscape) {
+  .media-item img,
+  .media-item video {
+    object-fit: cover;
+  }
 }
 
-/* Re-enable scroll snap after touch ends */
-.media-wrapper.touch-inactive {
-  scroll-snap-type: y mandatory;
+/* iOS Safari specific optimizations */
+@supports (-webkit-touch-callout: none) {
+  .media-wrapper {
+    /* Better iOS performance */
+    -webkit-transform: translate3d(0, 0, 0);
+    
+    /* Prevent iOS scroll bounce issues */
+    overscroll-behavior: contain;
+  }
 }
