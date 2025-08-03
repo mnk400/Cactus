@@ -14,6 +14,17 @@ function MediaItem({
     setIsLoading(true);
   }, [mediaFile?.file_path]);
 
+  // Check if media is already preloaded when component becomes active
+  useEffect(() => {
+    if (!isActive || !mediaFile) return;
+
+    const preloadedMedia = getPreloadedMedia(index);
+    if (preloadedMedia) {
+      // Media is already preloaded, set loading to false
+      setIsLoading(false);
+    }
+  }, [isActive, index, getPreloadedMedia, mediaFile]);
+
   // Handle video play/pause based on visibility
   useEffect(() => {
     if (!mediaFile || mediaFile.media_type !== "video") return;
@@ -134,11 +145,21 @@ const VideoPlayer = ({ src, mediaFile, isActive, onLoadingChange, isLoading }) =
       onLoadingChange(false);
     };
 
+    // Check if video is already loaded when component mounts
+    const checkIfLoaded = () => {
+      if (video.readyState >= 2) { // HAVE_CURRENT_DATA or higher
+        onLoadingChange(false);
+      }
+    };
+
     video.addEventListener("play", handlePlay);
     video.addEventListener("pause", handlePause);
     video.addEventListener("loadeddata", handleLoadedData);
     video.addEventListener("loadstart", handleLoadStart);
     video.addEventListener("error", handleError);
+
+    // Check initial state
+    checkIfLoaded();
 
     return () => {
       video.removeEventListener("play", handlePlay);

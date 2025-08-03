@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { CSSTransition, TransitionGroup } from "react-transition-group";
 import MediaViewer from "./components/MediaViewer";
 import Navigation from "./components/Navigation";
+import SideNavigation from "./components/SideNavigation";
 import SettingsPanel from "./components/SettingsPanel";
 import TagDisplay from "./components/TagDisplay";
 import TagInputModal from "./components/TagInputModal";
@@ -243,16 +244,22 @@ function App() {
         {!isSettingsOpen && (
           <Navigation
             currentMediaFile={currentMediaFile}
-            onPrevious={() => handleNavigation(-1)}
-            onNext={() => handleNavigation(1)}
             onToggleSettings={() => setIsSettingsOpen(!isSettingsOpen)}
             onToggleTagInput={handleToggleTagInput}
             directoryName={directoryPath}
-            showNavButtons={mediaFiles.length > 0}
             isFavorited={isFavorited}
             onToggleFavorite={toggleFavorite}
             onToggleGalleryView={() => setIsGalleryView(!isGalleryView)}
             isGalleryView={isGalleryView}
+          />
+        )}
+
+        {/* Side navigation buttons */}
+        {!isSettingsOpen && !isGalleryView && (
+          <SideNavigation
+            onPrevious={() => handleNavigation(-1)}
+            onNext={() => handleNavigation(1)}
+            showNavButtons={mediaFiles.length > 0}
           />
         )}
 

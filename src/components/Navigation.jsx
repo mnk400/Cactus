@@ -1,15 +1,11 @@
 import React, { useState, useEffect } from "react";
 import FullscreenButton from "./FullscreenButton";
 import VideoProgressBar from "./VideoProgressBar";
-import { isMobile } from "../utils/helpers";
 
 function Navigation({
-  onPrevious,
-  onNext,
   onToggleSettings,
   onToggleTagInput,
   directoryName,
-  showNavButtons,
   currentMediaFile,
   isFavorited,
   onToggleFavorite,
@@ -48,22 +44,6 @@ function Navigation({
         <VideoProgressBar videoElement={videoElement} />
       </div>
       <div className="w-full flex items-center justify-end gap-2">
-        {showNavButtons && !isMobile() && (
-          <>
-            <button
-              onClick={onPrevious}
-              className="nav-button bg-black-shades-700 text-gray-200 border-none p-2 rounded-xl cursor-pointer text-lg transition-all duration-200 ease-in-out hover:bg-white hover:bg-opacity-20 active:scale-95 min-w-10 min-h-10"
-            >
-              ↑
-            </button>
-            <button
-              onClick={onNext}
-              className="nav-button bg-black-shades-700 text-gray-200 border-none p-2 rounded-xl cursor-pointer text-lg transition-all duration-200 ease-in-out hover:bg-white hover:bg-opacity-20 active:scale-95 min-w-10 min-h-10"
-            >
-              ↓
-            </button>
-          </>
-        )}
 
         <button
           onClick={onToggleFavorite}
