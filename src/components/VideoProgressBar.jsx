@@ -6,25 +6,47 @@ function VideoProgressBar({ videoElement }) {
   const videoRef = useRef(null);
 
   useEffect(() => {
+    // Clean up previous video element
+    if (videoRef.current && videoRef.current !== videoElement) {
+      setProgress(0);
+    }
+
     if (videoElement) {
       setIsVisible(true);
       videoRef.current = videoElement;
 
-      if (videoElement) {
-        const handleTimeUpdate = () => {
+      const handleTimeUpdate = () => {
+        // Double-check that this is still the current video element
+        if (videoRef.current === videoElement) {
           const progress =
             (videoElement.currentTime / videoElement.duration) * 100;
           setProgress(isNaN(progress) ? 0 : progress);
-        };
+        }
+      };
 
-        videoElement.addEventListener("timeupdate", handleTimeUpdate);
-        return () => {
-          videoElement.removeEventListener("timeupdate", handleTimeUpdate);
-        };
-      }
+      const handleLoadedMetadata = () => {
+        // Reset progress when new video loads
+        if (videoRef.current === videoElement) {
+          const progress =
+            (videoElement.currentTime / videoElement.duration) * 100;
+          setProgress(isNaN(progress) ? 0 : progress);
+        }
+      };
+
+      videoElement.addEventListener("timeupdate", handleTimeUpdate);
+      videoElement.addEventListener("loadedmetadata", handleLoadedMetadata);
+
+      // Set initial progress
+      handleLoadedMetadata();
+
+      return () => {
+        videoElement.removeEventListener("timeupdate", handleTimeUpdate);
+        videoElement.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      };
     } else {
       setIsVisible(false);
       setProgress(0);
+      videoRef.current = null;
     }
   }, [videoElement]);
 

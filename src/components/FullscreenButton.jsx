@@ -1,18 +1,34 @@
 import React from "react";
 
-function FullscreenButton() {
+function FullscreenButton({ currentMediaFile }) {
   const handleFullscreen = () => {
-    const videoElement = document.querySelector(".media-item video");
-    if (!videoElement) return;
+    // Find the currently active video element by checking viewport position
+    const containers = document.querySelectorAll('.media-item-container');
+    let activeVideo = null;
+    
+    for (const container of containers) {
+      const rect = container.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      // Check if container is in the center of viewport (currently active)
+      if (rect.top <= viewportHeight / 2 && rect.bottom >= viewportHeight / 2) {
+        const video = container.querySelector('video');
+        if (video) {
+          activeVideo = video;
+          break;
+        }
+      }
+    }
+    
+    if (!activeVideo) return;
 
-    if (videoElement.requestFullscreen) {
-      videoElement.requestFullscreen();
-    } else if (videoElement.webkitRequestFullscreen) {
-      videoElement.webkitRequestFullscreen();
-    } else if (videoElement.msRequestFullscreen) {
-      videoElement.msRequestFullscreen();
-    } else if (videoElement.webkitEnterFullscreen) {
-      videoElement.webkitEnterFullscreen();
+    if (activeVideo.requestFullscreen) {
+      activeVideo.requestFullscreen();
+    } else if (activeVideo.webkitRequestFullscreen) {
+      activeVideo.webkitRequestFullscreen();
+    } else if (activeVideo.msRequestFullscreen) {
+      activeVideo.msRequestFullscreen();
+    } else if (activeVideo.webkitEnterFullscreen) {
+      activeVideo.webkitEnterFullscreen();
     }
   };
 

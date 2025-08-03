@@ -16,11 +16,56 @@ function Navigation({
 
   useEffect(() => {
     if (currentMediaFile?.media_type === "video") {
-      // A delay might be needed for the element to be in the DOM
-      setTimeout(() => {
-        const video = document.querySelector(".media-item video");
-        setVideoElement(video);
-      }, 100);
+      // Clear previous video element first
+      setVideoElement(null);
+      
+      // Find the currently active video element with retries
+      let attempts = 0;
+      const maxAttempts = 10;
+      
+      const findActiveVideo = () => {
+        // Look for video elements and find the one that's currently playing or can play
+        const videoElements = document.querySelectorAll(".media-item video");
+        let activeVideo = null;
+        
+        for (const video of videoElements) {
+          // Check if this video is in the currently visible media item
+          const mediaItem = video.closest('.media-item-container');
+          if (mediaItem && !video.paused) {
+            activeVideo = video;
+            break;
+          }
+        }
+        
+        // If no playing video found, get the first video (fallback)
+        if (!activeVideo && videoElements.length > 0) {
+          // Try to find video by checking which container is at the current scroll position
+          const containers = document.querySelectorAll('.media-item-container');
+          for (const container of containers) {
+            const rect = container.getBoundingClientRect();
+            const viewportHeight = window.innerHeight;
+            // Check if container is in the center of viewport
+            if (rect.top <= viewportHeight / 2 && rect.bottom >= viewportHeight / 2) {
+              const video = container.querySelector('video');
+              if (video) {
+                activeVideo = video;
+                break;
+              }
+            }
+          }
+        }
+        
+        if (activeVideo) {
+          setVideoElement(activeVideo);
+        } else if (attempts < maxAttempts) {
+          attempts++;
+          setTimeout(findActiveVideo, 50);
+        }
+      };
+      
+      // Start searching immediately, then with a small delay as backup
+      findActiveVideo();
+      setTimeout(findActiveVideo, 100);
     } else {
       setVideoElement(null);
     }
@@ -125,7 +170,7 @@ function Navigation({
           ⋯
         </button>
 
-        {currentMediaFile?.media_type === "video" && <FullscreenButton />}
+        {currentMediaFile?.media_type === "video" && <FullscreenButton currentMediaFile={currentMediaFile} />}
 
         <div className="directory-name text-gray-200 text-base ml-auto px-4 whitespace-nowrap overflow-hidden text-ellipsis">
           {shortDirectoryName}
