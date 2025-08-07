@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useMemo, useState } from "react";
-import { motion, AnimatePresence, PanInfo } from "framer-motion";
+import React, { useEffect, useRef, useMemo, useState, useCallback } from "react";
+import { motion } from "framer-motion";
 import MediaItem from "./MediaItem";
 import { useMediaPreloader } from "../hooks/useMediaPreloader";
 
@@ -36,39 +36,30 @@ function MediaViewer({
     return () => window.removeEventListener('resize', updateHeight);
   }, [mediaFiles.length]);
 
-  // Virtual scrolling - render visible items plus buffer
+  // Virtual scrolling - minimal buffer for performance
   const visibleRange = useMemo(() => {
-    if (!containerHeight || mediaFiles.length === 0) {
-      return { start: 0, end: Math.min(3, mediaFiles.length) };
+    if (mediaFiles.length === 0) {
+      return { start: 0, end: 0 };
     }
 
-    const buffer = 1;
-    const start = Math.max(0, currentIndex - buffer);
-    const end = Math.min(mediaFiles.length, currentIndex + buffer + 1);
+    // Only render current item and immediate neighbors
+    const start = Math.max(0, currentIndex - 1);
+    const end = Math.min(mediaFiles.length, currentIndex + 2);
 
     return { start, end };
-  }, [currentIndex, containerHeight, mediaFiles.length]);
+  }, [currentIndex, mediaFiles.length]);
 
-  // Handle pan gestures with Framer Motion
-  const handlePanEnd = (event, info) => {
+  // Memoized pan handler
+  const handlePanEnd = useCallback((event, info) => {
     if (showTagInput) return;
 
-    const { velocity, offset } = info;
-    const distanceThreshold = containerHeight * 0.15;
-    const velocityThreshold = 200;
+    const { offset } = info;
+    const distanceThreshold = 20;
 
     let direction = 0;
 
-    // High velocity swipe (most sensitive)
-    if (Math.abs(velocity.y) > velocityThreshold) {
-      direction = velocity.y > 0 ? -1 : 1;
-    }
-    // Medium velocity with small distance
-    else if (Math.abs(velocity.y) > 150 && Math.abs(offset.y) > 50) {
-      direction = velocity.y > 0 ? -1 : 1;
-    }
-    // Distance-based navigation (reduced threshold)
-    else if (Math.abs(offset.y) > distanceThreshold) {
+    // If over a certain distance, then navigate
+    if (Math.abs(offset.y) > distanceThreshold) {
       direction = offset.y > 0 ? -1 : 1;
     }
 
@@ -78,10 +69,10 @@ function MediaViewer({
         onNavigate(direction);
       }
     }
-  };
+  }, [showTagInput, containerHeight, currentIndex, mediaFiles.length, onNavigate]);
 
-  // Handle wheel events for desktop
-  const handleWheel = (event) => {
+  // Memoized wheel handler
+  const handleWheel = useCallback((event) => {
     if (showTagInput) return;
 
     const delta = event.deltaY;
@@ -93,7 +84,7 @@ function MediaViewer({
         onNavigate(direction);
       }
     }
-  };
+  }, [showTagInput, currentIndex, mediaFiles.length, onNavigate]);
 
   // Add wheel event listener for desktop
   useEffect(() => {

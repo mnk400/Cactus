@@ -81,6 +81,34 @@ body {
   user-select: none;
 }
 
+/* Performance optimizations for gallery view */
+.gallery-view {
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  contain: layout style paint;
+  will-change: scroll-position;
+}
+
+/* Optimize gallery items for better rendering */
+.gallery-item {
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: optimize-contrast;
+  contain: layout style;
+  transition: transform 0.2s ease-out;
+}
+
+/* Optimize images for better performance */
+img, video {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: optimize-contrast;
+  contain: layout;
+  content-visibility: auto;
+}
+
 /* Media items - properly centered */
 .media-item {
   position: absolute;

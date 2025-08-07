@@ -1,3 +1,4 @@
+// Array utilities
 export function shuffleArray(array) {
   const newArray = [...array];
   for (let i = newArray.length - 1; i > 0; i--) {
@@ -7,6 +8,7 @@ export function shuffleArray(array) {
   return newArray;
 }
 
+// Device detection
 export function isMobile() {
   return /Mobi|Android/i.test(navigator.userAgent);
 }

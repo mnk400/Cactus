@@ -1,13 +1,19 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback, memo } from "react";
 
-function MediaItem({
+const MediaItem = memo(function MediaItem({
   mediaFile,
   index,
   isActive,
   getPreloadedMedia,
 }) {
   const mediaRef = useRef(null);
+  const videoRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Memoized loading state handler
+  const handleLoadingChange = useCallback((loading) => {
+    setIsLoading(loading);
+  }, []);
 
   // Reset loading state when media file changes
   useEffect(() => {
@@ -20,18 +26,16 @@ function MediaItem({
 
     const preloadedMedia = getPreloadedMedia(index);
     if (preloadedMedia) {
-      // Media is already preloaded, set loading to false
       setIsLoading(false);
     }
   }, [isActive, index, getPreloadedMedia, mediaFile]);
 
   // Handle video play/pause based on visibility
   useEffect(() => {
-    if (!mediaFile || mediaFile.media_type !== "video") return;
+    if (!mediaFile || mediaFile.media_type !== "video" || !videoRef.current) return;
 
-    const videoElement = mediaRef.current?.querySelector('video');
-    if (!videoElement) return;
-
+    const videoElement = videoRef.current;
+    
     if (isActive) {
       videoElement.play().catch(err => {
         console.error("Failed to play video:", err);
@@ -91,8 +95,9 @@ function MediaItem({
           src={videoSrc}
           mediaFile={mediaFile}
           isActive={isActive}
-          onLoadingChange={setIsLoading}
+          onLoadingChange={handleLoadingChange}
           isLoading={isLoading}
+          videoRef={videoRef}
         />
       </div>
     );
@@ -111,39 +116,52 @@ function MediaItem({
       </div>
     </div>
   );
-}
+});
 
-const VideoPlayer = ({ src, mediaFile, isActive, onLoadingChange, isLoading }) => {
+const VideoPlayer = memo(function VideoPlayer({ src, mediaFile, isActive, onLoadingChange, isLoading, videoRef }) {
   const [isPaused, setIsPaused] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
-  const videoRef = useRef(null);
+
+  // Memoized event handlers
+  const handlePlay = useCallback(() => {
+    setIsPaused(false);
+    setShowOverlay(false);
+  }, []);
+
+  const handlePause = useCallback(() => {
+    setIsPaused(true);
+    setShowOverlay(true);
+  }, []);
+
+  const handleLoadedData = useCallback(() => {
+    onLoadingChange(false);
+  }, [onLoadingChange]);
+
+  const handleLoadStart = useCallback(() => {
+    onLoadingChange(true);
+  }, [onLoadingChange]);
+
+  const handleError = useCallback(() => {
+    console.error("Failed to load video:", mediaFile.file_path);
+    onLoadingChange(false);
+  }, [mediaFile.file_path, onLoadingChange]);
+
+  const togglePlayPause = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (video.paused) {
+      video.play().catch((err) => {
+        console.error("Failed to play video:", err);
+      });
+    } else {
+      video.pause();
+    }
+  }, [videoRef]);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-
-    const handlePlay = () => {
-      setIsPaused(false);
-      setShowOverlay(false);
-    };
-
-    const handlePause = () => {
-      setIsPaused(true);
-      setShowOverlay(true);
-    };
-
-    const handleLoadedData = () => {
-      onLoadingChange(false);
-    };
-
-    const handleLoadStart = () => {
-      onLoadingChange(true);
-    };
-
-    const handleError = () => {
-      console.error("Failed to load video:", mediaFile.file_path);
-      onLoadingChange(false);
-    };
 
     // Check if video is already loaded when component mounts
     const checkIfLoaded = () => {
@@ -168,7 +186,7 @@ const VideoPlayer = ({ src, mediaFile, isActive, onLoadingChange, isLoading }) =
       video.removeEventListener("loadstart", handleLoadStart);
       video.removeEventListener("error", handleError);
     };
-  }, [mediaFile, onLoadingChange]);
+  }, [handlePlay, handlePause, handleLoadedData, handleLoadStart, handleError, onLoadingChange, videoRef]);
 
   // Auto play/pause based on visibility
   useEffect(() => {
@@ -182,20 +200,7 @@ const VideoPlayer = ({ src, mediaFile, isActive, onLoadingChange, isLoading }) =
     } else {
       video.pause();
     }
-  }, [isActive]);
-
-  const togglePlayPause = () => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    if (video.paused) {
-      video.play().catch((err) => {
-        console.error("Failed to play video:", err);
-      });
-    } else {
-      video.pause();
-    }
-  };
+  }, [isActive, videoRef]);
 
   return (
     <>
@@ -212,6 +217,7 @@ const VideoPlayer = ({ src, mediaFile, isActive, onLoadingChange, isLoading }) =
         loop
         muted
         playsInline
+        preload="metadata"
         className={`max-h-full max-w-full object-cover cursor-pointer ${isPaused ? "filter brightness-50" : ""} ${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
         onClick={togglePlayPause}
         onError={() => console.error("Video load error:", mediaFile.file_path)}
@@ -229,6 +235,6 @@ const VideoPlayer = ({ src, mediaFile, isActive, onLoadingChange, isLoading }) =
       )}
     </>
   );
-};
+});
 
 export default MediaItem;

@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
+import React, { useState, useEffect, useRef, useLayoutEffect, memo, useCallback } from "react";
 import useTags from "../hooks/useTags";
 
-const TagDisplay = ({ currentMediaFile, showTagInput, isVideoPlaying }) => {
+const TagDisplay = memo(function TagDisplay({ currentMediaFile, showTagInput, isVideoPlaying }) {
   const [mediaTags, setMediaTags] = useState([]);
   const { getMediaTags, removeTagFromMedia } = useTags();
 
@@ -34,7 +34,7 @@ const TagDisplay = ({ currentMediaFile, showTagInput, isVideoPlaying }) => {
     };
   }, [currentMediaFile, getMediaTags]);
 
-  const handleRemoveTag = async (tagId) => {
+  const handleRemoveTag = useCallback(async (tagId) => {
     if (currentMediaFile) {
       try {
         // We need the file hash for removal, let's get it from the API
@@ -56,7 +56,7 @@ const TagDisplay = ({ currentMediaFile, showTagInput, isVideoPlaying }) => {
         console.error("Failed to remove tag:", error);
       }
     }
-  };
+  }, [currentMediaFile, removeTagFromMedia, getMediaTags]);
 
   useLayoutEffect(() => {
     // Capture "first" positions before render
@@ -149,6 +149,6 @@ const TagDisplay = ({ currentMediaFile, showTagInput, isVideoPlaying }) => {
       </div>
     </div>
   );
-};
+});
 
 export default TagDisplay;

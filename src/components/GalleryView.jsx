@@ -225,10 +225,11 @@ function GalleryView({ mediaFiles, currentIndex, onSelectMedia, scrollPosition, 
   );
 }
 
-// Optimized gallery item component
+// Optimized gallery item component with memoization
 const GalleryItem = React.memo(({ file, index, x, y, size, isSelected, onSelect }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const imgRef = useRef(null);
 
   const handleClick = useCallback(() => {
     onSelect(index);
@@ -241,6 +242,12 @@ const GalleryItem = React.memo(({ file, index, x, y, size, isSelected, onSelect 
   const handleImageError = useCallback(() => {
     setImageError(true);
   }, []);
+
+  // Reset states when file changes
+  useEffect(() => {
+    setImageLoaded(false);
+    setImageError(false);
+  }, [file.file_hash]);
 
   return (
     <div
@@ -265,6 +272,7 @@ const GalleryItem = React.memo(({ file, index, x, y, size, isSelected, onSelect 
             </div>
           )}
           <img
+            ref={imgRef}
             src={`/thumbnails?hash=${file.file_hash}`}
             alt={`media-${index}`}
             className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'
@@ -272,6 +280,7 @@ const GalleryItem = React.memo(({ file, index, x, y, size, isSelected, onSelect 
             onLoad={handleImageLoad}
             onError={handleImageError}
             loading="lazy"
+            decoding="async"
           />
         </>
       ) : (

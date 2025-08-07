@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, memo } from "react";
 import FullscreenButton from "./FullscreenButton";
 import VideoProgressBar from "./VideoProgressBar";
 
-function Navigation({
+const Navigation = memo(function Navigation({
   onToggleSettings,
   onToggleTagInput,
   directoryName,
@@ -14,68 +14,56 @@ function Navigation({
 }) {
   const [videoElement, setVideoElement] = useState(null);
 
+  // Video element finder
+  const findActiveVideo = useCallback(() => {
+    if (currentMediaFile?.media_type !== "video") {
+      setVideoElement(null);
+      return;
+    }
+
+    const activeContainer = document.querySelector('.media-item-container[style*="translate"]');
+    if (activeContainer) {
+      const video = activeContainer.querySelector('video');
+      if (video) {
+        setVideoElement(video);
+        return;
+      }
+    }
+
+    // Fallback: find by viewport position (less frequent)
+    const containers = document.querySelectorAll('.media-item-container');
+    for (const container of containers) {
+      const rect = container.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      if (rect.top <= viewportHeight / 2 && rect.bottom >= viewportHeight / 2) {
+        const video = container.querySelector('video');
+        if (video) {
+          setVideoElement(video);
+          return;
+        }
+      }
+    }
+
+    setVideoElement(null);
+  }, [currentMediaFile]);
+
   useEffect(() => {
     if (currentMediaFile?.media_type === "video") {
-      // Clear previous video element first
-      setVideoElement(null);
-      
-      // Find the currently active video element with retries
-      let attempts = 0;
-      const maxAttempts = 10;
-      
-      const findActiveVideo = () => {
-        // Look for video elements and find the one that's currently playing or can play
-        const videoElements = document.querySelectorAll(".media-item video");
-        let activeVideo = null;
-        
-        for (const video of videoElements) {
-          // Check if this video is in the currently visible media item
-          const mediaItem = video.closest('.media-item-container');
-          if (mediaItem && !video.paused) {
-            activeVideo = video;
-            break;
-          }
-        }
-        
-        // If no playing video found, get the first video (fallback)
-        if (!activeVideo && videoElements.length > 0) {
-          // Try to find video by checking which container is at the current scroll position
-          const containers = document.querySelectorAll('.media-item-container');
-          for (const container of containers) {
-            const rect = container.getBoundingClientRect();
-            const viewportHeight = window.innerHeight;
-            // Check if container is in the center of viewport
-            if (rect.top <= viewportHeight / 2 && rect.bottom >= viewportHeight / 2) {
-              const video = container.querySelector('video');
-              if (video) {
-                activeVideo = video;
-                break;
-              }
-            }
-          }
-        }
-        
-        if (activeVideo) {
-          setVideoElement(activeVideo);
-        } else if (attempts < maxAttempts) {
-          attempts++;
-          setTimeout(findActiveVideo, 50);
-        }
-      };
-      
-      // Start searching immediately, then with a small delay as backup
-      findActiveVideo();
-      setTimeout(findActiveVideo, 100);
+      const timeoutId = setTimeout(() => {
+        requestAnimationFrame(findActiveVideo);
+      }, 50);
+
+      return () => clearTimeout(timeoutId);
     } else {
       setVideoElement(null);
     }
-  }, [currentMediaFile]);
+  }, [currentMediaFile, findActiveVideo]);
 
   // Extract just the directory name for the navigation bar display
   const shortDirectoryName = directoryName
     ? directoryName.split("/").pop() ||
-      directoryName.split("/").slice(-2, -1)[0] ||
-      "Root"
+    directoryName.split("/").slice(-2, -1)[0] ||
+    "Root"
     : "";
   const isVideoPlaying = currentMediaFile?.media_type === "video";
 
@@ -178,6 +166,6 @@ function Navigation({
       </div>
     </div>
   );
-}
+});
 
 export default Navigation;

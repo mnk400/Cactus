@@ -1,26 +1,34 @@
-import React from "react";
+import React, { useCallback, memo } from "react";
 
-function FullscreenButton({ currentMediaFile }) {
-  const handleFullscreen = () => {
-    // Find the currently active video element by checking viewport position
-    const containers = document.querySelectorAll('.media-item-container');
+const FullscreenButton = memo(function FullscreenButton({ currentMediaFile }) {
+  const handleFullscreen = useCallback(() => {
+    // video finding - look for the active container first
+    const activeContainer = document.querySelector('.media-item-container[style*="translate"]');
     let activeVideo = null;
     
-    for (const container of containers) {
-      const rect = container.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
-      // Check if container is in the center of viewport (currently active)
-      if (rect.top <= viewportHeight / 2 && rect.bottom >= viewportHeight / 2) {
-        const video = container.querySelector('video');
-        if (video) {
-          activeVideo = video;
-          break;
+    if (activeContainer) {
+      activeVideo = activeContainer.querySelector('video');
+    }
+    
+    // Fallback to viewport position check
+    if (!activeVideo) {
+      const containers = document.querySelectorAll('.media-item-container');
+      for (const container of containers) {
+        const rect = container.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        if (rect.top <= viewportHeight / 2 && rect.bottom >= viewportHeight / 2) {
+          const video = container.querySelector('video');
+          if (video) {
+            activeVideo = video;
+            break;
+          }
         }
       }
     }
     
     if (!activeVideo) return;
 
+    // Use the most compatible fullscreen API
     if (activeVideo.requestFullscreen) {
       activeVideo.requestFullscreen();
     } else if (activeVideo.webkitRequestFullscreen) {
@@ -30,7 +38,7 @@ function FullscreenButton({ currentMediaFile }) {
     } else if (activeVideo.webkitEnterFullscreen) {
       activeVideo.webkitEnterFullscreen();
     }
-  };
+  }, []);
 
   return (
     <button
@@ -40,6 +48,6 @@ function FullscreenButton({ currentMediaFile }) {
       ⛶
     </button>
   );
-}
+});
 
 export default FullscreenButton;

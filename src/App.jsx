@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from "react";
-import { CSSTransition, TransitionGroup } from "react-transition-group";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import MediaViewer from "./components/MediaViewer";
 import Navigation from "./components/Navigation";
 import SideNavigation from "./components/SideNavigation";
@@ -69,22 +68,21 @@ function App() {
     }
   }, []);
 
-  // Keyboard navigation
-  useKeyboardNavigation((direction) => {
-    if (mediaFiles.length > 0 && !showTagInput) {
-      setCurrentIndex(
-        (prev) => (prev + direction + mediaFiles.length) % mediaFiles.length,
-      );
-    }
-  });
-
-  const handleNavigation = (direction) => {
+  // Memoized navigation handler
+  const handleNavigation = useCallback((direction) => {
     if (mediaFiles.length > 0) {
       setCurrentIndex(
         (prev) => (prev + direction + mediaFiles.length) % mediaFiles.length,
       );
     }
-  };
+  }, [mediaFiles.length]);
+
+  // Keyboard navigation
+  useKeyboardNavigation(useCallback((direction) => {
+    if (mediaFiles.length > 0 && !showTagInput) {
+      handleNavigation(direction);
+    }
+  }, [mediaFiles.length, showTagInput, handleNavigation]));
 
   const handleMediaTypeChange = async (mediaType) => {
     if (mediaType === currentMediaType) return;
@@ -160,15 +158,20 @@ function App() {
     setTagUpdateTrigger((prev) => prev + 1);
   };
 
-  // Safely get current media file and full directory path
-  const currentMediaFile =
+  // Memoized current media file and directory path
+  const currentMediaFile = useMemo(() => 
     mediaFiles.length > 0 && currentIndex < mediaFiles.length
       ? mediaFiles[currentIndex]
-      : null;
+      : null,
+    [mediaFiles, currentIndex]
+  );
 
-  const directoryPath = currentMediaFile
-    ? currentMediaFile.file_path.split("/").slice(0, -1).join("/") || "/"
-    : "";
+  const directoryPath = useMemo(() => 
+    currentMediaFile
+      ? currentMediaFile.file_path.split("/").slice(0, -1).join("/") || "/"
+      : "",
+    [currentMediaFile]
+  );
 
   const { isFavorited, toggleFavorite } = useFavorite(
     currentMediaFile?.file_path,
