@@ -16,32 +16,53 @@ function VideoProgressBar({ videoElement }) {
       videoRef.current = videoElement;
 
       const handleTimeUpdate = () => {
-        // Double-check that this is still the current video element
-        if (videoRef.current === videoElement) {
+        // Double-check that this is still the current video element and it's valid
+        if (videoRef.current === videoElement && videoElement.duration) {
           const progress =
             (videoElement.currentTime / videoElement.duration) * 100;
-          setProgress(isNaN(progress) ? 0 : progress);
+          setProgress(isNaN(progress) ? 0 : Math.min(100, Math.max(0, progress)));
         }
       };
 
       const handleLoadedMetadata = () => {
         // Reset progress when new video loads
-        if (videoRef.current === videoElement) {
+        if (videoRef.current === videoElement && videoElement.duration) {
           const progress =
             (videoElement.currentTime / videoElement.duration) * 100;
-          setProgress(isNaN(progress) ? 0 : progress);
+          setProgress(isNaN(progress) ? 0 : Math.min(100, Math.max(0, progress)));
         }
       };
 
+      const handleDurationChange = () => {
+        // Handle duration changes
+        if (videoRef.current === videoElement) {
+          handleTimeUpdate();
+        }
+      };
+
+      const handleLoadStart = () => {
+        // Reset progress when video starts loading
+        setProgress(0);
+      };
+
+      // Add event listeners
       videoElement.addEventListener("timeupdate", handleTimeUpdate);
       videoElement.addEventListener("loadedmetadata", handleLoadedMetadata);
+      videoElement.addEventListener("durationchange", handleDurationChange);
+      videoElement.addEventListener("loadstart", handleLoadStart);
 
-      // Set initial progress
-      handleLoadedMetadata();
+      // Set initial progress if video is already loaded
+      if (videoElement.duration) {
+        handleTimeUpdate();
+      }
 
       return () => {
-        videoElement.removeEventListener("timeupdate", handleTimeUpdate);
-        videoElement.removeEventListener("loadedmetadata", handleLoadedMetadata);
+        if (videoElement) {
+          videoElement.removeEventListener("timeupdate", handleTimeUpdate);
+          videoElement.removeEventListener("loadedmetadata", handleLoadedMetadata);
+          videoElement.removeEventListener("durationchange", handleDurationChange);
+          videoElement.removeEventListener("loadstart", handleLoadStart);
+        }
       };
     } else {
       setIsVisible(false);
@@ -51,11 +72,16 @@ function VideoProgressBar({ videoElement }) {
   }, [videoElement]);
 
   const handleProgressClick = (e) => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || !videoRef.current.duration) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
-    const pos = (e.clientX - rect.left) / rect.width;
-    videoRef.current.currentTime = pos * videoRef.current.duration;
+    const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const newTime = pos * videoRef.current.duration;
+    
+    // Ensure the new time is valid
+    if (!isNaN(newTime) && newTime >= 0 && newTime <= videoRef.current.duration) {
+      videoRef.current.currentTime = newTime;
+    }
   };
 
   if (!isVisible) return null;

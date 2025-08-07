@@ -21,21 +21,37 @@ const Navigation = memo(function Navigation({
       return;
     }
 
-    const activeContainer = document.querySelector('.media-item-container[style*="translate"]');
-    if (activeContainer) {
-      const video = activeContainer.querySelector('video');
-      if (video) {
+    // Method 1: Find by checking which container is in the center of viewport
+    const containers = document.querySelectorAll('.media-item-container');
+    const viewportHeight = window.innerHeight;
+    const centerY = viewportHeight / 2;
+    
+    for (const container of containers) {
+      const rect = container.getBoundingClientRect();
+      // Check if container center is close to viewport center (within 100px tolerance)
+      const containerCenterY = rect.top + rect.height / 2;
+      if (Math.abs(containerCenterY - centerY) < 100) {
+        const video = container.querySelector('video');
+        if (video) {
+          setVideoElement(video);
+          return;
+        }
+      }
+    }
+
+    // Method 2: Find the video that's currently playing
+    const allVideos = document.querySelectorAll('.media-item video');
+    for (const video of allVideos) {
+      if (!video.paused) {
         setVideoElement(video);
         return;
       }
     }
 
-    // Fallback: find by viewport position (less frequent)
-    const containers = document.querySelectorAll('.media-item-container');
+    // Method 3: Find any video in a visible container
     for (const container of containers) {
       const rect = container.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
-      if (rect.top <= viewportHeight / 2 && rect.bottom >= viewportHeight / 2) {
+      if (rect.top < viewportHeight && rect.bottom > 0) {
         const video = container.querySelector('video');
         if (video) {
           setVideoElement(video);
@@ -49,15 +65,46 @@ const Navigation = memo(function Navigation({
 
   useEffect(() => {
     if (currentMediaFile?.media_type === "video") {
-      const timeoutId = setTimeout(() => {
-        requestAnimationFrame(findActiveVideo);
-      }, 50);
+      const timeouts = [];
+      
+      findActiveVideo();
+      
+      timeouts.push(setTimeout(findActiveVideo, 50));
+      timeouts.push(setTimeout(findActiveVideo, 200));
 
-      return () => clearTimeout(timeoutId);
+      return () => {
+        timeouts.forEach(clearTimeout);
+      };
     } else {
       setVideoElement(null);
     }
   }, [currentMediaFile, findActiveVideo]);
+
+  // Also listen for video events to update the element reference
+  useEffect(() => {
+    if (currentMediaFile?.media_type === "video") {
+      const handleVideoPlay = (event) => {
+        if (event.target.tagName === 'VIDEO') {
+          setVideoElement(event.target);
+        }
+      };
+
+      const handleVideoLoadedData = (event) => {
+        if (event.target.tagName === 'VIDEO') {
+          // Only update if we don't already have a video element
+          setVideoElement(prev => prev || event.target);
+        }
+      };
+
+      document.addEventListener('play', handleVideoPlay, true);
+      document.addEventListener('loadeddata', handleVideoLoadedData, true);
+
+      return () => {
+        document.removeEventListener('play', handleVideoPlay, true);
+        document.removeEventListener('loadeddata', handleVideoLoadedData, true);
+      };
+    }
+  }, [currentMediaFile]);
 
   // Extract just the directory name for the navigation bar display
   const shortDirectoryName = directoryName
