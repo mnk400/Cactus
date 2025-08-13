@@ -210,6 +210,14 @@ class SbMediaProvider extends MediaSourceProvider {
               id
               name
             }
+            studio {
+              id
+              name
+            }
+            performers {
+              id
+              name
+            }
           }
         }
       }
@@ -251,16 +259,30 @@ class SbMediaProvider extends MediaSourceProvider {
             preview
             screenshot
             
-            # Basic scene info
+            # Enhanced scene info
             scene {
               id
               title
               date
+              code
               files {
+                path
                 duration
                 width
                 height
                 size
+              }
+              studio {
+                id
+                name
+              }
+              performers {
+                id
+                name
+              }
+              tags {
+                id
+                name
               }
             }
             
@@ -320,6 +342,11 @@ class SbMediaProvider extends MediaSourceProvider {
             // Additional sb-specific fields
             sb_id: sbImage.id,
             sb_paths: sbImage.paths,
+            sb_code: sbImage.code,
+            sb_studio: sbImage.studio,
+            sb_performers: sbImage.performers,
+            sb_tags: sbImage.tags,
+            sb_visual_files: sbImage.visual_files,
             rating: sbImage.rating100,
             organized: sbImage.organized,
             o_counter: sbImage.o_counter,
@@ -365,6 +392,11 @@ class SbMediaProvider extends MediaSourceProvider {
             sb_marker_end: sbMarker.end_seconds,
             sb_scene_id: sbMarker.scene?.id,
             sb_scene_title: sbMarker.scene?.title,
+            sb_scene_code: sbMarker.scene?.code,
+            sb_scene_studio: sbMarker.scene?.studio,
+            sb_scene_performers: sbMarker.scene?.performers,
+            sb_scene_tags: sbMarker.scene?.tags,
+            sb_scene_files: sbMarker.scene?.files,
             sb_primary_tag: sbMarker.primary_tag,
             sb_tags: sbMarker.tags,
             width: sceneFile?.width,
@@ -629,18 +661,123 @@ class SbMediaProvider extends MediaSourceProvider {
     }
 
     /**
-     * Get media filtered by path substring (stub implementation)
-     * @param {string} substring - Substring to match in file paths
+     * Get media filtered by path substring - searches across all available fields
+     * @param {string} substring - Substring to match in file paths and related fields
      * @param {string} mediaType - Type of media to retrieve
      * @param {string} sortBy - Sorting parameters
      * @returns {Promise<Array>} Array of filtered media items
      */
     async getMediaByPathSubstring(substring, mediaType, sortBy) {
         const allMedia = await this.getAllMedia(mediaType, sortBy);
-        return allMedia.filter(item =>
-            item.file_path.toLowerCase().includes(substring.toLowerCase()) ||
-            item.filename.toLowerCase().includes(substring.toLowerCase())
-        );
+        const searchTerm = substring.toLowerCase();
+
+        log.info("Filtering media by path substring", {
+            substring,
+            mediaType,
+            totalMedia: allMedia.length,
+            searchFields: [
+                "file_path", "filename", "sb_paths", "sb_visual_files.path",
+                "sb_code", "sb_studio.name", "sb_performers.name", "sb_tags.name",
+                "sb_scene_title", "sb_scene_code", "sb_scene_studio.name",
+                "sb_scene_performers.name", "sb_scene_tags.name", "sb_scene_files.path",
+                "sb_primary_tag.name", "sb_id", "id"
+            ]
+        });
+
+        const filteredMedia = allMedia.filter(item => {
+            // Search in basic fields
+            if (item.file_path?.toLowerCase().includes(searchTerm)) return true;
+            if (item.filename?.toLowerCase().includes(searchTerm)) return true;
+
+            // Search in sb-specific paths
+            if (item.sb_paths) {
+                if (item.sb_paths.image?.toLowerCase().includes(searchTerm)) return true;
+                if (item.sb_paths.thumbnail?.toLowerCase().includes(searchTerm)) return true;
+                if (item.sb_paths.preview?.toLowerCase().includes(searchTerm)) return true;
+            }
+
+            // Search in visual files paths (for images/videos)
+            if (item.sb_visual_files && Array.isArray(item.sb_visual_files)) {
+                for (const file of item.sb_visual_files) {
+                    if (file.path?.toLowerCase().includes(searchTerm)) return true;
+                }
+            }
+
+            // Search in code field
+            if (item.sb_code?.toLowerCase().includes(searchTerm)) return true;
+
+            // Search in studio
+            if (item.sb_studio?.name?.toLowerCase().includes(searchTerm)) return true;
+
+            // Search in performers
+            if (item.sb_performers && Array.isArray(item.sb_performers)) {
+                for (const performer of item.sb_performers) {
+                    if (performer.name?.toLowerCase().includes(searchTerm)) return true;
+                }
+            }
+
+            // Search in tags (for images/videos)
+            if (item.sb_tags && Array.isArray(item.sb_tags)) {
+                for (const tag of item.sb_tags) {
+                    if (tag.name?.toLowerCase().includes(searchTerm)) return true;
+                }
+            }
+
+            // For markers, search in scene-related fields
+            if (item.sb_type === 'marker') {
+                if (item.sb_scene_title?.toLowerCase().includes(searchTerm)) return true;
+                if (item.sb_scene_id?.toString().includes(searchTerm)) return true;
+                if (item.sb_scene_code?.toLowerCase().includes(searchTerm)) return true;
+
+                // Search in scene studio
+                if (item.sb_scene_studio?.name?.toLowerCase().includes(searchTerm)) return true;
+
+                // Search in scene performers
+                if (item.sb_scene_performers && Array.isArray(item.sb_scene_performers)) {
+                    for (const performer of item.sb_scene_performers) {
+                        if (performer.name?.toLowerCase().includes(searchTerm)) return true;
+                    }
+                }
+
+                // Search in scene tags
+                if (item.sb_scene_tags && Array.isArray(item.sb_scene_tags)) {
+                    for (const tag of item.sb_scene_tags) {
+                        if (tag.name?.toLowerCase().includes(searchTerm)) return true;
+                    }
+                }
+
+                // Search in scene files paths
+                if (item.sb_scene_files && Array.isArray(item.sb_scene_files)) {
+                    for (const file of item.sb_scene_files) {
+                        if (file.path?.toLowerCase().includes(searchTerm)) return true;
+                    }
+                }
+
+                // Search in primary tag
+                if (item.sb_primary_tag?.name?.toLowerCase().includes(searchTerm)) return true;
+
+                // Search in marker tags
+                if (item.sb_tags && Array.isArray(item.sb_tags)) {
+                    for (const tag of item.sb_tags) {
+                        if (tag.name?.toLowerCase().includes(searchTerm)) return true;
+                    }
+                }
+            }
+
+            // Search in IDs (useful for finding specific items)
+            if (item.sb_id?.toString().includes(searchTerm)) return true;
+            if (item.id?.toString().includes(searchTerm)) return true;
+
+            return false;
+        });
+
+        log.info("Path substring filtering completed", {
+            substring,
+            totalMedia: allMedia.length,
+            filteredCount: filteredMedia.length,
+        });
+
+        return filteredMedia;
     }
 
     /**
