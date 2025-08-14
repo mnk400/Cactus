@@ -2,17 +2,19 @@ FROM oven/bun:1-alpine
 
 WORKDIR /app
 
+# Install system dependencies
 RUN apk add --no-cache ffmpeg
 
 # Copy package files
-COPY package*.json ./
-COPY bun.lockb* ./
-COPY vite.config.js ./
-COPY tailwind.config.js ./
-COPY postcss.config.js ./
+COPY package.json ./
 
 # Install dependencies
 RUN bun install
+
+# Copy config files
+COPY vite.config.js ./
+COPY tailwind.config.js ./
+COPY postcss.config.js ./
 
 # Copy source code
 COPY src/ ./src/

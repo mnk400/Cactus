@@ -1,4 +1,4 @@
-const Database = require("better-sqlite3");
+const { Database } = require("bun:sqlite");
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
@@ -62,10 +62,10 @@ class MediaDatabase {
       }
 
       this.db = new Database(this.dbPath);
-      this.db.pragma("journal_mode = WAL"); // Better performance for concurrent reads
-      this.db.pragma("synchronous = NORMAL"); // Good balance of safety and performance
-      this.db.pragma("cache_size = 1000"); // Cache more pages in memory
-      this.db.pragma("temp_store = memory"); // Store temp tables in memory
+      this.db.exec("PRAGMA journal_mode = WAL"); // Better performance for concurrent reads
+      this.db.exec("PRAGMA synchronous = NORMAL"); // Good balance of safety and performance
+      this.db.exec("PRAGMA cache_size = 1000"); // Cache more pages in memory
+      this.db.exec("PRAGMA temp_store = memory"); // Store temp tables in memory
 
       this.initializeSchema();
       this.isInitialized = true;
@@ -592,7 +592,7 @@ class MediaDatabase {
    */
   async close() {
     if (this.db) {
-      await this.db.close();
+      this.db.close();
       this.db = null;
       this.isInitialized = false;
       log.info("Database connection closed.", { dbPath: this.dbPath });
@@ -618,7 +618,7 @@ class MediaDatabase {
       const removedTags = this.cleanupOrphanedTags();
 
       // Optimize database
-      this.db.pragma("optimize");
+      this.db.exec("PRAGMA optimize");
       this.db.exec("VACUUM");
 
       log.info("Database maintenance completed", {
