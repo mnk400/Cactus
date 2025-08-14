@@ -1,5 +1,6 @@
 node_modules
 package-lock.json
+bun.lock
 *_media.db*
 test-media/
 dist

@@ -57,23 +57,23 @@ body {
   /* Hardware acceleration */
   transform: translate3d(0, 0, 0);
   -webkit-transform: translate3d(0, 0, 0);
-  
+
   /* Prevent overscroll bounce */
   overscroll-behavior: contain;
-  
+
   /* Optimize for touch interactions */
   touch-action: pan-y;
-  
+
   /* Better compositing layer */
   will-change: transform;
-  
+
   /* Optimize performance */
   contain: layout style paint;
-  
+
   /* Better mobile performance */
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
-  
+
   /* Prevent text selection during drag */
   -webkit-user-select: none;
   -moz-user-select: none;
@@ -102,7 +102,8 @@ body {
 }
 
 /* Optimize images for better performance */
-img, video {
+img,
+video {
   image-rendering: -webkit-optimize-contrast;
   image-rendering: optimize-contrast;
   contain: layout;
@@ -126,14 +127,14 @@ img, video {
   /* Hardware acceleration with 3D transform */
   transform: translate3d(0, 0, 0);
   -webkit-transform: translate3d(0, 0, 0);
-  
+
   /* Better compositing */
   contain: layout style paint;
-  
+
   /* Prevent subpixel rendering issues */
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
-  
+
   /* Optimize for mobile */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -376,16 +377,16 @@ textarea {
     /* Reduce scroll jank */
     -webkit-transform: translateZ(0);
     transform: translateZ(0);
-    
+
     /* Optimize for 60fps */
     will-change: transform;
   }
-  
+
   .media-item-container {
     /* Mobile-specific optimizations */
     -webkit-transform: translate3d(0, 0, 0);
     transform: translate3d(0, 0, 0);
-    
+
     /* Better mobile rendering */
     image-rendering: -webkit-optimize-contrast;
     image-rendering: optimize-contrast;
@@ -430,7 +431,7 @@ textarea {
   .media-wrapper {
     /* Better iOS performance */
     -webkit-transform: translate3d(0, 0, 0);
-    
+
     /* Prevent iOS scroll bounce issues */
     overscroll-behavior: contain;
   }

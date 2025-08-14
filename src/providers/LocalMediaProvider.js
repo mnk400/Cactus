@@ -1,6 +1,6 @@
 /**
  * LocalMediaProvider
- * 
+ *
  * Implementation of MediaSourceProvider for local file system media.
  * This provider uses the existing SQLite database for media management.
  */
@@ -78,7 +78,10 @@ class LocalMediaProvider extends MediaSourceProvider {
   async initialize() {
     try {
       // Create database path based on directory hash for unique database per directory
-      const dirHash = crypto.createHash("md5").update(this.directoryPath).digest("hex");
+      const dirHash = crypto
+        .createHash("md5")
+        .update(this.directoryPath)
+        .digest("hex");
       const dbFileName = `.${dirHash}_media.db`;
       const dbPath = path.join(this.directoryPath, dbFileName);
 
@@ -107,10 +110,10 @@ class LocalMediaProvider extends MediaSourceProvider {
       });
 
       this.isInitialized = true;
-      
+
       // Load media files
       await this.loadMediaFiles();
-      
+
       return { success: true };
     } catch (error) {
       log.error("Failed to initialize LocalMediaProvider", {
@@ -133,17 +136,17 @@ class LocalMediaProvider extends MediaSourceProvider {
 
       // Check if directory exists and is accessible
       await access(this.directoryPath);
-      
+
       // Check if database is accessible
       const stats = this.mediaDatabase.getStats();
-      
-      return { 
-        success: true, 
+
+      return {
+        success: true,
         data: {
           directory: this.directoryPath,
           stats: stats,
-          dbVersion: this.mediaDatabase.getDatabaseVersion()
-        }
+          dbVersion: this.mediaDatabase.getDatabaseVersion(),
+        },
       };
     } catch (error) {
       return { success: false, error: error.message };
@@ -156,7 +159,7 @@ class LocalMediaProvider extends MediaSourceProvider {
    * @param {string} sortBy - Sorting parameter ('random', 'date_added', 'date_created')
    * @returns {Promise<Array>} Array of media items
    */
-  async getAllMedia(mediaType = 'all', sortBy = 'random') {
+  async getAllMedia(mediaType = "all", sortBy = "random") {
     if (!this.isInitialized) {
       throw new Error("Provider not initialized");
     }
@@ -187,13 +190,22 @@ class LocalMediaProvider extends MediaSourceProvider {
    * @param {string} sortBy - Sorting parameter ('random', 'date_added', 'date_created')
    * @returns {Promise<Array>} Array of filtered media items
    */
-  async getMediaByTags(includeTags = [], excludeTags = [], mediaType = 'all', sortBy = 'random') {
+  async getMediaByTags(
+    includeTags = [],
+    excludeTags = [],
+    mediaType = "all",
+    sortBy = "random",
+  ) {
     if (!this.isInitialized) {
       throw new Error("Provider not initialized");
     }
 
     try {
-      const files = this.mediaDatabase.getMediaByTagsAndType(includeTags, excludeTags, mediaType);
+      const files = this.mediaDatabase.getMediaByTagsAndType(
+        includeTags,
+        excludeTags,
+        mediaType,
+      );
       log.info("Media files filtered by tags", {
         includeTags,
         excludeTags,
@@ -219,7 +231,11 @@ class LocalMediaProvider extends MediaSourceProvider {
    * @param {string} sortBy - Sorting parameter ('random', 'date_added', 'date_created')
    * @returns {Promise<Array>} Array of filtered media items
    */
-  async getMediaByPathSubstring(substring, mediaType = 'all', sortBy = 'random') {
+  async getMediaByPathSubstring(
+    substring,
+    mediaType = "all",
+    sortBy = "random",
+  ) {
     if (!this.isInitialized) {
       throw new Error("Provider not initialized");
     }
@@ -376,7 +392,10 @@ class LocalMediaProvider extends MediaSourceProvider {
     }
 
     try {
-      const removed = this.mediaDatabase.removeTagFromMedia(mediaId, parseInt(tagId));
+      const removed = this.mediaDatabase.removeTagFromMedia(
+        mediaId,
+        parseInt(tagId),
+      );
       return removed;
     } catch (error) {
       log.error("Failed to remove tag from media", {
@@ -582,7 +601,9 @@ class LocalMediaProvider extends MediaSourceProvider {
     }
 
     try {
-      const lockData = JSON.parse(fs.readFileSync(this.LOCK_FILE_PATH, "utf-8"));
+      const lockData = JSON.parse(
+        fs.readFileSync(this.LOCK_FILE_PATH, "utf-8"),
+      );
 
       // Check if the lock is stale (older than 5 minutes)
       const lockTime = new Date(lockData.timestamp);
@@ -658,7 +679,8 @@ class LocalMediaProvider extends MediaSourceProvider {
                 const mediaType = provider.getMediaType(filePath);
                 if (mediaType) {
                   try {
-                    const fileHash = provider.mediaDatabase.generateFileHash(filePath);
+                    const fileHash =
+                      provider.mediaDatabase.generateFileHash(filePath);
                     const existingMediaFile =
                       provider.mediaDatabase.getMediaFileByHash(fileHash);
 
@@ -791,7 +813,9 @@ class LocalMediaProvider extends MediaSourceProvider {
     }
 
     // Perform fresh scan
-    log.info("Scanning directory for media files", { directory: this.directoryPath });
+    log.info("Scanning directory for media files", {
+      directory: this.directoryPath,
+    });
     const scannedFiles = await this.scanDirectory();
 
     const stats = this.mediaDatabase.getStats();
@@ -840,7 +864,8 @@ class LocalMediaProvider extends MediaSourceProvider {
         totalInDb: stats.total,
         images: stats.images,
         videos: stats.videos,
-        orphanedFilesRemovedByDate: maintenanceResult.removedOrphanedFilesByDate,
+        orphanedFilesRemovedByDate:
+          maintenanceResult.removedOrphanedFilesByDate,
         nonExistentFilesRemoved: maintenanceResult.removedNonExistentFiles,
       });
 
@@ -905,13 +930,22 @@ class LocalMediaProvider extends MediaSourceProvider {
           let thumbnailPath = null;
 
           if (mediaType === "image") {
-            thumbnailPath = await this.generateImageThumbnail(filePath, fileHash);
+            thumbnailPath = await this.generateImageThumbnail(
+              filePath,
+              fileHash,
+            );
           } else if (mediaType === "video") {
-            thumbnailPath = await this.generateVideoThumbnail(filePath, fileHash);
+            thumbnailPath = await this.generateVideoThumbnail(
+              filePath,
+              fileHash,
+            );
           }
 
           if (thumbnailPath) {
-            this.mediaDatabase.updateMediaFileThumbnail(fileHash, thumbnailPath);
+            this.mediaDatabase.updateMediaFileThumbnail(
+              fileHash,
+              thumbnailPath,
+            );
             regeneratedCount++;
             log.info("Successfully regenerated thumbnail", { filePath });
           } else {
@@ -946,7 +980,7 @@ class LocalMediaProvider extends MediaSourceProvider {
     if (!this.isInitialized) {
       throw new Error("Provider not initialized");
     }
-    
+
     return this.mediaDatabase.getFileHashForPath(filePath);
   }
 
@@ -958,12 +992,12 @@ class LocalMediaProvider extends MediaSourceProvider {
       await this.mediaDatabase.close();
       this.mediaDatabase = null;
     }
-    
+
     if (this.LOCK_FILE_PATH) {
       await this.removeLockFile();
       this.LOCK_FILE_PATH = null;
     }
-    
+
     this.isInitialized = false;
     log.info("LocalMediaProvider closed");
   }

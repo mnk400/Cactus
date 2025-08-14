@@ -20,7 +20,9 @@ function VideoProgressBar({ videoElement }) {
         if (videoRef.current === videoElement && videoElement.duration) {
           const progress =
             (videoElement.currentTime / videoElement.duration) * 100;
-          setProgress(isNaN(progress) ? 0 : Math.min(100, Math.max(0, progress)));
+          setProgress(
+            isNaN(progress) ? 0 : Math.min(100, Math.max(0, progress)),
+          );
         }
       };
 
@@ -29,7 +31,9 @@ function VideoProgressBar({ videoElement }) {
         if (videoRef.current === videoElement && videoElement.duration) {
           const progress =
             (videoElement.currentTime / videoElement.duration) * 100;
-          setProgress(isNaN(progress) ? 0 : Math.min(100, Math.max(0, progress)));
+          setProgress(
+            isNaN(progress) ? 0 : Math.min(100, Math.max(0, progress)),
+          );
         }
       };
 
@@ -59,8 +63,14 @@ function VideoProgressBar({ videoElement }) {
       return () => {
         if (videoElement) {
           videoElement.removeEventListener("timeupdate", handleTimeUpdate);
-          videoElement.removeEventListener("loadedmetadata", handleLoadedMetadata);
-          videoElement.removeEventListener("durationchange", handleDurationChange);
+          videoElement.removeEventListener(
+            "loadedmetadata",
+            handleLoadedMetadata,
+          );
+          videoElement.removeEventListener(
+            "durationchange",
+            handleDurationChange,
+          );
           videoElement.removeEventListener("loadstart", handleLoadStart);
         }
       };
@@ -77,9 +87,13 @@ function VideoProgressBar({ videoElement }) {
     const rect = e.currentTarget.getBoundingClientRect();
     const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const newTime = pos * videoRef.current.duration;
-    
+
     // Ensure the new time is valid
-    if (!isNaN(newTime) && newTime >= 0 && newTime <= videoRef.current.duration) {
+    if (
+      !isNaN(newTime) &&
+      newTime >= 0 &&
+      newTime <= videoRef.current.duration
+    ) {
       videoRef.current.currentTime = newTime;
     }
   };

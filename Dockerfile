@@ -1,4 +1,4 @@
-FROM node:lts-alpine
+FROM oven/bun:1-alpine
 
 WORKDIR /app
 
@@ -6,18 +6,19 @@ RUN apk add --no-cache ffmpeg
 
 # Copy package files
 COPY package*.json ./
+COPY bun.lockb* ./
 COPY vite.config.js ./
 COPY tailwind.config.js ./
 COPY postcss.config.js ./
 
 # Install dependencies
-RUN npm install
+RUN bun install
 
 # Copy source code
 COPY src/ ./src/
 
 # Build the React application
-RUN npm run build
+RUN bun run build
 
 # Create configuration directory
 RUN mkdir -p configuration
@@ -26,4 +27,4 @@ RUN mkdir -p configuration
 EXPOSE 3000
 
 # Start the server
-CMD ["node", "src/server.js", "-d", "/media"]
+CMD ["bun", "src/server.js", "-d", "/media"]

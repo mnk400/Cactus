@@ -32,12 +32,13 @@ const MediaItem = memo(function MediaItem({
 
   // Handle video play/pause based on visibility
   useEffect(() => {
-    if (!mediaFile || mediaFile.media_type !== "video" || !videoRef.current) return;
+    if (!mediaFile || mediaFile.media_type !== "video" || !videoRef.current)
+      return;
 
     const videoElement = videoRef.current;
-    
+
     if (isActive) {
-      videoElement.play().catch(err => {
+      videoElement.play().catch((err) => {
         console.error("Failed to play video:", err);
       });
     } else {
@@ -68,7 +69,7 @@ const MediaItem = memo(function MediaItem({
         <img
           src={imgSrc}
           alt="Media content"
-          className={`max-h-full max-w-full object-cover transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
+          className={`max-h-full max-w-full object-cover transition-opacity duration-300 ${isLoading ? "opacity-0" : "opacity-100"}`}
           onLoad={() => setIsLoading(false)}
           onError={(e) => {
             console.error("Failed to load image:", mediaFile.file_path);
@@ -118,7 +119,14 @@ const MediaItem = memo(function MediaItem({
   );
 });
 
-const VideoPlayer = memo(function VideoPlayer({ src, mediaFile, isActive, onLoadingChange, isLoading, videoRef }) {
+const VideoPlayer = memo(function VideoPlayer({
+  src,
+  mediaFile,
+  isActive,
+  onLoadingChange,
+  isLoading,
+  videoRef,
+}) {
   const [isPaused, setIsPaused] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
 
@@ -165,7 +173,8 @@ const VideoPlayer = memo(function VideoPlayer({ src, mediaFile, isActive, onLoad
 
     // Check if video is already loaded when component mounts
     const checkIfLoaded = () => {
-      if (video.readyState >= 2) { // HAVE_CURRENT_DATA or higher
+      if (video.readyState >= 2) {
+        // HAVE_CURRENT_DATA or higher
         onLoadingChange(false);
       }
     };
@@ -186,7 +195,15 @@ const VideoPlayer = memo(function VideoPlayer({ src, mediaFile, isActive, onLoad
       video.removeEventListener("loadstart", handleLoadStart);
       video.removeEventListener("error", handleError);
     };
-  }, [handlePlay, handlePause, handleLoadedData, handleLoadStart, handleError, onLoadingChange, videoRef]);
+  }, [
+    handlePlay,
+    handlePause,
+    handleLoadedData,
+    handleLoadStart,
+    handleError,
+    onLoadingChange,
+    videoRef,
+  ]);
 
   // Auto play/pause based on visibility
   useEffect(() => {
@@ -194,7 +211,7 @@ const VideoPlayer = memo(function VideoPlayer({ src, mediaFile, isActive, onLoad
     if (!video) return;
 
     if (isActive) {
-      video.play().catch(err => {
+      video.play().catch((err) => {
         console.error("Failed to play video:", err);
       });
     } else {
@@ -218,7 +235,7 @@ const VideoPlayer = memo(function VideoPlayer({ src, mediaFile, isActive, onLoad
         muted
         playsInline
         preload="metadata"
-        className={`max-h-full max-w-full object-cover cursor-pointer ${isPaused ? "filter brightness-50" : ""} ${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
+        className={`max-h-full max-w-full object-cover cursor-pointer ${isPaused ? "filter brightness-50" : ""} ${isLoading ? "opacity-0" : "opacity-100"} transition-opacity duration-300`}
         onClick={togglePlayPause}
         onError={() => console.error("Video load error:", mediaFile.file_path)}
       />

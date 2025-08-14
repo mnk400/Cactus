@@ -32,8 +32,12 @@ function SettingsPanel({
 
   // Calculate statistics
   const totalFiles = allMediaFiles.length;
-  const totalPhotos = allMediaFiles.filter((file) => file.media_type === "image").length;
-  const totalVideos = allMediaFiles.filter((file) => file.media_type === "video").length;
+  const totalPhotos = allMediaFiles.filter(
+    (file) => file.media_type === "image",
+  ).length;
+  const totalVideos = allMediaFiles.filter(
+    (file) => file.media_type === "video",
+  ).length;
   const currentCount = currentMediaFiles.length;
 
   // Calculate percentages for visual representation
@@ -314,11 +318,12 @@ function SettingsPanel({
           {/* Actions Section */}
           <div className="actions-section mb-6">
             {providerType === "local" && (
-            <div className="flex items-center gap-2 mb-2 sm:mb-3">
-              <h4 className="text-sm sm:text-base font-medium text-white m-0">
-                Actions
-              </h4>
-            </div>)}
+              <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                <h4 className="text-sm sm:text-base font-medium text-white m-0">
+                  Actions
+                </h4>
+              </div>
+            )}
 
             <div className="space-y-2">
               {/* Tag Manager - Only for Local proivder */}

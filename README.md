@@ -34,13 +34,13 @@ Extremely minimal randomized order media reviewer built with React
 1. **Install dependencies:**
 
    ```bash
-   npm install
+   bun install
    ```
 
 2. **Start the application:**
 
    ```bash
-   npm start -- -d /path/to/your/media/directory -p 3000
+   bun start -- -d /path/to/your/media/directory -p 3000
    ```
 
 3. **Open your browser and go to http://localhost:3000**
@@ -51,17 +51,17 @@ Extremely minimal randomized order media reviewer built with React
 
 ```bash
 # Build and start the server
-npm start -- -d /path/to/your/media/directory -p 3000
+bun start -- -d /path/to/your/media/directory -p 3000
 ```
 
 ### Development
 
 ```bash
 # Start development server with hot reloading
-npm run dev
+bun run dev
 
 # In another terminal, start the backend
-node src/server.js -d /path/to/your/media/directory -p 3000
+bun src/server.js -d /path/to/your/media/directory -p 3000
 
 # Open http://localhost:3001 for development with hot reloading
 ```
@@ -70,7 +70,7 @@ node src/server.js -d /path/to/your/media/directory -p 3000
 
 ```bash
 # Start both frontend and backend for development
-npm run start:dev
+bun run start:dev
 ```
 
 ## Navigation
@@ -174,7 +174,7 @@ CREATE TABLE media_files (
 
 ## Requirements
 
-- Node.js 16.0.0 or higher
+- Bun 1.0.0 or higher
 - Modern web browser with ES6+ support
 - Directory with supported media files (jpg, png, gif, mp4, webm, etc.)
 

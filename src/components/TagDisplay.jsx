@@ -1,7 +1,18 @@
-import React, { useState, useEffect, useRef, useLayoutEffect, memo, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useLayoutEffect,
+  memo,
+  useCallback,
+} from "react";
 import useTags from "../hooks/useTags";
 
-const TagDisplay = memo(function TagDisplay({ currentMediaFile, showTagInput, isVideoPlaying }) {
+const TagDisplay = memo(function TagDisplay({
+  currentMediaFile,
+  showTagInput,
+  isVideoPlaying,
+}) {
   const [mediaTags, setMediaTags] = useState([]);
   const { getMediaTags, removeTagFromMedia } = useTags();
 
@@ -34,29 +45,32 @@ const TagDisplay = memo(function TagDisplay({ currentMediaFile, showTagInput, is
     };
   }, [currentMediaFile, getMediaTags]);
 
-  const handleRemoveTag = useCallback(async (tagId) => {
-    if (currentMediaFile) {
-      try {
-        // We need the file hash for removal, let's get it from the API
-        const response = await fetch(
-          `/api/media-path/tags?path=${encodeURIComponent(
-            currentMediaFile.file_path,
-          )}`,
-        );
-        const data = await response.json();
+  const handleRemoveTag = useCallback(
+    async (tagId) => {
+      if (currentMediaFile) {
+        try {
+          // We need the file hash for removal, let's get it from the API
+          const response = await fetch(
+            `/api/media-path/tags?path=${encodeURIComponent(
+              currentMediaFile.file_path,
+            )}`,
+          );
+          const data = await response.json();
 
-        if (data.fileHash) {
-          await removeTagFromMedia(data.fileHash, tagId);
-          // Reload tags for current media
-          const updatedTags = await getMediaTags(currentMediaFile.file_path);
-          setMediaTags(updatedTags);
-          window.dispatchEvent(new CustomEvent("tags-updated"));
+          if (data.fileHash) {
+            await removeTagFromMedia(data.fileHash, tagId);
+            // Reload tags for current media
+            const updatedTags = await getMediaTags(currentMediaFile.file_path);
+            setMediaTags(updatedTags);
+            window.dispatchEvent(new CustomEvent("tags-updated"));
+          }
+        } catch (error) {
+          console.error("Failed to remove tag:", error);
         }
-      } catch (error) {
-        console.error("Failed to remove tag:", error);
       }
-    }
-  }, [currentMediaFile, removeTagFromMedia, getMediaTags]);
+    },
+    [currentMediaFile, removeTagFromMedia, getMediaTags],
+  );
 
   useLayoutEffect(() => {
     // Capture "first" positions before render

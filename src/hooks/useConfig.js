@@ -4,7 +4,7 @@ export function useConfig() {
   const [config, setConfig] = useState({
     predictEnabled: false,
     predictApiUrl: "",
-    provider: { type: "local" }
+    provider: { type: "local" },
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

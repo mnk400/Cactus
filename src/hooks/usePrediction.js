@@ -1,6 +1,10 @@
 import { useState } from "react";
 
-export const usePrediction = (predictApiUrl, currentMediaFile, onTagsPredicted) => {
+export const usePrediction = (
+  predictApiUrl,
+  currentMediaFile,
+  onTagsPredicted,
+) => {
   const [isPredicting, setIsPredicting] = useState(false);
 
   const predictTags = async (filePath) => {
@@ -8,7 +12,8 @@ export const usePrediction = (predictApiUrl, currentMediaFile, onTagsPredicted) 
       !filePath ||
       !currentMediaFile ||
       !predictApiUrl ||
-      (currentMediaFile.media_type !== "image" && currentMediaFile.media_type !== "video")
+      (currentMediaFile.media_type !== "image" &&
+        currentMediaFile.media_type !== "video")
     ) {
       return;
     }
@@ -109,21 +114,21 @@ export const usePrediction = (predictApiUrl, currentMediaFile, onTagsPredicted) 
 
               const tags1 = data1.tags
                 ? data1.tags
-                  .split(",")
-                  .map((tag) => tag.trim())
-                  .filter((tag) => tag)
+                    .split(",")
+                    .map((tag) => tag.trim())
+                    .filter((tag) => tag)
                 : [];
               const tags2 = data2.tags
                 ? data2.tags
-                  .split(",")
-                  .map((tag) => tag.trim())
-                  .filter((tag) => tag)
+                    .split(",")
+                    .map((tag) => tag.trim())
+                    .filter((tag) => tag)
                 : [];
               const tags3 = data3.tags
                 ? data3.tags
-                  .split(",")
-                  .map((tag) => tag.trim())
-                  .filter((tag) => tag)
+                    .split(",")
+                    .map((tag) => tag.trim())
+                    .filter((tag) => tag)
                 : [];
 
               const allTags = [...tags1, ...tags2, ...tags3];

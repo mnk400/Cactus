@@ -340,8 +340,8 @@ class MediaDatabase {
           mediaType === "photos"
             ? "image"
             : mediaType === "videos"
-            ? "video"
-            : mediaType;
+              ? "video"
+              : mediaType;
         query = `SELECT * FROM media_files WHERE media_type = ? ${orderByClause}`;
         params = [dbMediaType];
       }

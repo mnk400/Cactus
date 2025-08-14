@@ -3,21 +3,26 @@ import React, { useCallback, memo } from "react";
 const FullscreenButton = memo(function FullscreenButton({ currentMediaFile }) {
   const handleFullscreen = useCallback(() => {
     // video finding - look for the active container first
-    const activeContainer = document.querySelector('.media-item-container[style*="translate"]');
+    const activeContainer = document.querySelector(
+      '.media-item-container[style*="translate"]',
+    );
     let activeVideo = null;
-    
+
     if (activeContainer) {
-      activeVideo = activeContainer.querySelector('video');
+      activeVideo = activeContainer.querySelector("video");
     }
-    
+
     // Fallback to viewport position check
     if (!activeVideo) {
-      const containers = document.querySelectorAll('.media-item-container');
+      const containers = document.querySelectorAll(".media-item-container");
       for (const container of containers) {
         const rect = container.getBoundingClientRect();
         const viewportHeight = window.innerHeight;
-        if (rect.top <= viewportHeight / 2 && rect.bottom >= viewportHeight / 2) {
-          const video = container.querySelector('video');
+        if (
+          rect.top <= viewportHeight / 2 &&
+          rect.bottom >= viewportHeight / 2
+        ) {
+          const video = container.querySelector("video");
           if (video) {
             activeVideo = video;
             break;
@@ -25,7 +30,7 @@ const FullscreenButton = memo(function FullscreenButton({ currentMediaFile }) {
         }
       }
     }
-    
+
     if (!activeVideo) return;
 
     // Use the most compatible fullscreen API

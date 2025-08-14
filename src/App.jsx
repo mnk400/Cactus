@@ -69,20 +69,28 @@ function App() {
   }, []);
 
   // Memoized navigation handler
-  const handleNavigation = useCallback((direction) => {
-    if (mediaFiles.length > 0) {
-      setCurrentIndex(
-        (prev) => (prev + direction + mediaFiles.length) % mediaFiles.length,
-      );
-    }
-  }, [mediaFiles.length]);
+  const handleNavigation = useCallback(
+    (direction) => {
+      if (mediaFiles.length > 0) {
+        setCurrentIndex(
+          (prev) => (prev + direction + mediaFiles.length) % mediaFiles.length,
+        );
+      }
+    },
+    [mediaFiles.length],
+  );
 
   // Keyboard navigation
-  useKeyboardNavigation(useCallback((direction) => {
-    if (mediaFiles.length > 0 && !showTagInput) {
-      handleNavigation(direction);
-    }
-  }, [mediaFiles.length, showTagInput, handleNavigation]));
+  useKeyboardNavigation(
+    useCallback(
+      (direction) => {
+        if (mediaFiles.length > 0 && !showTagInput) {
+          handleNavigation(direction);
+        }
+      },
+      [mediaFiles.length, showTagInput, handleNavigation],
+    ),
+  );
 
   const handleMediaTypeChange = async (mediaType) => {
     if (mediaType === currentMediaType) return;
@@ -159,18 +167,20 @@ function App() {
   };
 
   // Memoized current media file and directory path
-  const currentMediaFile = useMemo(() => 
-    mediaFiles.length > 0 && currentIndex < mediaFiles.length
-      ? mediaFiles[currentIndex]
-      : null,
-    [mediaFiles, currentIndex]
+  const currentMediaFile = useMemo(
+    () =>
+      mediaFiles.length > 0 && currentIndex < mediaFiles.length
+        ? mediaFiles[currentIndex]
+        : null,
+    [mediaFiles, currentIndex],
   );
 
-  const directoryPath = useMemo(() => 
-    currentMediaFile
-      ? currentMediaFile.file_path.split("/").slice(0, -1).join("/") || "/"
-      : "",
-    [currentMediaFile]
+  const directoryPath = useMemo(
+    () =>
+      currentMediaFile
+        ? currentMediaFile.file_path.split("/").slice(0, -1).join("/") || "/"
+        : "",
+    [currentMediaFile],
   );
 
   const { isFavorited, toggleFavorite } = useFavorite(
@@ -192,7 +202,8 @@ function App() {
               currentIndex={currentIndex}
               onSelectMedia={(index) => {
                 // Save current scroll position before switching to fullscreen
-                const galleryContainer = document.querySelector('.gallery-view');
+                const galleryContainer =
+                  document.querySelector(".gallery-view");
                 if (galleryContainer) {
                   setGalleryScrollPosition(galleryContainer.scrollTop);
                 }
@@ -275,7 +286,9 @@ function App() {
           isScanning={isScanning}
           allMediaFiles={allMediaFiles}
           currentMediaFiles={mediaFiles}
-          directoryName={config.provider?.directory || config.provider?.sbUrl || ""}
+          directoryName={
+            config.provider?.directory || config.provider?.sbUrl || ""
+          }
           selectedTags={selectedTags}
           excludedTags={excludedTags}
           onTagsChange={handleTagsChange}

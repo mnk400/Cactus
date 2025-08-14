@@ -22,16 +22,16 @@ const Navigation = memo(function Navigation({
     }
 
     // Method 1: Find by checking which container is in the center of viewport
-    const containers = document.querySelectorAll('.media-item-container');
+    const containers = document.querySelectorAll(".media-item-container");
     const viewportHeight = window.innerHeight;
     const centerY = viewportHeight / 2;
-    
+
     for (const container of containers) {
       const rect = container.getBoundingClientRect();
       // Check if container center is close to viewport center (within 100px tolerance)
       const containerCenterY = rect.top + rect.height / 2;
       if (Math.abs(containerCenterY - centerY) < 100) {
-        const video = container.querySelector('video');
+        const video = container.querySelector("video");
         if (video) {
           setVideoElement(video);
           return;
@@ -40,7 +40,7 @@ const Navigation = memo(function Navigation({
     }
 
     // Method 2: Find the video that's currently playing
-    const allVideos = document.querySelectorAll('.media-item video');
+    const allVideos = document.querySelectorAll(".media-item video");
     for (const video of allVideos) {
       if (!video.paused) {
         setVideoElement(video);
@@ -52,7 +52,7 @@ const Navigation = memo(function Navigation({
     for (const container of containers) {
       const rect = container.getBoundingClientRect();
       if (rect.top < viewportHeight && rect.bottom > 0) {
-        const video = container.querySelector('video');
+        const video = container.querySelector("video");
         if (video) {
           setVideoElement(video);
           return;
@@ -66,9 +66,9 @@ const Navigation = memo(function Navigation({
   useEffect(() => {
     if (currentMediaFile?.media_type === "video") {
       const timeouts = [];
-      
+
       findActiveVideo();
-      
+
       timeouts.push(setTimeout(findActiveVideo, 50));
       timeouts.push(setTimeout(findActiveVideo, 200));
 
@@ -84,24 +84,24 @@ const Navigation = memo(function Navigation({
   useEffect(() => {
     if (currentMediaFile?.media_type === "video") {
       const handleVideoPlay = (event) => {
-        if (event.target.tagName === 'VIDEO') {
+        if (event.target.tagName === "VIDEO") {
           setVideoElement(event.target);
         }
       };
 
       const handleVideoLoadedData = (event) => {
-        if (event.target.tagName === 'VIDEO') {
+        if (event.target.tagName === "VIDEO") {
           // Only update if we don't already have a video element
-          setVideoElement(prev => prev || event.target);
+          setVideoElement((prev) => prev || event.target);
         }
       };
 
-      document.addEventListener('play', handleVideoPlay, true);
-      document.addEventListener('loadeddata', handleVideoLoadedData, true);
+      document.addEventListener("play", handleVideoPlay, true);
+      document.addEventListener("loadeddata", handleVideoLoadedData, true);
 
       return () => {
-        document.removeEventListener('play', handleVideoPlay, true);
-        document.removeEventListener('loadeddata', handleVideoLoadedData, true);
+        document.removeEventListener("play", handleVideoPlay, true);
+        document.removeEventListener("loadeddata", handleVideoLoadedData, true);
       };
     }
   }, [currentMediaFile]);
@@ -109,8 +109,8 @@ const Navigation = memo(function Navigation({
   // Extract just the directory name for the navigation bar display
   const shortDirectoryName = directoryName
     ? directoryName.split("/").pop() ||
-    directoryName.split("/").slice(-2, -1)[0] ||
-    "Root"
+      directoryName.split("/").slice(-2, -1)[0] ||
+      "Root"
     : "";
   const isVideoPlaying = currentMediaFile?.media_type === "video";
 
@@ -124,7 +124,6 @@ const Navigation = memo(function Navigation({
         <VideoProgressBar videoElement={videoElement} />
       </div>
       <div className="w-full flex items-center justify-end gap-2">
-
         <button
           onClick={onToggleFavorite}
           className="nav-button bg-black-shades-700 text-gray-200 border-none p-2 rounded-xl cursor-pointer transition-all duration-200 ease-in-out hover:bg-white hover:bg-opacity-20 active:scale-95 min-w-10 min-h-11 flex items-center justify-center"
@@ -205,7 +204,9 @@ const Navigation = memo(function Navigation({
           ⋯
         </button>
 
-        {currentMediaFile?.media_type === "video" && <FullscreenButton currentMediaFile={currentMediaFile} />}
+        {currentMediaFile?.media_type === "video" && (
+          <FullscreenButton currentMediaFile={currentMediaFile} />
+        )}
 
         <div className="directory-name text-gray-200 text-base ml-auto px-4 whitespace-nowrap overflow-hidden text-ellipsis">
           {shortDirectoryName}
