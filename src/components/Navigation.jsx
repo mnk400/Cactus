@@ -106,12 +106,65 @@ const Navigation = memo(function Navigation({
     }
   }, [currentMediaFile]);
 
-  // Extract just the directory name for the navigation bar display
-  const shortDirectoryName = directoryName
-    ? directoryName.split("/").pop() ||
-      directoryName.split("/").slice(-2, -1)[0] ||
-      "Root"
-    : "";
+  // Compute smart display name based on media source and available data
+  const computeDisplayName = () => {
+    if (!currentMediaFile) return "";
+    
+    // For SB (Stash) provider media
+    if (currentMediaFile.file_hash?.startsWith('sb_')) {
+      // For markers, prioritize scene info and performers
+      if (currentMediaFile.sb_type === 'marker') {
+        // Try performer names first
+        if (currentMediaFile.sb_scene_performers?.length > 0) {
+          const performers = currentMediaFile.sb_scene_performers.map(p => p.name).join(', ');
+          return performers.length > 30 ? performers.substring(0, 27) + '...' : performers;
+        }
+        // Fall back to scene title
+        if (currentMediaFile.sb_scene_title) {
+          return currentMediaFile.sb_scene_title.length > 30 
+            ? currentMediaFile.sb_scene_title.substring(0, 27) + '...' 
+            : currentMediaFile.sb_scene_title;
+        }
+        // Fall back to studio name
+        if (currentMediaFile.sb_scene_studio?.name) {
+          return currentMediaFile.sb_scene_studio.name;
+        }
+      } else {
+        // For regular images/videos, try performers first
+        if (currentMediaFile.sb_performers?.length > 0) {
+          const performers = currentMediaFile.sb_performers.map(p => p.name).join(', ');
+          return performers.length > 30 ? performers.substring(0, 27) + '...' : performers;
+        }
+        // Fall back to studio name
+        if (currentMediaFile.sb_studio?.name) {
+          return currentMediaFile.sb_studio.name;
+        }
+        // Fall back to showing the image ID in a more user-friendly way
+        if (currentMediaFile.sb_id) {
+          return `Image #${currentMediaFile.sb_id}`;
+        }
+      }
+      // Final fallback for SB: show "Stash Server"
+      return "Stash Server";
+    }
+    
+    // For local provider media, extract directory name from path
+    if (directoryName) {
+      return directoryName.split("/").pop() ||
+        directoryName.split("/").slice(-2, -1)[0] ||
+        "Root";
+    }
+    
+    // Final fallback: try to extract from file path
+    if (currentMediaFile.file_path) {
+      const pathParts = currentMediaFile.file_path.split("/");
+      return pathParts[pathParts.length - 2] || "Unknown";
+    }
+    
+    return "";
+  };
+
+  const displayName = computeDisplayName();
   const isVideoPlaying = currentMediaFile?.media_type === "video";
 
   return (
@@ -208,8 +261,11 @@ const Navigation = memo(function Navigation({
           <FullscreenButton currentMediaFile={currentMediaFile} />
         )}
 
-        <div className="directory-name text-gray-200 text-base ml-auto px-4 whitespace-nowrap overflow-hidden text-ellipsis">
-          {shortDirectoryName}
+        <div 
+          className="media-source-info text-gray-200 text-base ml-auto px-4 whitespace-nowrap overflow-hidden text-ellipsis"
+          title={displayName}
+        >
+          {displayName}
         </div>
       </div>
     </div>
