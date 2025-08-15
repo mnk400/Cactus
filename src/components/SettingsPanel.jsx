@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { CSSTransition } from "react-transition-group";
 
 import TagFilter from "./TagFilter";
-import PathFilter from "./PathFilter";
+import GeneralFilter from "./GeneralFilter";
 import TagManager from "./TagManager";
 import useTags from "../hooks/useTags";
 
@@ -305,14 +305,14 @@ function SettingsPanel({
             />
           </div>
 
-          {/* Path Filter Section */}
-          <div className="path-filter-section mb-3 sm:mb-4 p-2 sm:p-3 bg-black bg-opacity-40 backdrop-blur-sm rounded-2xl">
+          {/* General Filter Section */}
+          <div className="general-filter-section mb-3 sm:mb-4 p-2 sm:p-3 bg-black bg-opacity-40 backdrop-blur-sm rounded-2xl">
             <div className="flex items-center gap-2 mb-2 sm:mb-3">
               <h4 className="text-sm sm:text-base font-medium text-white m-0">
-                Path Filter
+                General Filter
               </h4>
             </div>
-            <PathFilter onFilterChange={onPathChange} />
+            <GeneralFilter onFilterChange={onPathChange} />
           </div>
 
           {/* Actions Section */}

@@ -225,13 +225,13 @@ class LocalMediaProvider extends MediaSourceProvider {
   }
 
   /**
-   * Get media filtered by path substring
+   * Get media filtered by general filter substring
    * @param {string} substring - Substring to match in file paths
    * @param {string} mediaType - Type of media to retrieve ('image', 'video', or 'all')
    * @param {string} sortBy - Sorting parameter ('random', 'date_added', 'date_created')
    * @returns {Promise<Array>} Array of filtered media items
    */
-  async getMediaByPathSubstring(
+  async getMediaByGeneralFilter(
     substring,
     mediaType = "all",
     sortBy = "random",
@@ -241,14 +241,14 @@ class LocalMediaProvider extends MediaSourceProvider {
     }
 
     try {
-      const files = this.mediaDatabase.getMediaByPathSubstring(substring);
-      log.info("Media files filtered by path substring", {
+      const files = this.mediaDatabase.getMediaByGeneralFilter(substring);
+      log.info("Media files filtered by general filter", {
         substring,
         count: files.length,
       });
       return files;
     } catch (error) {
-      log.error("Failed to get media by path substring", {
+      log.error("Failed to get media by general filter", {
         substring,
         error: error.message,
       });

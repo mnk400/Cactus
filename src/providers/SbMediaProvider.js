@@ -690,17 +690,17 @@ class SbMediaProvider extends MediaSourceProvider {
   }
 
   /**
-   * Get media filtered by path substring - searches across all available fields
+   * Get media filtered by general filter substring - searches across all available fields
    * @param {string} substring - Substring to match in file paths and related fields
    * @param {string} mediaType - Type of media to retrieve
    * @param {string} sortBy - Sorting parameters
    * @returns {Promise<Array>} Array of filtered media items
    */
-  async getMediaByPathSubstring(substring, mediaType, sortBy) {
+  async getMediaByGeneralFilter(substring, mediaType, sortBy) {
     const allMedia = await this.getAllMedia(mediaType, sortBy);
     const searchTerm = substring.toLowerCase();
 
-    log.info("Filtering media by path substring", {
+    log.info("Filtering media by general filter", {
       substring,
       mediaType,
       totalMedia: allMedia.length,

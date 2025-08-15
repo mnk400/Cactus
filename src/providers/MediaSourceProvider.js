@@ -44,15 +44,15 @@ class MediaSourceProvider {
   }
 
   /**
-   * Get media filtered by path substring
+   * Get media filtered by general filter substring
    * @param {string} substring - Substring to match in file paths
    * @param {string} mediaType - Type of media to retrieve ('image', 'video', or 'all')
    * @param {Object} sortBy - Sorting parameters
    * @returns {Promise<Array>} Array of filtered media items
    */
-  async getMediaByPathSubstring(substring, mediaType, sortBy) {
+  async getMediaByGeneralFilter(substring, mediaType, sortBy) {
     throw new Error(
-      "Method getMediaByPathSubstring() must be implemented by subclass",
+      "Method getMediaByGeneralFilter() must be implemented by subclass",
     );
   }
 

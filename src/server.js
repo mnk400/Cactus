@@ -156,8 +156,8 @@ app.get("/api/media", async (req, res) => {
     let files;
 
     if (pathSubstring) {
-      log.info("Filtering media by path substring", { pathSubstring });
-      files = await mediaProvider.getMediaByPathSubstring(
+      log.info("Filtering media by general filter", { pathSubstring });
+      files = await mediaProvider.getMediaByGeneralFilter(
         pathSubstring,
         mediaType,
         sortBy,

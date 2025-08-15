@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-const PathFilter = ({ onFilterChange }) => {
+const GeneralFilter = ({ onFilterChange }) => {
   const [substring, setSubstring] = useState("");
 
   const handleFilterClick = () => {
@@ -26,4 +26,4 @@ const PathFilter = ({ onFilterChange }) => {
   );
 };
 
-export default PathFilter;
+export default GeneralFilter;

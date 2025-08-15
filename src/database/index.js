@@ -405,9 +405,9 @@ class MediaDatabase {
   }
 
   /**
-   * Get media files by path substring.
+   * Get media files by general filter substring.
    */
-  getMediaByPathSubstring(substring) {
+  getMediaByGeneralFilter(substring) {
     if (!this.isInitialized) {
       throw new Error("Database not initialized");
     }
@@ -419,7 +419,7 @@ class MediaDatabase {
       const rows = stmt.all(`%${substring}%`);
       return rows;
     } catch (error) {
-      log.error("Failed to get media by path substring", {
+      log.error("Failed to get media by general filter", {
         substring,
         error: error.message,
       });
