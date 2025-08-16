@@ -2,8 +2,24 @@ import React, { useState, useEffect, useRef } from "react";
 
 function VideoProgressBar({ videoElement }) {
   const [progress, setProgress] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
   const videoRef = useRef(null);
+
+  // Helper function to format time in MM:SS or HH:MM:SS format
+  const formatTime = (timeInSeconds) => {
+    if (isNaN(timeInSeconds) || timeInSeconds < 0) return "0:00";
+
+    const hours = Math.floor(timeInSeconds / 3600);
+    const minutes = Math.floor((timeInSeconds % 3600) / 60);
+    const seconds = Math.floor(timeInSeconds % 60);
+
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
 
   useEffect(() => {
     // Clean up previous video element
@@ -23,6 +39,8 @@ function VideoProgressBar({ videoElement }) {
           setProgress(
             isNaN(progress) ? 0 : Math.min(100, Math.max(0, progress)),
           );
+          setCurrentTime(videoElement.currentTime);
+          setDuration(videoElement.duration);
         }
       };
 
@@ -34,6 +52,8 @@ function VideoProgressBar({ videoElement }) {
           setProgress(
             isNaN(progress) ? 0 : Math.min(100, Math.max(0, progress)),
           );
+          setCurrentTime(videoElement.currentTime);
+          setDuration(videoElement.duration);
         }
       };
 
@@ -47,6 +67,8 @@ function VideoProgressBar({ videoElement }) {
       const handleLoadStart = () => {
         // Reset progress when video starts loading
         setProgress(0);
+        setCurrentTime(0);
+        setDuration(0);
       };
 
       // Add event listeners
@@ -77,6 +99,8 @@ function VideoProgressBar({ videoElement }) {
     } else {
       setIsVisible(false);
       setProgress(0);
+      setCurrentTime(0);
+      setDuration(0);
       videoRef.current = null;
     }
   }, [videoElement]);
@@ -100,15 +124,25 @@ function VideoProgressBar({ videoElement }) {
 
   if (!isVisible) return null;
 
+  const remainingTime = duration - currentTime;
+
   return (
-    <div
-      className="video-progress-container w-full h-3 bg-black-shades-600 rounded-full overflow-hidden cursor-pointer"
-      onClick={handleProgressClick}
-    >
+    <div className="video-progress-wrapper w-full flex items-center gap-3">
+      <span className="current-time text-sm text-white min-w-fit">
+        {formatTime(currentTime)}
+      </span>
       <div
-        className="video-progress-bar h-full bg-white rounded-full transition-width duration-100 ease-linear"
-        style={{ width: `${progress}%` }}
-      />
+        className="video-progress-container flex-1 h-3 bg-black-shades-600 rounded-full overflow-hidden cursor-pointer"
+        onClick={handleProgressClick}
+      >
+        <div
+          className="video-progress-bar h-full bg-white rounded-full transition-width duration-100 ease-linear"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+      <div className="time-info flex gap-2 text-sm text-white min-w-fit">
+        <span className="remaining-time">-{formatTime(remainingTime)}</span>
+      </div>
     </div>
   );
 }
