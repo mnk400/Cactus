@@ -26,7 +26,27 @@ const MediaItem = memo(function MediaItem({
 
     const preloadedMedia = getPreloadedMedia(index);
     if (preloadedMedia) {
-      setIsLoading(false);
+      // For videos, check if they're sufficiently buffered
+      if (mediaFile.media_type === "video" && preloadedMedia.tagName === "VIDEO") {
+        if (preloadedMedia.readyState >= 3) { // HAVE_FUTURE_DATA or higher
+          setIsLoading(false);
+        } else {
+          // Wait for the video to buffer more
+          const handleCanPlay = () => {
+            setIsLoading(false);
+            preloadedMedia.removeEventListener("canplay", handleCanPlay);
+          };
+          preloadedMedia.addEventListener("canplay", handleCanPlay);
+          
+          // Fallback timeout
+          setTimeout(() => {
+            setIsLoading(false);
+            preloadedMedia.removeEventListener("canplay", handleCanPlay);
+          }, 1000);
+        }
+      } else {
+        setIsLoading(false);
+      }
     }
   }, [isActive, index, getPreloadedMedia, mediaFile]);
 
@@ -145,6 +165,11 @@ const VideoPlayer = memo(function VideoPlayer({
     onLoadingChange(false);
   }, [onLoadingChange]);
 
+  const handleCanPlayThrough = useCallback(() => {
+    // Video is ready to play without interruption
+    onLoadingChange(false);
+  }, [onLoadingChange]);
+
   const handleLoadStart = useCallback(() => {
     onLoadingChange(true);
   }, [onLoadingChange]);
@@ -173,15 +198,22 @@ const VideoPlayer = memo(function VideoPlayer({
 
     // Check if video is already loaded when component mounts
     const checkIfLoaded = () => {
-      if (video.readyState >= 2) {
-        // HAVE_CURRENT_DATA or higher
+      if (video.readyState >= 3) {
+        // HAVE_FUTURE_DATA or higher - can play without stalling
         onLoadingChange(false);
+      } else if (video.readyState >= 2) {
+        // HAVE_CURRENT_DATA - has data but might stall
+        // Give it a moment to buffer more, then allow playback
+        setTimeout(() => {
+          onLoadingChange(false);
+        }, 200);
       }
     };
 
     video.addEventListener("play", handlePlay);
     video.addEventListener("pause", handlePause);
     video.addEventListener("loadeddata", handleLoadedData);
+    video.addEventListener("canplaythrough", handleCanPlayThrough);
     video.addEventListener("loadstart", handleLoadStart);
     video.addEventListener("error", handleError);
 
@@ -192,6 +224,7 @@ const VideoPlayer = memo(function VideoPlayer({
       video.removeEventListener("play", handlePlay);
       video.removeEventListener("pause", handlePause);
       video.removeEventListener("loadeddata", handleLoadedData);
+      video.removeEventListener("canplaythrough", handleCanPlayThrough);
       video.removeEventListener("loadstart", handleLoadStart);
       video.removeEventListener("error", handleError);
     };
@@ -199,6 +232,7 @@ const VideoPlayer = memo(function VideoPlayer({
     handlePlay,
     handlePause,
     handleLoadedData,
+    handleCanPlayThrough,
     handleLoadStart,
     handleError,
     onLoadingChange,
@@ -234,7 +268,7 @@ const VideoPlayer = memo(function VideoPlayer({
         loop
         muted
         playsInline
-        preload="metadata"
+        preload="auto"
         className={`max-h-full max-w-full object-cover cursor-pointer ${isPaused ? "filter brightness-50" : ""} ${isLoading ? "opacity-0" : "opacity-100"} transition-opacity duration-300`}
         onClick={togglePlayPause}
         onError={() => console.error("Video load error:", mediaFile.file_path)}

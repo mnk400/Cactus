@@ -51,14 +51,38 @@ export function useMediaPreloader(mediaFiles, currentIndex) {
         } else if (mediaFile.media_type === "video") {
           const video = document.createElement("video");
           const loadPromise = new Promise((resolve, reject) => {
-            video.onloadedmetadata = () => {
-              if (!abortController.signal.aborted) {
+            let hasResolved = false;
+
+            // Use canplaythrough for better buffering - video can play without interruption
+            const handleCanPlayThrough = () => {
+              if (!abortController.signal.aborted && !hasResolved) {
+                hasResolved = true;
                 preloadedMedia.current.set(index, video);
                 loadingPromises.current.delete(index);
                 abortControllers.current.delete(index);
                 resolve(video);
               }
             };
+
+            // Fallback to loadeddata if canplaythrough takes too long
+            const handleLoadedData = () => {
+              if (!abortController.signal.aborted && !hasResolved) {
+                // Wait a bit more for buffering, but don't wait forever
+                setTimeout(() => {
+                  if (!hasResolved && !abortController.signal.aborted) {
+                    hasResolved = true;
+                    preloadedMedia.current.set(index, video);
+                    loadingPromises.current.delete(index);
+                    abortControllers.current.delete(index);
+                    resolve(video);
+                  }
+                }, 500); // 500ms timeout for additional buffering
+              }
+            };
+
+            video.addEventListener("canplaythrough", handleCanPlayThrough);
+            video.addEventListener("loadeddata", handleLoadedData);
+            
             video.onerror = () => {
               loadingPromises.current.delete(index);
               abortControllers.current.delete(index);
@@ -66,6 +90,8 @@ export function useMediaPreloader(mediaFiles, currentIndex) {
             };
 
             abortController.signal.addEventListener("abort", () => {
+              video.removeEventListener("canplaythrough", handleCanPlayThrough);
+              video.removeEventListener("loadeddata", handleLoadedData);
               video.src = "";
               video.load();
               loadingPromises.current.delete(index);
@@ -76,9 +102,12 @@ export function useMediaPreloader(mediaFiles, currentIndex) {
 
           loadingPromises.current.set(index, loadPromise);
           video.src = `/media?path=${encodeURIComponent(mediaFile.file_path)}`;
-          video.preload = "metadata";
+          video.preload = "auto"; // Changed from "metadata" to "auto" for better buffering
           video.setAttribute("playsinline", "");
           video.muted = true;
+          
+          // Start loading immediately
+          video.load();
         }
       });
     },
@@ -86,11 +115,24 @@ export function useMediaPreloader(mediaFiles, currentIndex) {
   );
 
   const cleanupPreloadedMedia = useCallback(() => {
+    const currentMedia = mediaFiles[currentIndex];
     const keepIndices = new Set([
       currentIndex - 1,
       currentIndex,
       currentIndex + 1,
     ]);
+
+    // If current media is video, keep more preloaded videos
+    if (currentMedia?.media_type === "video") {
+      for (let i = 2; i <= 4; i++) {
+        const lookAheadIndex = (currentIndex + i) % mediaFiles.length;
+        const lookAheadMedia = mediaFiles[lookAheadIndex];
+        if (lookAheadMedia?.media_type === "video") {
+          keepIndices.add(lookAheadIndex);
+          break; // Only keep the next video
+        }
+      }
+    }
 
     // Cancel loading promises for items we don't need
     for (const [index, abortController] of abortControllers.current.entries()) {
@@ -111,16 +153,33 @@ export function useMediaPreloader(mediaFiles, currentIndex) {
         preloadedMedia.current.delete(index);
       }
     }
-  }, [currentIndex]);
+  }, [currentIndex, mediaFiles]);
 
   // Preload adjacent media when currentIndex changes
   useEffect(() => {
     if (mediaFiles.length === 0) return;
 
-    const preloadIndices = [
-      (currentIndex + 1) % mediaFiles.length,
-      (currentIndex - 1 + mediaFiles.length) % mediaFiles.length,
-    ];
+    const currentMedia = mediaFiles[currentIndex];
+    const nextIndex = (currentIndex + 1) % mediaFiles.length;
+    const prevIndex = (currentIndex - 1 + mediaFiles.length) % mediaFiles.length;
+    
+    // Always preload next and previous
+    const preloadIndices = [nextIndex, prevIndex];
+    
+    // If current media is video, also preload the next video more aggressively
+    // Right now it's set to 2 to save on bandwit but ngl this provides a 
+    // better UX even if it's data intensive 
+    if (currentMedia?.media_type === "video") {
+      // Look ahead for more videos to preload
+      for (let i = 1; i <= 2; i++) {
+        const lookAheadIndex = (currentIndex + i) % mediaFiles.length;
+        const lookAheadMedia = mediaFiles[lookAheadIndex];
+        if (lookAheadMedia?.media_type === "video" && !preloadIndices.includes(lookAheadIndex)) {
+          preloadIndices.push(lookAheadIndex);
+          break; // Only preload the next video
+        }
+      }
+    }
 
     preloadMedia(preloadIndices);
     cleanupPreloadedMedia();
