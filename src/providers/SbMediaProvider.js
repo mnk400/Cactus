@@ -328,7 +328,6 @@ class SbMediaProvider extends MediaSourceProvider {
 
     // Generate a hash-like ID from the sb ID
     const fileHash = `sb_${sbImage.id}`;
-
     return {
       id: parseInt(sbImage.id),
       file_hash: fileHash,
@@ -337,7 +336,7 @@ class SbMediaProvider extends MediaSourceProvider {
       filename: sbImage.title || `Image ${sbImage.id}`,
       file_size: visualFile?.size || 0,
       media_type: isVideo ? "video" : "image",
-      thumbnail_path: sbImage.paths?.thumbnail,
+      thumbnail_path: sbImage.paths?.preview || sbImage.paths?.thumbnail,
       date_added: sbImage.created_at,
       date_created: sbImage.date || sbImage.created_at,
       date_modified: sbImage.updated_at,

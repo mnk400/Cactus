@@ -297,35 +297,62 @@ function GalleryView({
 // Optimized gallery item component with memoization
 const GalleryItem = React.memo(
   ({ file, index, x, y, size, isSelected, onSelect }) => {
-    const [imageLoaded, setImageLoaded] = useState(false);
-    const [imageError, setImageError] = useState(false);
-    const imgRef = useRef(null);
+    const [mediaLoaded, setMediaLoaded] = useState(false);
+    const [mediaError, setMediaError] = useState(false);
+    const [isVideo, setIsVideo] = useState(false);
+    const [mediaTypeChecked, setMediaTypeChecked] = useState(false);
+    const mediaRef = useRef(null);
 
     const handleClick = useCallback(() => {
       onSelect(index);
     }, [index, onSelect]);
 
-    const handleImageLoad = useCallback(() => {
-      setImageLoaded(true);
+    const handleMediaLoad = useCallback(() => {
+      setMediaLoaded(true);
     }, []);
 
-    const handleImageError = useCallback(() => {
-      setImageError(true);
+    const handleMediaError = useCallback(() => {
+      setMediaError(true);
     }, []);
+
+    // Check if thumbnail is a video by making a HEAD request
+    useEffect(() => {
+      const checkMediaType = async () => {
+        setMediaTypeChecked(false);
+        setMediaLoaded(false);
+        setMediaError(false);
+
+        try {
+          const response = await fetch(`/thumbnails?hash=${file.file_hash}`, {
+            method: 'HEAD'
+          });
+
+          const contentType = response.headers.get('content-type');
+          const isVideoContent = contentType && contentType.startsWith('video/');
+
+          setIsVideo(isVideoContent);
+          setMediaTypeChecked(true);
+        } catch (error) {
+          setIsVideo(false);
+          setMediaTypeChecked(true);
+        }
+      };
+
+      checkMediaType();
+    }, [file.file_hash]);
 
     // Reset states when file changes
     useEffect(() => {
-      setImageLoaded(false);
-      setImageError(false);
+      setMediaLoaded(false);
+      setMediaError(false);
     }, [file.file_hash]);
 
     return (
       <div
-        className={`absolute rounded-xl overflow-hidden cursor-pointer transition-all duration-200 hover:scale-105 border-4 ${
-          isSelected
-            ? "border-blue-500 shadow-lg shadow-blue-500/50"
-            : "border-transparent hover:border-gray-600"
-        }`}
+        className={`absolute rounded-xl overflow-hidden cursor-pointer transition-all duration-200 hover:scale-105 border-4 ${isSelected
+          ? "border-blue-500 shadow-lg shadow-blue-500/50"
+          : "border-transparent hover:border-gray-600"
+          }`}
         style={{
           left: x,
           top: y,
@@ -335,25 +362,43 @@ const GalleryItem = React.memo(
         }}
         onClick={handleClick}
       >
-        {!imageError ? (
+        {!mediaTypeChecked ? (
+          <div className="absolute inset-0 bg-gray-800 animate-pulse flex items-center justify-center">
+            <div className="w-8 h-8 border-2 border-gray-600 border-t-gray-400 rounded-full animate-spin" />
+          </div>
+        ) : !mediaError ? (
           <>
-            {!imageLoaded && (
+            {!mediaLoaded && (
               <div className="absolute inset-0 bg-gray-800 animate-pulse flex items-center justify-center">
                 <div className="w-8 h-8 border-2 border-gray-600 border-t-gray-400 rounded-full animate-spin" />
               </div>
             )}
-            <img
-              ref={imgRef}
-              src={`/thumbnails?hash=${file.file_hash}`}
-              alt={`media-${index}`}
-              className={`w-full h-full object-cover transition-opacity duration-300 ${
-                imageLoaded ? "opacity-100" : "opacity-0"
-              }`}
-              onLoad={handleImageLoad}
-              onError={handleImageError}
-              loading="lazy"
-              decoding="async"
-            />
+            {isVideo ? (
+              <video
+                ref={mediaRef}
+                src={`/thumbnails?hash=${file.file_hash}`}
+                className={`w-full h-full object-cover transition-opacity duration-300 ${mediaLoaded ? "opacity-100" : "opacity-0"
+                  }`}
+                onLoadedData={handleMediaLoad}
+                onError={handleMediaError}
+                muted
+                loop
+                autoPlay
+                playsInline
+              />
+            ) : (
+              <img
+                ref={mediaRef}
+                src={`/thumbnails?hash=${file.file_hash}`}
+                alt={`media-${index}`}
+                className={`w-full h-full object-cover transition-opacity duration-300 ${mediaLoaded ? "opacity-100" : "opacity-0"
+                  }`}
+                onLoad={handleMediaLoad}
+                onError={handleMediaError}
+                loading="lazy"
+                decoding="async"
+              />
+            )}
           </>
         ) : (
           <div className="w-full h-full bg-gray-800 flex items-center justify-center">
