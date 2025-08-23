@@ -18,99 +18,122 @@ function GalleryView({
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const isVisible = style?.display !== "none";
 
-  // Use scrollPosition as the single source of truth
-  const currentScrollTop = scrollPosition || 0;
+  // Track scroll position for virtualization only
+  const [actualScrollTop, setActualScrollTop] = useState(0);
 
-  // Track actual scroll position for virtualization
-  const [actualScrollTop, setActualScrollTop] = useState(currentScrollTop);
-
-  // Responsive item sizing - ensure at least 2 rows on mobile
-  const getResponsiveItemSize = useCallback(() => {
-    if (!containerSize.width || !containerSize.height)
-      return { itemSize: 256, gap: 16, padding: 20 };
+  // Responsive column sizing for masonry layout
+  const getMasonryConfig = useCallback(() => {
+    if (!containerSize.width) return { columnWidth: 250, gap: 16, padding: 20, columns: 1 };
 
     const isMobile = containerSize.width < 768;
     const gap = isMobile ? 12 : 16;
     const padding = isMobile ? 16 : 20;
 
-    if (isMobile) {
-      // On mobile, calculate item size to fit at least 2 rows comfortably
-      const availableHeight = containerSize.height - padding * 2;
-      const minRows = 2;
-      const maxItemSize = Math.floor(
-        (availableHeight - gap * (minRows - 1)) / minRows,
-      );
+    // Calculate optimal column width and count
+    const availableWidth = containerSize.width - padding * 2;
+    const minColumnWidth = isMobile ? 150 : 200;
+    const maxColumnWidth = isMobile ? 250 : 300;
 
-      const availableWidth = containerSize.width - padding * 2;
-      const minItemsPerRow = 2;
-      const maxItemSizeByWidth = Math.floor(
-        (availableWidth - gap * (minItemsPerRow - 1)) / minItemsPerRow,
-      );
+    let columns = Math.floor(availableWidth / (minColumnWidth + gap));
+    columns = Math.max(2, Math.min(columns, isMobile ? 3 : 6)); // 2-3 cols mobile, 2-6 desktop
 
-      const itemSize = Math.min(maxItemSize, maxItemSizeByWidth, 200); // Cap at 200px for mobile
-      return { itemSize: Math.max(itemSize, 120), gap, padding }; // Minimum 120px
+    const columnWidth = Math.min(
+      maxColumnWidth,
+      Math.floor((availableWidth - gap * (columns - 1)) / columns)
+    );
+
+    return { columnWidth, gap, padding, columns };
+  }, [containerSize.width]);
+
+  const { columnWidth, gap: GAP, padding: PADDING, columns } = getMasonryConfig();
+
+  // Calculate item height based on aspect ratio with some randomization for variety
+  const calculateItemHeight = useCallback((file, width) => {
+    // Use file hash to generate consistent but varied heights
+    const hash = file.file_hash || file.file_path;
+    let hashNum = 0;
+    for (let i = 0; i < Math.min(hash.length, 8); i++) {
+      hashNum += hash.charCodeAt(i);
     }
 
-    return { itemSize: 256, gap, padding };
-  }, [containerSize]);
+    // Create aspect ratios that feel natural (portrait, square, landscape)
+    const aspectRatios = [0.75, 0.8, 1.0, 1.2, 1.33, 1.5]; // More portrait/square heavy
+    const aspectRatio = aspectRatios[hashNum % aspectRatios.length];
 
-  const {
-    itemSize: ITEM_SIZE,
-    gap: GAP,
-    padding: PADDING,
-  } = getResponsiveItemSize();
+    return Math.floor(width / aspectRatio);
+  }, []);
 
-  // Calculate grid dimensions using the actual scroll position
-  const { itemsPerRow, totalRows, visibleRange, totalHeight } = useMemo(() => {
-    if (!containerSize.width || !mediaFiles.length) {
+  // Masonry layout calculation with virtualization
+  const masonryLayout = useMemo(() => {
+    if (!containerSize.width || !mediaFiles.length || !columns) {
       return {
-        itemsPerRow: 0,
-        totalRows: 0,
-        visibleRange: { start: 0, end: 0 },
+        items: [],
         totalHeight: 0,
+        visibleRange: { start: 0, end: 0 },
+        columnHeights: []
       };
     }
 
-    const availableWidth = containerSize.width - PADDING * 2;
-    const itemsPerRow = Math.max(
-      1,
-      Math.floor((availableWidth + GAP) / (ITEM_SIZE + GAP)),
-    );
-    const totalRows = Math.ceil(mediaFiles.length / itemsPerRow);
-    const rowHeight = ITEM_SIZE + GAP;
-    const totalHeight = totalRows * rowHeight + PADDING * 2;
+    const items = [];
+    const columnHeights = new Array(columns).fill(PADDING);
 
-    // Calculate visible range with buffer using actual scroll position
-    const visibleHeight = containerSize.height;
-    const buffer = 3;
-    const startRow = Math.max(
-      0,
-      Math.floor(actualScrollTop / rowHeight) - buffer,
-    );
-    const endRow = Math.min(
-      totalRows - 1,
-      Math.ceil((actualScrollTop + visibleHeight) / rowHeight) + buffer,
+    // Calculate positions for all items
+    mediaFiles.forEach((file, index) => {
+      const height = calculateItemHeight(file, columnWidth);
+
+      // Find shortest column
+      const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
+
+      const x = PADDING + shortestColumnIndex * (columnWidth + GAP);
+      const y = columnHeights[shortestColumnIndex];
+
+      items.push({
+        index,
+        file,
+        x,
+        y,
+        width: columnWidth,
+        height,
+        isSelected: index === currentIndex,
+      });
+
+      // Update column height
+      columnHeights[shortestColumnIndex] += height + GAP;
+    });
+
+    const totalHeight = Math.max(...columnHeights) + PADDING;
+
+    // Calculate visible range with buffer
+    const buffer = 500; // pixels buffer
+    const visibleStart = Math.max(0, actualScrollTop - buffer);
+    const visibleEnd = actualScrollTop + containerSize.height + buffer;
+
+    const visibleItems = items.filter(item =>
+      item.y + item.height >= visibleStart && item.y <= visibleEnd
     );
 
-    const startIndex = startRow * itemsPerRow;
-    const endIndex = Math.min(
-      mediaFiles.length - 1,
-      (endRow + 1) * itemsPerRow - 1,
-    );
+    const visibleRange = {
+      start: visibleItems.length > 0 ? visibleItems[0].index : 0,
+      end: visibleItems.length > 0 ? visibleItems[visibleItems.length - 1].index : 0
+    };
 
     return {
-      itemsPerRow,
-      totalRows,
-      visibleRange: { start: startIndex, end: endIndex },
+      items: visibleItems,
+      allItems: items,
       totalHeight,
+      visibleRange,
+      columnHeights
     };
   }, [
     containerSize,
+    mediaFiles,
+    currentIndex,
     actualScrollTop,
-    mediaFiles.length,
-    ITEM_SIZE,
+    columns,
+    columnWidth,
     GAP,
     PADDING,
+    calculateItemHeight
   ]);
 
   // Handle container resize and visibility changes
@@ -137,7 +160,6 @@ function GalleryView({
 
     if (containerRef.current) {
       resizeObserver.observe(containerRef.current);
-      // Force size update when component becomes visible
       if (isVisible) {
         updateSize();
       }
@@ -146,74 +168,28 @@ function GalleryView({
     return () => resizeObserver.disconnect();
   }, [isVisible]);
 
-  // Calculate scroll position to center the selected item when returning to gallery
-  const calculateScrollPositionForItem = useCallback(
-    (index) => {
-      if (!containerSize.width || !containerSize.height || !mediaFiles.length)
-        return 0;
-
-      const availableWidth = containerSize.width - PADDING * 2;
-      const itemsPerRow = Math.max(
-        1,
-        Math.floor((availableWidth + GAP) / (ITEM_SIZE + GAP)),
-      );
-      const rowHeight = ITEM_SIZE + GAP;
-
-      const row = Math.floor(index / itemsPerRow);
-      const itemY = PADDING + row * rowHeight;
-
-      // Center the item vertically in the viewport
-      const viewportCenter = containerSize.height / 2;
-      const itemCenter = itemY + ITEM_SIZE / 2;
-
-      return Math.max(0, itemCenter - viewportCenter);
-    },
-    [containerSize, mediaFiles.length, ITEM_SIZE, GAP, PADDING],
-  );
-
-  // Restore scroll position when gallery becomes visible
+  // Simple scroll position save/restore - only when switching views
   useEffect(() => {
-    if (containerRef.current && isVisible) {
-      if (currentScrollTop === 0 && currentIndex > 0) {
-        // If no scroll position is saved, calculate one based on the selected item
-        const calculatedPosition = calculateScrollPositionForItem(currentIndex);
-        containerRef.current.scrollTop = calculatedPosition;
-        setActualScrollTop(calculatedPosition);
-        if (setScrollPosition) {
-          setScrollPosition(calculatedPosition);
-        }
-      } else {
-        // Use the saved scroll position
-        containerRef.current.scrollTop = currentScrollTop;
-        setActualScrollTop(currentScrollTop);
-      }
+    if (!isVisible && containerRef.current && setScrollPosition) {
+      // Save scroll position when leaving gallery view
+      setScrollPosition(containerRef.current.scrollTop);
     }
-  }, [
-    isVisible,
-    currentIndex,
-    currentScrollTop,
-    calculateScrollPositionForItem,
-    setScrollPosition,
-  ]);
+  }, [isVisible, setScrollPosition]);
 
-  // Track scroll position for virtualization without interfering with scrolling
+  // Restore scroll position only once when becoming visible
+  useEffect(() => {
+    if (isVisible && containerRef.current && scrollPosition > 0) {
+      containerRef.current.scrollTop = scrollPosition;
+    }
+  }, [isVisible]); // Only depend on isVisible, not scrollPosition
+
+  // Track scroll position for virtualization - simple and non-interfering
   useEffect(() => {
     if (!isVisible || !containerRef.current) return;
 
-    let ticking = false;
-
-    const updateScrollPosition = () => {
-      if (containerRef.current) {
-        const scrollTop = containerRef.current.scrollTop;
-        setActualScrollTop(scrollTop);
-      }
-      ticking = false;
-    };
-
     const handleScroll = () => {
-      if (!ticking) {
-        requestAnimationFrame(updateScrollPosition);
-        ticking = true;
+      if (containerRef.current) {
+        setActualScrollTop(containerRef.current.scrollTop);
       }
     };
 
@@ -225,67 +201,23 @@ function GalleryView({
     };
   }, [isVisible]);
 
-  // Calculate centering offset
-  const centeringOffset = useMemo(() => {
-    if (!containerSize.width || !itemsPerRow) return 0;
-
-    const gridWidth = itemsPerRow * ITEM_SIZE + (itemsPerRow - 1) * GAP;
-    const availableWidth = containerSize.width - PADDING * 2;
-
-    return Math.max(0, (availableWidth - gridWidth) / 2);
-  }, [containerSize.width, itemsPerRow, ITEM_SIZE, GAP, PADDING]);
-
-  // Generate visible items
-  const visibleItems = useMemo(() => {
-    const items = [];
-    for (
-      let i = visibleRange.start;
-      i <= visibleRange.end && i < mediaFiles.length;
-      i++
-    ) {
-      const file = mediaFiles[i];
-      const row = Math.floor(i / itemsPerRow);
-      const col = i % itemsPerRow;
-
-      const x = PADDING + centeringOffset + col * (ITEM_SIZE + GAP);
-      const y = PADDING + row * (ITEM_SIZE + GAP);
-
-      items.push({
-        index: i,
-        file,
-        x,
-        y,
-        isSelected: i === currentIndex,
-      });
-    }
-    return items;
-  }, [
-    visibleRange,
-    mediaFiles,
-    itemsPerRow,
-    currentIndex,
-    centeringOffset,
-    PADDING,
-    ITEM_SIZE,
-    GAP,
-  ]);
-
   return (
     <div
       ref={containerRef}
       className="gallery-view overflow-auto h-full bg-black"
       style={style}
     >
-      <div className="relative" style={{ height: totalHeight }}>
-        {visibleItems.map(({ index, file, x, y, isSelected }) => (
+      <div className="relative" style={{ height: masonryLayout.totalHeight }}>
+        {masonryLayout.items.map((item) => (
           <GalleryItem
-            key={file.file_hash}
-            file={file}
-            index={index}
-            x={x}
-            y={y}
-            size={ITEM_SIZE}
-            isSelected={isSelected}
+            key={item.file.file_hash}
+            file={item.file}
+            index={item.index}
+            x={item.x}
+            y={item.y}
+            width={item.width}
+            height={item.height}
+            isSelected={item.isSelected}
             onSelect={onSelectMedia}
           />
         ))}
@@ -294,9 +226,9 @@ function GalleryView({
   );
 }
 
-// Optimized gallery item component with memoization
+// Optimized gallery item component with memoization for masonry layout
 const GalleryItem = React.memo(
-  ({ file, index, x, y, size, isSelected, onSelect }) => {
+  ({ file, index, x, y, width, height, isSelected, onSelect }) => {
     const [mediaLoaded, setMediaLoaded] = useState(false);
     const [mediaError, setMediaError] = useState(false);
     const [isVideo, setIsVideo] = useState(false);
@@ -349,28 +281,27 @@ const GalleryItem = React.memo(
 
     return (
       <div
-        className={`absolute rounded-xl overflow-hidden cursor-pointer transition-all duration-200 hover:scale-105 border-4 ${isSelected
-          ? "border-blue-500 shadow-lg shadow-blue-500/50"
+        className={`absolute rounded-lg overflow-hidden cursor-pointer transition-all duration-200 hover:scale-[1.02] border-2 ${isSelected
+          ? "border-blue-500 shadow-lg shadow-blue-500/30 scale-[1.02]"
           : "border-transparent hover:border-gray-600"
           }`}
         style={{
           left: x,
           top: y,
-          width: size,
-          height: size,
-          transform: isSelected ? "scale(1.02)" : "scale(1)",
+          width: width,
+          height: height,
         }}
         onClick={handleClick}
       >
         {!mediaTypeChecked ? (
           <div className="absolute inset-0 bg-gray-800 animate-pulse flex items-center justify-center">
-            <div className="w-8 h-8 border-2 border-gray-600 border-t-gray-400 rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-gray-600 border-t-gray-400 rounded-full animate-spin" />
           </div>
         ) : !mediaError ? (
           <>
             {!mediaLoaded && (
               <div className="absolute inset-0 bg-gray-800 animate-pulse flex items-center justify-center">
-                <div className="w-8 h-8 border-2 border-gray-600 border-t-gray-400 rounded-full animate-spin" />
+                <div className="w-6 h-6 border-2 border-gray-600 border-t-gray-400 rounded-full animate-spin" />
               </div>
             )}
             {isVideo ? (
@@ -402,7 +333,7 @@ const GalleryItem = React.memo(
           </>
         ) : (
           <div className="w-full h-full bg-gray-800 flex items-center justify-center">
-            <div className="text-gray-500 text-sm">Failed to load</div>
+            <div className="text-gray-500 text-xs">Failed to load</div>
           </div>
         )}
       </div>
