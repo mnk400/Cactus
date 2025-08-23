@@ -26,6 +26,7 @@ function SettingsPanel({
   sortBy,
   onSortByChange,
   providerType = "local",
+  pathSubstring = "",
 }) {
   const [showTagManager, setShowTagManager] = useState(false);
   const { tags, createTag, updateTag, deleteTag } = useTags();
@@ -312,7 +313,10 @@ function SettingsPanel({
                 General Filter
               </h4>
             </div>
-            <GeneralFilter onFilterChange={onPathChange} />
+            <GeneralFilter
+              onFilterChange={onPathChange}
+              initialValue={pathSubstring || ""}
+            />
           </div>
 
           {/* Actions Section */}
@@ -341,11 +345,10 @@ function SettingsPanel({
                 <button
                   onClick={onRescan}
                   disabled={isScanning || isRegeneratingThumbnails}
-                  className={`rescan-btn w-full flex items-center justify-center gap-2 border-none py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl cursor-pointer text-xs sm:text-sm font-medium transition-all duration-200 ease-in-out active:scale-95 ${
-                    isScanning || isRegeneratingThumbnails
+                  className={`rescan-btn w-full flex items-center justify-center gap-2 border-none py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl cursor-pointer text-xs sm:text-sm font-medium transition-all duration-200 ease-in-out active:scale-95 ${isScanning || isRegeneratingThumbnails
                       ? "bg-black bg-opacity-50 text-gray-500 cursor-not-allowed opacity-50"
                       : "bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-white shadow-lg hover:shadow-xl"
-                  }`}
+                    }`}
                 >
                   {isScanning ? (
                     <>
@@ -365,11 +368,10 @@ function SettingsPanel({
                 <button
                   onClick={onRegenerateThumbnails}
                   disabled={isScanning || isRegeneratingThumbnails}
-                  className={`w-full flex items-center justify-center gap-2 border-none py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl cursor-pointer text-xs sm:text-sm font-medium transition-all duration-200 ease-in-out active:scale-95 ${
-                    isScanning || isRegeneratingThumbnails
+                  className={`w-full flex items-center justify-center gap-2 border-none py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl cursor-pointer text-xs sm:text-sm font-medium transition-all duration-200 ease-in-out active:scale-95 ${isScanning || isRegeneratingThumbnails
                       ? "bg-black bg-opacity-50 text-gray-500 cursor-not-allowed opacity-50"
                       : "bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-white shadow-lg hover:shadow-xl"
-                  }`}
+                    }`}
                 >
                   {isRegeneratingThumbnails ? (
                     <>

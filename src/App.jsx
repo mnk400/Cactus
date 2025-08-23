@@ -13,20 +13,37 @@ import { useMediaFiles } from "./hooks/useMediaFiles";
 import { useKeyboardNavigation } from "./hooks/useKeyboardNavigation";
 import { useFavorite } from "./hooks/useFavorite";
 import { useConfig } from "./hooks/useConfig";
+import { useURLSettings } from "./hooks/useURLSettings";
+import useTags from "./hooks/useTags";
 
 function App() {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [currentMediaType, setCurrentMediaType] = useState("all");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [showTagInput, setShowTagInput] = useState(false);
-  const [debugMode, setDebugMode] = useState(false);
-  const [selectedTags, setSelectedTags] = useState([]);
-  const [excludedTags, setExcludedTags] = useState([]);
-  const [pathSubstring, setPathSubstring] = useState("");
-  const [sortBy, setSortBy] = useState("random");
   const [tagUpdateTrigger, setTagUpdateTrigger] = useState(0);
-  const [isGalleryView, setIsGalleryView] = useState(false);
   const [galleryScrollPosition, setGalleryScrollPosition] = useState(0);
+
+  // Get available tags for URL resolution
+  const { tags } = useTags();
+  
+  // URL-based settings management
+  const { 
+    settings: urlSettings, 
+    updateSettings, 
+    updateSetting,
+    isInitialized 
+  } = useURLSettings(tags);
+
+  // Extract settings from URL hook
+  const {
+    mediaType: currentMediaType,
+    sortBy,
+    selectedTags,
+    excludedTags,
+    pathFilter: pathSubstring,
+    galleryView: isGalleryView,
+    debug: debugMode
+  } = urlSettings;
 
   const {
     mediaFiles,
@@ -57,16 +74,27 @@ function App() {
     }
   }, [mediaFiles, currentIndex]);
 
+  // Apply URL settings when initialized and tags are loaded
+  useEffect(() => {
+    if (isInitialized && tags.length >= 0) {
+      // Apply initial filters from URL
+      applyFilters(
+        currentMediaType,
+        selectedTags,
+        excludedTags,
+        pathSubstring,
+        sortBy
+      );
+    }
+  }, [isInitialized, tags.length]);
+
   // Enable debug mode with URL parameter or localStorage
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const debugParam = urlParams.get("debug");
     const debugStorage = localStorage.getItem("cactus-debug");
-
-    if (debugParam === "true" || debugStorage === "true") {
-      setDebugMode(true);
+    if (debugStorage === "true" && !debugMode) {
+      updateSetting('debug', true, { replace: true });
     }
-  }, []);
+  }, [debugMode, updateSetting]);
 
   // Memoized navigation handler
   const handleNavigation = useCallback(
@@ -95,26 +123,26 @@ function App() {
   const handleMediaTypeChange = async (mediaType) => {
     if (mediaType === currentMediaType) return;
 
-    setCurrentMediaType(mediaType);
+    updateSetting('mediaType', mediaType);
     setCurrentIndex(0);
     await applyFilters(mediaType, selectedTags, excludedTags, pathSubstring);
     setIsSettingsOpen(false);
   };
 
   const handleTagsChange = async (tags) => {
-    setSelectedTags(tags);
+    updateSetting('selectedTags', tags);
     setCurrentIndex(0);
     await applyFilters(currentMediaType, tags, excludedTags, pathSubstring);
   };
 
   const handleExcludedTagsChange = async (tags) => {
-    setExcludedTags(tags);
+    updateSetting('excludedTags', tags);
     setCurrentIndex(0);
     await applyFilters(currentMediaType, selectedTags, tags, pathSubstring);
   };
 
   const handlePathChange = async (substring) => {
-    setPathSubstring(substring);
+    updateSetting('pathFilter', substring);
     setCurrentIndex(0);
     await applyFilters(currentMediaType, selectedTags, excludedTags, substring);
   };
@@ -263,7 +291,7 @@ function App() {
             directoryName={directoryPath}
             isFavorited={isFavorited}
             onToggleFavorite={toggleFavorite}
-            onToggleGalleryView={() => setIsGalleryView(!isGalleryView)}
+            onToggleGalleryView={() => updateSetting('galleryView', !isGalleryView)}
             isGalleryView={isGalleryView}
           />
         )}
@@ -298,8 +326,9 @@ function App() {
           isRegeneratingThumbnails={isRegeneratingThumbnails}
           sortBy={sortBy}
           providerType={config.provider?.type || "local"}
+          pathSubstring={pathSubstring}
           onSortByChange={async (newSortBy) => {
-            setSortBy(newSortBy);
+            updateSetting('sortBy', newSortBy);
             await applyFilters(
               currentMediaType,
               selectedTags,

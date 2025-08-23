@@ -1,7 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
-const GeneralFilter = ({ onFilterChange }) => {
-  const [substring, setSubstring] = useState("");
+const GeneralFilter = ({ onFilterChange, initialValue = "" }) => {
+  const [substring, setSubstring] = useState(initialValue);
+
+  // Update local state when initialValue changes (from URL)
+  useEffect(() => {
+    setSubstring(initialValue);
+  }, [initialValue]);
 
   const handleFilterClick = () => {
     onFilterChange(substring);
