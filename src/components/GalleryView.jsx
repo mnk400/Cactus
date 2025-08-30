@@ -47,21 +47,22 @@ function GalleryView({
 
   const { columnWidth, gap: GAP, padding: PADDING, columns } = getMasonryConfig();
 
-  // Calculate item height based on aspect ratio with some randomization for variety
+  // Store actual image dimensions
+  const [imageDimensions, setImageDimensions] = useState(new Map());
+
+  // Calculate item height based on actual image aspect ratio
   const calculateItemHeight = useCallback((file, width) => {
-    // Use file hash to generate consistent but varied heights
-    const hash = file.file_hash || file.file_path;
-    let hashNum = 0;
-    for (let i = 0; i < Math.min(hash.length, 8); i++) {
-      hashNum += hash.charCodeAt(i);
+    const dimensions = imageDimensions.get(file.file_hash);
+
+    if (dimensions && dimensions.width && dimensions.height) {
+      // Use actual aspect ratio from loaded image
+      const aspectRatio = dimensions.width / dimensions.height;
+      return Math.floor(width / aspectRatio);
     }
 
-    // Create aspect ratios that feel natural (portrait, square, landscape)
-    const aspectRatios = [0.75, 0.8, 1.0, 1.2, 1.33, 1.5]; // More portrait/square heavy
-    const aspectRatio = aspectRatios[hashNum % aspectRatios.length];
-
-    return Math.floor(width / aspectRatio);
-  }, []);
+    // Fallback to a reasonable default aspect ratio while image loads
+    return Math.floor(width / 1.2); // Slightly portrait default
+  }, [imageDimensions]);
 
   // Masonry layout calculation with virtualization
   const masonryLayout = useMemo(() => {
@@ -201,6 +202,15 @@ function GalleryView({
     };
   }, [isVisible]);
 
+  // Handle dimension updates from loaded images
+  const handleDimensionsLoad = useCallback((fileHash, dimensions) => {
+    setImageDimensions(prev => {
+      const newMap = new Map(prev);
+      newMap.set(fileHash, dimensions);
+      return newMap;
+    });
+  }, []);
+
   return (
     <div
       ref={containerRef}
@@ -219,6 +229,7 @@ function GalleryView({
             height={item.height}
             isSelected={item.isSelected}
             onSelect={onSelectMedia}
+            onDimensionsLoad={handleDimensionsLoad}
           />
         ))}
       </div>
@@ -228,7 +239,7 @@ function GalleryView({
 
 // Optimized gallery item component with memoization for masonry layout
 const GalleryItem = React.memo(
-  ({ file, index, x, y, width, height, isSelected, onSelect }) => {
+  ({ file, index, x, y, width, height, isSelected, onSelect, onDimensionsLoad }) => {
     const [mediaLoaded, setMediaLoaded] = useState(false);
     const [mediaError, setMediaError] = useState(false);
     const [isVideo, setIsVideo] = useState(false);
@@ -241,7 +252,23 @@ const GalleryItem = React.memo(
 
     const handleMediaLoad = useCallback(() => {
       setMediaLoaded(true);
-    }, []);
+
+      // Capture actual dimensions for aspect ratio calculation
+      if (mediaRef.current && onDimensionsLoad) {
+        const element = mediaRef.current;
+        if (element.tagName === 'IMG') {
+          onDimensionsLoad(file.file_hash, {
+            width: element.naturalWidth,
+            height: element.naturalHeight
+          });
+        } else if (element.tagName === 'VIDEO') {
+          onDimensionsLoad(file.file_hash, {
+            width: element.videoWidth,
+            height: element.videoHeight
+          });
+        }
+      }
+    }, [file.file_hash, onDimensionsLoad]);
 
     const handleMediaError = useCallback(() => {
       setMediaError(true);
