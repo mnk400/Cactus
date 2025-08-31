@@ -246,7 +246,9 @@ const GalleryItem = React.memo(
     const [mediaTypeChecked, setMediaTypeChecked] = useState(false);
     const mediaRef = useRef(null);
 
-    const handleClick = useCallback(() => {
+    const handleClick = useCallback((e) => {
+      e.preventDefault();
+      e.stopPropagation();
       onSelect(index);
     }, [index, onSelect]);
 
@@ -319,6 +321,14 @@ const GalleryItem = React.memo(
           height: height,
         }}
         onClick={handleClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleClick(e);
+          }
+        }}
       >
         {!mediaTypeChecked ? (
           <div className="absolute inset-0 bg-gray-800 animate-pulse flex items-center justify-center">
@@ -343,6 +353,7 @@ const GalleryItem = React.memo(
                 loop
                 autoPlay
                 playsInline
+                style={{ pointerEvents: 'none' }}
               />
             ) : (
               <img
@@ -355,6 +366,7 @@ const GalleryItem = React.memo(
                 onError={handleMediaError}
                 loading="lazy"
                 decoding="async"
+                style={{ pointerEvents: 'none' }}
               />
             )}
           </>

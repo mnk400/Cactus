@@ -25,13 +25,13 @@ function App() {
 
   // Get available tags for URL resolution
   const { tags } = useTags();
-  
+
   // URL-based settings management
-  const { 
-    settings: urlSettings, 
-    updateSettings, 
+  const {
+    settings: urlSettings,
+    updateSettings,
     updateSetting,
-    isInitialized 
+    isInitialized
   } = useURLSettings(tags);
 
   // Extract settings from URL hook
@@ -236,7 +236,7 @@ function App() {
                   setGalleryScrollPosition(galleryContainer.scrollTop);
                 }
                 setCurrentIndex(index);
-                setIsGalleryView(false);
+                updateSetting('galleryView', false);
               }}
               style={{ display: isGalleryView ? "flex" : "none" }}
               scrollPosition={galleryScrollPosition}
@@ -341,13 +341,15 @@ function App() {
         />
       </div>
 
-      {/* Fixed position tag components */}
-      <TagDisplay
-        currentMediaFile={currentMediaFile}
-        showTagInput={showTagInput}
-        key={tagUpdateTrigger} // Force re-render when tags are updated
-        isVideoPlaying={currentMediaFile?.media_type === "video"}
-      />
+      {/* Fixed position tag components - hidden in gallery view */}
+      {!isGalleryView && (
+        <TagDisplay
+          currentMediaFile={currentMediaFile}
+          showTagInput={showTagInput}
+          key={tagUpdateTrigger} // Force re-render when tags are updated
+          isVideoPlaying={currentMediaFile?.media_type === "video"}
+        />
+      )}
 
       <TagInputModal
         isOpen={showTagInput}
