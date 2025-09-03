@@ -328,12 +328,17 @@ class SbMediaProvider extends MediaSourceProvider {
 
     // Generate a hash-like ID from the sb ID
     const fileHash = `sb_${sbImage.id}`;
+
+    // Use actual disk path as filename, fallback to title or generic name
+    const diskPath = visualFile?.path;
+    const filename = diskPath || sbImage.title || `Image ${sbImage.id}`;
+
     return {
       id: parseInt(sbImage.id),
       file_hash: fileHash,
       file_path:
         sbImage.paths?.image || visualFile?.path || `sb://image/${sbImage.id}`,
-      filename: sbImage.title || `Image ${sbImage.id}`,
+      filename: filename,
       file_size: visualFile?.size || 0,
       media_type: isVideo ? "video" : "image",
       thumbnail_path: sbImage.paths?.preview || sbImage.paths?.thumbnail,
