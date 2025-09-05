@@ -331,13 +331,13 @@ const GalleryItem = React.memo(
         }}
       >
         {!mediaTypeChecked ? (
-          <div className="absolute inset-0 bg-gray-800 animate-pulse flex items-center justify-center">
+          <div className="absolute inset-0 bg-black-shades-800 animate-pulse flex items-center justify-center">
             <div className="w-6 h-6 border-2 border-gray-600 border-t-gray-400 rounded-full animate-spin" />
           </div>
         ) : !mediaError ? (
           <>
             {!mediaLoaded && (
-              <div className="absolute inset-0 bg-gray-800 animate-pulse flex items-center justify-center">
+              <div className="absolute inset-0 bg-black-shades-800 animate-pulse flex items-center justify-center">
                 <div className="w-6 h-6 border-2 border-gray-600 border-t-gray-400 rounded-full animate-spin" />
               </div>
             )}
@@ -371,7 +371,7 @@ const GalleryItem = React.memo(
             )}
           </>
         ) : (
-          <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+          <div className="w-full h-full bg-black-shades-800 flex items-center justify-center">
             <div className="text-gray-500 text-xs">Failed to load</div>
           </div>
         )}

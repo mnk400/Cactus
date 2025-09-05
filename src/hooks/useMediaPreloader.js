@@ -1,9 +1,11 @@
 import { useRef, useEffect, useCallback } from "react";
+import { useVideoSettings } from "./useVideoSettings";
 
 export function useMediaPreloader(mediaFiles, currentIndex) {
   const preloadedMedia = useRef(new Map());
   const loadingPromises = useRef(new Map());
   const abortControllers = useRef(new Map());
+  const { isMuted } = useVideoSettings();
 
   const preloadMedia = useCallback(
     (indices) => {
@@ -111,7 +113,7 @@ export function useMediaPreloader(mediaFiles, currentIndex) {
         }
       });
     },
-    [mediaFiles],
+    [mediaFiles, isMuted],
   );
 
   const cleanupPreloadedMedia = useCallback(() => {

@@ -96,7 +96,7 @@ const TagInput = ({
             <button
               key={tag.id}
               onClick={() => handleSuggestionClick(tag.name)}
-              className={`w-full px-4 py-3 text-left hover:bg-gray-700 focus:outline-none focus:bg-gray-700 transition-colors ${
+              className={`w-full px-4 py-3 text-left hover:bg-black-shades-700 focus:outline-none focus:bg-black-shades-700 transition-colors ${
                 index === selectedIndex ? "bg-blue-600" : ""
               }`}
             >

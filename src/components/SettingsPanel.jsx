@@ -202,7 +202,7 @@ function SettingsPanel({
                     title={`Photos: ${photoPercentage}%`}
                   />
                   <div
-                    className="bg-gray-400 bg-opacity-80"
+                    className="bg-black-shades-400 bg-opacity-80"
                     style={{ width: `${videoPercentage}%` }}
                     title={`Videos: ${videoPercentage}%`}
                   />

@@ -101,7 +101,7 @@ const TagManager = ({
                 className="px-3 py-2 bg-black bg-opacity-50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
               >
                 {colorOptions.map((color) => (
-                  <option key={color} value={color} className="bg-gray-800">
+                  <option key={color} value={color} className="bg-black-shades-800">
                     {color}
                   </option>
                 ))}
@@ -155,7 +155,7 @@ const TagManager = ({
                             <option
                               key={color}
                               value={color}
-                              className="bg-gray-800"
+                              className="bg-black-shades-800"
                             >
                               {color}
                             </option>
@@ -174,7 +174,7 @@ const TagManager = ({
                         <button
                           type="button"
                           onClick={handleCancelEdit}
-                          className="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded-xl transition-colors duration-200 text-sm"
+                          className="px-3 py-1 bg-black-shades-600 hover:bg-black-shades-700 text-white rounded-xl transition-colors duration-200 text-sm"
                         >
                           Cancel
                         </button>

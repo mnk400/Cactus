@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from "react";
+import VideoControls from "./VideoControls";
+import { useVideoSettings } from "../hooks/useVideoSettings";
 
 const MediaItem = memo(function MediaItem({
   mediaFile,
@@ -149,6 +151,8 @@ const VideoPlayer = memo(function VideoPlayer({
 }) {
   const [isPaused, setIsPaused] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
+  const { isMuted, hasUserInteracted, toggleMute, setMuted } = useVideoSettings();
+  const [autoplayFailed, setAutoplayFailed] = useState(false);
 
   // Memoized event handlers
   const handlePlay = useCallback(() => {
@@ -191,6 +195,17 @@ const VideoPlayer = memo(function VideoPlayer({
       video.pause();
     }
   }, [videoRef]);
+
+  // Handle mute toggle with immediate video element update
+  const handleToggleMute = useCallback(() => {
+    const video = videoRef.current;
+    toggleMute(); // Update the state
+    
+    // Immediately update the video element
+    if (video) {
+      video.muted = !isMuted; // Use the opposite of current state since toggleMute will flip it
+    }
+  }, [toggleMute, isMuted, videoRef]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -239,19 +254,47 @@ const VideoPlayer = memo(function VideoPlayer({
     videoRef,
   ]);
 
-  // Auto play/pause based on visibility
+  // Auto play/pause based on visibility and handle autoplay policy
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
     if (isActive) {
-      video.play().catch((err) => {
-        console.error("Failed to play video:", err);
-      });
+      // If user has interacted and chosen to unmute, try unmuted playback
+      if (hasUserInteracted && !isMuted) {
+        video.muted = false;
+        video.play().then(() => {
+          // Success! Video is playing with sound
+          setAutoplayFailed(false);
+        }).catch((err) => {
+          // Autoplay with sound failed, fall back to muted
+          console.log("Autoplay with sound failed, falling back to muted:", err.message);
+          video.muted = true;
+          setAutoplayFailed(true);
+          video.play().catch((mutedErr) => {
+            console.error("Failed to play video even when muted:", mutedErr);
+          });
+        });
+      } else {
+        // Default behavior: start muted (safer for autoplay)
+        video.muted = true;
+        video.play().catch((err) => {
+          console.error("Failed to play muted video:", err);
+        });
+      }
     } else {
       video.pause();
     }
-  }, [isActive, videoRef]);
+  }, [isActive, videoRef, isMuted, hasUserInteracted]);
+
+  // Sync mute state when user toggles it during playback
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !isActive) return;
+    
+    video.muted = isMuted;
+    setAutoplayFailed(false); // Reset autoplay failed state when user changes preference
+  }, [isMuted, isActive]);
 
   return (
     <>
@@ -264,9 +307,9 @@ const VideoPlayer = memo(function VideoPlayer({
         ref={videoRef}
         src={src}
         controls={false}
-        autoPlay={isActive}
+        autoPlay={false} // We handle autoplay manually for better control
         loop
-        muted
+        muted={isMuted}
         playsInline
         preload="auto"
         className={`max-h-full max-w-full object-cover cursor-pointer ${isPaused ? "filter brightness-50" : ""} ${isLoading ? "opacity-0" : "opacity-100"} transition-opacity duration-300`}
@@ -282,6 +325,17 @@ const VideoPlayer = memo(function VideoPlayer({
           <div className="pause-icon text-6xl text-white text-opacity-80">
             &#9616;&#9616;
           </div>
+        </div>
+      )}
+
+      {/* Audio controls - small button in top-left */}
+      {!isLoading && (
+        <div className="absolute top-4 left-4 z-20">
+          <VideoControls
+            isMuted={isMuted}
+            onToggleMute={handleToggleMute}
+            showHint={isMuted && !hasUserInteracted}
+          />
         </div>
       )}
     </>
