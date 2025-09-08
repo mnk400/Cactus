@@ -17,6 +17,7 @@ export function useMediaFiles() {
       excludeTags = [],
       pathSubstring = "",
       sortBy = "random",
+      priorityMediaId = null,
     ) => {
       console.log(`Fetching ${mediaType} media files...`, {
         includeTags,
@@ -50,6 +51,21 @@ export function useMediaFiles() {
         const data = await response.json();
         console.log(`Received ${data.count} ${mediaType} files from server`);
 
+        // If we have a priority media ID, reorder the files to put it first
+        let orderedFiles = data.files;
+        if (priorityMediaId && data.files && data.files.length > 0) {
+          const priorityIndex = data.files.findIndex(file => file.file_hash === priorityMediaId);
+          if (priorityIndex !== -1) {
+            // Move the priority media to the front
+            orderedFiles = [
+              data.files[priorityIndex],
+              ...data.files.slice(0, priorityIndex),
+              ...data.files.slice(priorityIndex + 1)
+            ];
+            console.log(`Reordered files to prioritize media ID: ${priorityMediaId}`);
+          }
+        }
+
         // If we fetched 'all' with no filters, use it for statistics too
         if (
           mediaType === "all" &&
@@ -57,7 +73,7 @@ export function useMediaFiles() {
           excludeTags.length === 0 &&
           !pathSubstring
         ) {
-          setAllMediaFiles(data.files);
+          setAllMediaFiles(orderedFiles);
         } else {
           // Otherwise, fetch all files for statistics (only if we don't have them)
           if (allMediaFiles.length === 0) {
@@ -76,7 +92,7 @@ export function useMediaFiles() {
           }
         }
 
-        if (!data.files || data.files.length === 0) {
+        if (!orderedFiles || orderedFiles.length === 0) {
           const hasFilters =
             includeTags.length > 0 || excludeTags.length > 0 || !!pathSubstring;
           const filterText = hasFilters ? " matching the current filters" : "";
@@ -85,7 +101,7 @@ export function useMediaFiles() {
           return;
         }
 
-        setMediaFiles(data.files);
+        setMediaFiles(orderedFiles);
       } catch (err) {
         setError(err.message);
         setMediaFiles([]);
@@ -103,6 +119,7 @@ export function useMediaFiles() {
       excludeTags = [],
       pathSubstring = "",
       sortBy = "random",
+      priorityMediaId = null,
     ) => {
       console.log(`Filtering media by type: ${mediaType}`, {
         includeTags,
@@ -136,7 +153,22 @@ export function useMediaFiles() {
         const data = await response.json();
         console.log(`Filter response: Found ${data.count} ${mediaType} files`);
 
-        if (!data.files || data.files.length === 0) {
+        // If we have a priority media ID, reorder the files to put it first
+        let orderedFiles = data.files;
+        if (priorityMediaId && data.files && data.files.length > 0) {
+          const priorityIndex = data.files.findIndex(file => file.file_hash === priorityMediaId);
+          if (priorityIndex !== -1) {
+            // Move the priority media to the front
+            orderedFiles = [
+              data.files[priorityIndex],
+              ...data.files.slice(0, priorityIndex),
+              ...data.files.slice(priorityIndex + 1)
+            ];
+            console.log(`Reordered filtered files to prioritize media ID: ${priorityMediaId}`);
+          }
+        }
+
+        if (!orderedFiles || orderedFiles.length === 0) {
           const hasFilters =
             includeTags.length > 0 || excludeTags.length > 0 || !!pathSubstring;
           const filterText = hasFilters ? " matching the current filters" : "";
@@ -145,7 +177,7 @@ export function useMediaFiles() {
           return;
         }
 
-        setMediaFiles(data.files);
+        setMediaFiles(orderedFiles);
       } catch (err) {
         setError(`Failed to load ${mediaType}: ${err.message}`);
         setMediaFiles([]);

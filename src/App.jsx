@@ -14,6 +14,7 @@ import { useKeyboardNavigation } from "./hooks/useKeyboardNavigation";
 import { useFavorite } from "./hooks/useFavorite";
 import { useConfig } from "./hooks/useConfig";
 import { useURLSettings } from "./hooks/useURLSettings";
+import { findMediaIndexByHash } from "./utils/urlParams";
 import useTags from "./hooks/useTags";
 
 function App() {
@@ -42,7 +43,8 @@ function App() {
     excludedTags,
     pathFilter: pathSubstring,
     galleryView: isGalleryView,
-    debug: debugMode
+    debug: debugMode,
+    mediaId
   } = urlSettings;
 
   const {
@@ -64,7 +66,7 @@ function App() {
 
   // Initialize media files on mount
   useEffect(() => {
-    fetchMediaFiles("all");
+    fetchMediaFiles("all", [], [], "", "random", mediaId);
   }, []);
 
   // Reset currentIndex when mediaFiles change to prevent out-of-bounds access
@@ -77,13 +79,14 @@ function App() {
   // Apply URL settings when initialized and tags are loaded
   useEffect(() => {
     if (isInitialized && tags.length >= 0) {
-      // Apply initial filters from URL
+      // Apply initial filters from URL, prioritizing the media ID if present
       applyFilters(
         currentMediaType,
         selectedTags,
         excludedTags,
         pathSubstring,
-        sortBy
+        sortBy,
+        mediaId
       );
     }
   }, [isInitialized, tags.length]);
@@ -96,16 +99,44 @@ function App() {
     }
   }, [debugMode, updateSetting]);
 
+  // Set current index to 0 when media files are loaded with priority media ID
+  useEffect(() => {
+    if (mediaId && mediaFiles.length > 0 && isInitialized) {
+      // If we have a media ID and files are loaded, the priority media should be at index 0
+      if (mediaFiles[0]?.file_hash === mediaId && currentIndex !== 0) {
+        setCurrentIndex(0);
+      }
+    }
+  }, [mediaId, mediaFiles, isInitialized]);
+
+  // Update URL when current media changes (only when not from URL sync)
+  useEffect(() => {
+    if (currentMediaFile && isInitialized && mediaFiles.length > 0) {
+      const currentHash = currentMediaFile.file_hash;
+      if (currentHash && currentHash !== mediaId) {
+        updateSetting('mediaId', currentHash, { replace: true });
+      }
+    }
+  }, [currentIndex, mediaFiles, isInitialized]);
+
   // Memoized navigation handler
   const handleNavigation = useCallback(
     (direction) => {
       if (mediaFiles.length > 0) {
-        setCurrentIndex(
-          (prev) => (prev + direction + mediaFiles.length) % mediaFiles.length,
-        );
+        setCurrentIndex((prevIndex) => {
+          const newIndex = (prevIndex + direction + mediaFiles.length) % mediaFiles.length;
+          
+          // Update URL with new media hash
+          const newMediaFile = mediaFiles[newIndex];
+          if (newMediaFile && newMediaFile.file_hash) {
+            updateSetting('mediaId', newMediaFile.file_hash, { replace: true });
+          }
+          
+          return newIndex;
+        });
       }
     },
-    [mediaFiles.length],
+    [mediaFiles, updateSetting],
   );
 
   // Keyboard navigation
@@ -124,6 +155,8 @@ function App() {
     if (mediaType === currentMediaType) return;
 
     updateSetting('mediaType', mediaType);
+    // Clear media ID when changing filters since the current media might not be in the new filtered set
+    updateSetting('mediaId', '');
     setCurrentIndex(0);
     await applyFilters(mediaType, selectedTags, excludedTags, pathSubstring);
     setIsSettingsOpen(false);
@@ -131,18 +164,24 @@ function App() {
 
   const handleTagsChange = async (tags) => {
     updateSetting('selectedTags', tags);
+    // Clear media ID when changing filters since the current media might not be in the new filtered set
+    updateSetting('mediaId', '');
     setCurrentIndex(0);
     await applyFilters(currentMediaType, tags, excludedTags, pathSubstring);
   };
 
   const handleExcludedTagsChange = async (tags) => {
     updateSetting('excludedTags', tags);
+    // Clear media ID when changing filters since the current media might not be in the new filtered set
+    updateSetting('mediaId', '');
     setCurrentIndex(0);
     await applyFilters(currentMediaType, selectedTags, tags, pathSubstring);
   };
 
   const handlePathChange = async (substring) => {
     updateSetting('pathFilter', substring);
+    // Clear media ID when changing filters since the current media might not be in the new filtered set
+    updateSetting('mediaId', '');
     setCurrentIndex(0);
     await applyFilters(currentMediaType, selectedTags, excludedTags, substring);
   };
@@ -153,6 +192,7 @@ function App() {
     excludeTags,
     pathSubstring,
     sortByValue = sortBy,
+    priorityMediaId = null,
   ) => {
     try {
       const tagNames = includeTags.map((tag) => tag.name);
@@ -164,6 +204,7 @@ function App() {
         excludeTagNames,
         pathSubstring,
         sortByValue,
+        priorityMediaId,
       );
     } catch (error) {
       console.error("Failed to apply filters:", error);
@@ -236,6 +277,13 @@ function App() {
                   setGalleryScrollPosition(galleryContainer.scrollTop);
                 }
                 setCurrentIndex(index);
+                
+                // Update URL with selected media hash
+                const selectedMediaFile = mediaFiles[index];
+                if (selectedMediaFile && selectedMediaFile.file_hash) {
+                  updateSetting('mediaId', selectedMediaFile.file_hash, { replace: true });
+                }
+                
                 updateSetting('galleryView', false);
               }}
               style={{ display: isGalleryView ? "flex" : "none" }}
@@ -329,6 +377,8 @@ function App() {
           pathSubstring={pathSubstring}
           onSortByChange={async (newSortBy) => {
             updateSetting('sortBy', newSortBy);
+            // Clear media ID when changing sort since the order will change
+            updateSetting('mediaId', '');
             await applyFilters(
               currentMediaType,
               selectedTags,

@@ -87,7 +87,8 @@ export const useURLSettings = (availableTags = []) => {
       excludedTags: [],
       pathFilter: '',
       galleryView: false,
-      debug: false
+      debug: false,
+      mediaId: ''
     };
     
     updateSettings(defaultSettings);

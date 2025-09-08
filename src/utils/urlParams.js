@@ -11,7 +11,8 @@ export const URL_PARAMS = {
   EXCLUDED_TAGS: 'exclude',
   PATH_FILTER: 'path',
   GALLERY_VIEW: 'gallery',
-  DEBUG: 'debug'
+  DEBUG: 'debug',
+  MEDIA_ID: 'media'
 };
 
 /**
@@ -50,6 +51,10 @@ export const encodeSettingsToURL = (settings) => {
     params.set(URL_PARAMS.DEBUG, 'true');
   }
   
+  if (settings.mediaId && settings.mediaId.trim()) {
+    params.set(URL_PARAMS.MEDIA_ID, settings.mediaId);
+  }
+  
   return params.toString();
 };
 
@@ -66,7 +71,8 @@ export const decodeSettingsFromURL = (searchParams = window.location.search) => 
     excludedTags: [],
     pathFilter: params.get(URL_PARAMS.PATH_FILTER) || '',
     galleryView: params.get(URL_PARAMS.GALLERY_VIEW) === 'true',
-    debug: params.get(URL_PARAMS.DEBUG) === 'true'
+    debug: params.get(URL_PARAMS.DEBUG) === 'true',
+    mediaId: params.get(URL_PARAMS.MEDIA_ID) || ''
   };
   
   // Parse selected tags
@@ -130,6 +136,17 @@ export const resolveTagNames = (tagNames, availableTags) => {
  */
 export const getCurrentSettingsFromURL = () => {
   return decodeSettingsFromURL();
+};
+
+/**
+ * Finds the index of a media file by its hash
+ */
+export const findMediaIndexByHash = (mediaFiles, hash) => {
+  if (!hash || !Array.isArray(mediaFiles)) {
+    return -1;
+  }
+  
+  return mediaFiles.findIndex(file => file.file_hash === hash);
 };
 
 /**
