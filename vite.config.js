@@ -7,6 +7,7 @@ export default defineConfig({
   build: {
     outDir: "../dist",
     emptyOutDir: true,
+    sourcemap: true,
   },
   server: {
     port: 3001,
@@ -15,5 +16,8 @@ export default defineConfig({
       "/media": "http://localhost:3000",
       "/rescan-directory": "http://localhost:3000",
     },
+  },
+  css: {
+    devSourcemap: true,
   },
 });
