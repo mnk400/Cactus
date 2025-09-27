@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import MediaViewer from "./components/MediaViewer";
 import Navigation from "./components/Navigation";
 import SideNavigation from "./components/SideNavigation";
@@ -14,7 +14,6 @@ import { useKeyboardNavigation } from "./hooks/useKeyboardNavigation";
 import { useFavorite } from "./hooks/useFavorite";
 import { useConfig } from "./hooks/useConfig";
 import { useURLSettings } from "./hooks/useURLSettings";
-import { findMediaIndexByHash } from "./utils/urlParams";
 import useTags from "./hooks/useTags";
 
 function App() {
@@ -30,8 +29,8 @@ function App() {
   // URL-based settings management
   const {
     settings: urlSettings,
-    updateSettings,
     updateSetting,
+    updateSettings,
     isInitialized
   } = useURLSettings(tags);
 
@@ -66,8 +65,9 @@ function App() {
 
   // Initialize media files on mount
   useEffect(() => {
-    fetchMediaFiles("all", [], [], "", "random", mediaId);
-  }, []);
+    if (!isInitialized) return;
+    fetchMediaFiles("all", [], [], "", "random");
+  }, [isInitialized]);
 
   // Reset currentIndex when mediaFiles change to prevent out-of-bounds access
   useEffect(() => {
@@ -99,12 +99,13 @@ function App() {
     }
   }, [debugMode, updateSetting]);
 
-  // Set current index to 0 when media files are loaded with priority media ID
+  // Set current index when media files are loaded with priority media ID
   useEffect(() => {
     if (mediaId && mediaFiles.length > 0 && isInitialized) {
-      // If we have a media ID and files are loaded, the priority media should be at index 0
-      if (mediaFiles[0]?.file_hash === mediaId && currentIndex !== 0) {
-        setCurrentIndex(0);
+      // If we have a media ID and files are loaded, find the correct index
+      const targetIndex = mediaFiles.findIndex(file => file.file_hash === mediaId);
+      if (targetIndex !== -1 && targetIndex !== currentIndex) {
+        setCurrentIndex(targetIndex);
       }
     }
   }, [mediaId, mediaFiles, isInitialized]);
@@ -125,19 +126,34 @@ function App() {
       if (mediaFiles.length > 0) {
         setCurrentIndex((prevIndex) => {
           const newIndex = (prevIndex + direction + mediaFiles.length) % mediaFiles.length;
-          
+
           // Update URL with new media hash
           const newMediaFile = mediaFiles[newIndex];
           if (newMediaFile && newMediaFile.file_hash) {
             updateSetting('mediaId', newMediaFile.file_hash, { replace: true });
           }
-          
+
           return newIndex;
         });
       }
     },
     [mediaFiles, updateSetting],
   );
+
+  // Helper function to create complete settings object
+  const createSettingsUpdate = useCallback((overrides = {}) => {
+    return {
+      mediaType: currentMediaType,
+      sortBy: sortBy,
+      selectedTags: selectedTags.map(tag => tag.name || tag),
+      excludedTags: excludedTags.map(tag => tag.name || tag),
+      pathFilter: pathSubstring,
+      galleryView: isGalleryView,
+      debug: debugMode,
+      mediaId: mediaId,
+      ...overrides
+    };
+  }, [currentMediaType, sortBy, selectedTags, excludedTags, pathSubstring, isGalleryView, debugMode, mediaId]);
 
   // Keyboard navigation
   useKeyboardNavigation(
@@ -154,36 +170,61 @@ function App() {
   const handleMediaTypeChange = async (mediaType) => {
     if (mediaType === currentMediaType) return;
 
-    updateSetting('mediaType', mediaType);
-    // Clear media ID when changing filters since the current media might not be in the new filtered set
-    updateSetting('mediaId', '');
+    console.log('Changing media type to:', mediaType);
+
+    const newSettings = createSettingsUpdate({
+      mediaType: mediaType,
+      mediaId: ''
+    });
+
+    console.log('New settings:', newSettings);
+    updateSettings(newSettings);
+
     setCurrentIndex(0);
-    await applyFilters(mediaType, selectedTags, excludedTags, pathSubstring);
+    await applyFilters(mediaType, selectedTags, excludedTags, pathSubstring, sortBy);
     setIsSettingsOpen(false);
   };
 
   const handleTagsChange = async (tags) => {
-    updateSetting('selectedTags', tags);
-    // Clear media ID when changing filters since the current media might not be in the new filtered set
-    updateSetting('mediaId', '');
+    console.log('Changing selected tags to:', tags);
+
+    const newSettings = createSettingsUpdate({
+      selectedTags: tags.map(tag => tag.name || tag),
+      mediaId: ''
+    });
+
+    updateSettings(newSettings);
+
     setCurrentIndex(0);
-    await applyFilters(currentMediaType, tags, excludedTags, pathSubstring);
+    await applyFilters(currentMediaType, tags, excludedTags, pathSubstring, sortBy);
   };
 
   const handleExcludedTagsChange = async (tags) => {
-    updateSetting('excludedTags', tags);
-    // Clear media ID when changing filters since the current media might not be in the new filtered set
-    updateSetting('mediaId', '');
+    console.log('Changing excluded tags to:', tags);
+
+    const newSettings = createSettingsUpdate({
+      excludedTags: tags.map(tag => tag.name || tag),
+      mediaId: ''
+    });
+
+    updateSettings(newSettings);
+
     setCurrentIndex(0);
-    await applyFilters(currentMediaType, selectedTags, tags, pathSubstring);
+    await applyFilters(currentMediaType, selectedTags, tags, pathSubstring, sortBy);
   };
 
   const handlePathChange = async (substring) => {
-    updateSetting('pathFilter', substring);
-    // Clear media ID when changing filters since the current media might not be in the new filtered set
-    updateSetting('mediaId', '');
+    console.log('Changing path filter to:', substring);
+
+    const newSettings = createSettingsUpdate({
+      pathFilter: substring,
+      mediaId: ''
+    });
+
+    updateSettings(newSettings);
+
     setCurrentIndex(0);
-    await applyFilters(currentMediaType, selectedTags, excludedTags, substring);
+    await applyFilters(currentMediaType, selectedTags, excludedTags, substring, sortBy);
   };
 
   const applyFilters = async (
@@ -218,6 +259,7 @@ function App() {
       selectedTags,
       excludedTags,
       pathSubstring,
+      sortBy,
     );
     setIsSettingsOpen(false);
   };
@@ -277,13 +319,13 @@ function App() {
                   setGalleryScrollPosition(galleryContainer.scrollTop);
                 }
                 setCurrentIndex(index);
-                
+
                 // Update URL with selected media hash
                 const selectedMediaFile = mediaFiles[index];
                 if (selectedMediaFile && selectedMediaFile.file_hash) {
                   updateSetting('mediaId', selectedMediaFile.file_hash, { replace: true });
                 }
-                
+
                 updateSetting('galleryView', false);
               }}
               style={{ display: isGalleryView ? "flex" : "none" }}
@@ -376,9 +418,17 @@ function App() {
           providerType={config.provider?.type || "local"}
           pathSubstring={pathSubstring}
           onSortByChange={async (newSortBy) => {
-            updateSetting('sortBy', newSortBy);
-            // Clear media ID when changing sort since the order will change
-            updateSetting('mediaId', '');
+            console.log('Changing sort to:', newSortBy);
+
+            const newSettings = createSettingsUpdate({
+              sortBy: newSortBy,
+              mediaId: ''
+            });
+
+            console.log('New settings:', newSettings);
+            updateSettings(newSettings);
+
+            setCurrentIndex(0);
             await applyFilters(
               currentMediaType,
               selectedTags,
