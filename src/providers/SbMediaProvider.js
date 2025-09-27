@@ -324,14 +324,17 @@ class SbMediaProvider extends MediaSourceProvider {
   transformsbImageToLocal(sbImage) {
     // Use the first visual file for basic info
     const visualFile = sbImage.visual_files?.[0];
-    const isVideo = visualFile && visualFile.duration !== undefined;
 
     // Generate a hash-like ID from the sb ID
     const fileHash = `sb_${sbImage.id}`;
 
     // Use actual disk path as filename, fallback to title or generic name
-    const diskPath = visualFile?.path;
-    const filename = diskPath || sbImage.title || `Image ${sbImage.id}`;
+    const filename = visualFile?.path || sbImage.title || `Image ${sbImage.id}`;
+
+    // manually avoid GIFs from isVideo because gifs can have "duration"
+    const isGif = filename.toLowerCase().includes('.gif');
+    
+    const isVideo = !isGif && visualFile && visualFile.duration !== undefined;
 
     return {
       id: parseInt(sbImage.id),
