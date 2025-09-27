@@ -25,26 +25,31 @@ export function useMediaPreloader(mediaFiles, currentIndex) {
 
         if (mediaFile.media_type === "image") {
           const img = new Image();
+          let isAborted = false;
+          
           const loadPromise = new Promise((resolve, reject) => {
             img.onload = () => {
-              if (!abortController.signal.aborted) {
+              if (!isAborted) {
                 preloadedMedia.current.set(index, img);
                 loadingPromises.current.delete(index);
                 abortControllers.current.delete(index);
                 resolve(img);
               }
             };
+            
             img.onerror = () => {
-              loadingPromises.current.delete(index);
-              abortControllers.current.delete(index);
-              reject(new Error(`Failed to preload image at index ${index}`));
+              if (!isAborted) {
+                loadingPromises.current.delete(index);
+                abortControllers.current.delete(index);
+                reject(new Error(`Failed to preload image at index ${index}`));
+              }
             };
 
             abortController.signal.addEventListener("abort", () => {
+              isAborted = true;
               img.src = "";
               loadingPromises.current.delete(index);
               abortControllers.current.delete(index);
-              reject(new Error("Aborted"));
             });
           });
 
@@ -52,12 +57,14 @@ export function useMediaPreloader(mediaFiles, currentIndex) {
           img.src = `/media?path=${encodeURIComponent(mediaFile.file_path)}`;
         } else if (mediaFile.media_type === "video") {
           const video = document.createElement("video");
+          let isAborted = false;
+          
           const loadPromise = new Promise((resolve, reject) => {
             let hasResolved = false;
 
             // Use canplaythrough for better buffering - video can play without interruption
             const handleCanPlayThrough = () => {
-              if (!abortController.signal.aborted && !hasResolved) {
+              if (!isAborted && !hasResolved) {
                 hasResolved = true;
                 preloadedMedia.current.set(index, video);
                 loadingPromises.current.delete(index);
@@ -68,10 +75,10 @@ export function useMediaPreloader(mediaFiles, currentIndex) {
 
             // Fallback to loadeddata if canplaythrough takes too long
             const handleLoadedData = () => {
-              if (!abortController.signal.aborted && !hasResolved) {
+              if (!isAborted && !hasResolved) {
                 // Wait a bit more for buffering, but don't wait forever
                 setTimeout(() => {
-                  if (!hasResolved && !abortController.signal.aborted) {
+                  if (!hasResolved && !isAborted) {
                     hasResolved = true;
                     preloadedMedia.current.set(index, video);
                     loadingPromises.current.delete(index);
@@ -86,19 +93,21 @@ export function useMediaPreloader(mediaFiles, currentIndex) {
             video.addEventListener("loadeddata", handleLoadedData);
             
             video.onerror = () => {
-              loadingPromises.current.delete(index);
-              abortControllers.current.delete(index);
-              reject(new Error(`Failed to preload video at index ${index}`));
+              if (!isAborted) {
+                loadingPromises.current.delete(index);
+                abortControllers.current.delete(index);
+                reject(new Error(`Failed to preload video at index ${index}`));
+              }
             };
 
             abortController.signal.addEventListener("abort", () => {
+              isAborted = true;
               video.removeEventListener("canplaythrough", handleCanPlayThrough);
               video.removeEventListener("loadeddata", handleLoadedData);
               video.src = "";
               video.load();
               loadingPromises.current.delete(index);
               abortControllers.current.delete(index);
-              reject(new Error("Aborted"));
             });
           });
 
