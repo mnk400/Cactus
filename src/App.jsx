@@ -22,6 +22,7 @@ function App() {
   const [showTagInput, setShowTagInput] = useState(false);
   const [tagUpdateTrigger, setTagUpdateTrigger] = useState(0);
   const [galleryScrollPosition, setGalleryScrollPosition] = useState(0);
+  const [isUrlSync, setIsUrlSync] = useState(false); // Track if index change is from URL sync
 
   // Get available tags for URL resolution
   const { tags } = useTags();
@@ -61,6 +62,23 @@ function App() {
 
   const { config } = useConfig();
 
+  // Memoized current media file and directory path
+  const currentMediaFile = useMemo(
+    () =>
+      mediaFiles.length > 0 && currentIndex < mediaFiles.length
+        ? mediaFiles[currentIndex]
+        : null,
+    [mediaFiles, currentIndex],
+  );
+
+  const directoryPath = useMemo(
+    () =>
+      currentMediaFile
+        ? currentMediaFile.file_path.split("/").slice(0, -1).join("/") || "/"
+        : "",
+    [currentMediaFile],
+  );
+
   // Handle mobile viewport issues
 
   // Initialize media files on mount
@@ -97,7 +115,7 @@ function App() {
     if (debugStorage === "true" && !debugMode) {
       updateSetting('debug', true, { replace: true });
     }
-  }, [debugMode, updateSetting]);
+  }, [debugMode]);
 
   // Set current index when media files are loaded with priority media ID
   useEffect(() => {
@@ -105,6 +123,7 @@ function App() {
       // If we have a media ID and files are loaded, find the correct index
       const targetIndex = mediaFiles.findIndex(file => file.file_hash === mediaId);
       if (targetIndex !== -1 && targetIndex !== currentIndex) {
+        setIsUrlSync(true); // Mark as URL sync to prevent URL update
         setCurrentIndex(targetIndex);
       }
     }
@@ -112,13 +131,17 @@ function App() {
 
   // Update URL when current media changes (only when not from URL sync)
   useEffect(() => {
-    if (currentMediaFile && isInitialized && mediaFiles.length > 0) {
+    if (currentMediaFile && isInitialized && mediaFiles.length > 0 && !isUrlSync) {
       const currentHash = currentMediaFile.file_hash;
       if (currentHash && currentHash !== mediaId) {
         updateSetting('mediaId', currentHash, { replace: true });
       }
     }
-  }, [currentIndex, mediaFiles, isInitialized]);
+    // Reset URL sync flag after processing
+    if (isUrlSync) {
+      setIsUrlSync(false);
+    }
+  }, [currentIndex, mediaFiles, isInitialized, currentMediaFile, isUrlSync, mediaId]);
 
   // Memoized navigation handler
   const handleNavigation = useCallback(
@@ -126,18 +149,11 @@ function App() {
       if (mediaFiles.length > 0) {
         setCurrentIndex((prevIndex) => {
           const newIndex = (prevIndex + direction + mediaFiles.length) % mediaFiles.length;
-
-          // Update URL with new media hash
-          const newMediaFile = mediaFiles[newIndex];
-          if (newMediaFile && newMediaFile.file_hash) {
-            updateSetting('mediaId', newMediaFile.file_hash, { replace: true });
-          }
-
           return newIndex;
         });
       }
     },
-    [mediaFiles, updateSetting],
+    [mediaFiles],
   );
 
   // Helper function to create complete settings object
@@ -277,23 +293,6 @@ function App() {
     setTagUpdateTrigger((prev) => prev + 1);
   };
 
-  // Memoized current media file and directory path
-  const currentMediaFile = useMemo(
-    () =>
-      mediaFiles.length > 0 && currentIndex < mediaFiles.length
-        ? mediaFiles[currentIndex]
-        : null,
-    [mediaFiles, currentIndex],
-  );
-
-  const directoryPath = useMemo(
-    () =>
-      currentMediaFile
-        ? currentMediaFile.file_path.split("/").slice(0, -1).join("/") || "/"
-        : "",
-    [currentMediaFile],
-  );
-
   const { isFavorited, toggleFavorite } = useFavorite(
     currentMediaFile?.file_path,
   );
@@ -319,13 +318,6 @@ function App() {
                   setGalleryScrollPosition(galleryContainer.scrollTop);
                 }
                 setCurrentIndex(index);
-
-                // Update URL with selected media hash
-                const selectedMediaFile = mediaFiles[index];
-                if (selectedMediaFile && selectedMediaFile.file_hash) {
-                  updateSetting('mediaId', selectedMediaFile.file_hash, { replace: true });
-                }
-
                 updateSetting('galleryView', false);
               }}
               style={{ display: isGalleryView ? "flex" : "none" }}
