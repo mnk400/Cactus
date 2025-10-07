@@ -1060,6 +1060,42 @@ class LocalMediaProvider extends MediaSourceProvider {
   }
 
   /**
+   * Get provider capabilities for UI configuration
+   * @returns {Object} Provider capabilities object
+   */
+  getCapabilities() {
+    return {
+      canRescan: true,
+      canRegenerateThumbnails: true,
+      canManageTags: true,
+      canGetFileHashForPath: true,
+      supportsLocalFiles: true,
+      supportsRemoteFiles: false,
+    };
+  }
+
+  /**
+   * Get UI configuration for this provider
+   * @returns {Object} UI configuration object
+   */
+  getUIConfig() {
+    const capabilities = this.getCapabilities();
+    return {
+      showDirectoryInfo: true,
+      directoryLabel: 'Directory Path',
+      showConnectionStatus: false,
+      showRescanButton: capabilities.canRescan,
+      showRegenerateThumbnailsButton: capabilities.canRegenerateThumbnails,
+      showTagManager: capabilities.canManageTags,
+      availableActions: [
+        ...(capabilities.canManageTags ? ['manage-tags'] : []),
+        ...(capabilities.canRescan ? ['rescan-directory'] : []),
+        ...(capabilities.canRegenerateThumbnails ? ['regenerate-thumbnails'] : []),
+      ],
+    };
+  }
+
+  /**
    * Serve media file
    * @param {string} filePath - Path to the media file
    * @param {Object} res - Express response object

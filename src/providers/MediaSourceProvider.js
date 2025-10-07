@@ -208,6 +208,38 @@ class MediaSourceProvider {
   }
 
   /**
+   * Get provider capabilities for UI configuration
+   * @returns {Object} Provider capabilities object
+   */
+  getCapabilities() {
+    return {
+      canRescan: false,
+      canRegenerateThumbnails: false,
+      canManageTags: true,
+      canGetFileHashForPath: false,
+      supportsLocalFiles: false,
+      supportsRemoteFiles: false,
+    };
+  }
+
+  /**
+   * Get UI configuration for this provider
+   * @returns {Object} UI configuration object
+   */
+  getUIConfig() {
+    const capabilities = this.getCapabilities();
+    return {
+      showDirectoryInfo: true,
+      directoryLabel: 'Directory',
+      showConnectionStatus: false,
+      showRescanButton: capabilities.canRescan,
+      showRegenerateThumbnailsButton: capabilities.canRegenerateThumbnails,
+      showTagManager: capabilities.canManageTags,
+      availableActions: [],
+    };
+  }
+
+  /**
    * Close the provider and release resources
    * @returns {Promise<void>}
    */

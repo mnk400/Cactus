@@ -1520,6 +1520,42 @@ class SbMediaProvider extends MediaSourceProvider {
   }
 
   /**
+   * Get provider capabilities for UI configuration
+   * @returns {Object} Provider capabilities object
+   */
+  getCapabilities() {
+    return {
+      canRescan: false,
+      canRegenerateThumbnails: false,
+      canManageTags: false, // SB has limited tag management (can't update/delete)
+      canGetFileHashForPath: false,
+      supportsLocalFiles: false,
+      supportsRemoteFiles: true,
+    };
+  }
+
+  /**
+   * Get UI configuration for this provider
+   * @returns {Object} UI configuration object
+   */
+  getUIConfig() {
+    const capabilities = this.getCapabilities();
+    return {
+      showDirectoryInfo: true,
+      directoryLabel: 'Server',
+      showConnectionStatus: true,
+      showRescanButton: capabilities.canRescan,
+      showRegenerateThumbnailsButton: capabilities.canRegenerateThumbnails,
+      showTagManager: capabilities.canManageTags,
+      availableActions: [
+        ...(capabilities.canManageTags ? ['manage-tags'] : []),
+        ...(capabilities.canRescan ? ['rescan-directory'] : []),
+        ...(capabilities.canRegenerateThumbnails ? ['regenerate-thumbnails'] : []),
+      ],
+    };
+  }
+
+  /**
    * Serve media file (proxy from server)
    * @param {string} filePath - URL or path to the media file
    * @param {Object} res - Express response object

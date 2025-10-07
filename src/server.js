@@ -542,16 +542,42 @@ app.post("/regenerate-thumbnails", async (req, res) => {
   }
 });
 
-// API endpoint to check if prediction is enabled
+// API endpoint to get server and provider configuration
 app.get("/api/config", (req, res) => {
-  res.json({
-    predictEnabled: enablePredict,
-    predictApiUrl: predictApiUrl,
-    provider: {
-      type: mediaProvider.getProviderType(),
-      config: validation.config,
-    },
-  });
+  try {
+    // Get provider capabilities and UI config from the provider itself
+    const providerType = mediaProvider.getProviderType();
+    const capabilities = mediaProvider.getCapabilities();
+    const uiConfig = mediaProvider.getUIConfig();
+
+    // Get provider schema for UI hints
+    const ProviderClass = providerFactory.providers.get(providerType);
+    const providerSchema = ProviderClass ? ProviderClass.getConfigSchema() : null;
+
+    res.json({
+      // Server configuration
+      predictEnabled: enablePredict,
+      predictApiUrl: predictApiUrl,
+
+      // Provider information
+      provider: {
+        type: providerType,
+        name: mediaProvider.constructor.name,
+        config: validation.config,
+        capabilities: capabilities,
+        schema: providerSchema,
+      },
+
+      // UI configuration from provider
+      ui: uiConfig,
+
+      // Available providers for potential switching
+      availableProviders: providerFactory.getAvailableProviders(),
+    });
+  } catch (error) {
+    log.error("Failed to get configuration", { error: error.message });
+    res.status(500).json({ error: "Failed to get configuration" });
+  }
 });
 
 // Serve React app for all other routes (SPA routing)

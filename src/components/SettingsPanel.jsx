@@ -5,6 +5,7 @@ import TagFilter from "./TagFilter";
 import GeneralFilter from "./GeneralFilter";
 import TagManager from "./TagManager";
 import useTags from "../hooks/useTags";
+import useServerConfig from "../hooks/useServerConfig";
 
 function SettingsPanel({
   isOpen,
@@ -15,7 +16,7 @@ function SettingsPanel({
   isScanning,
   allMediaFiles = [],
   currentMediaFiles = [],
-  directoryName = "",
+
   selectedTags = [],
   excludedTags = [],
   onTagsChange,
@@ -25,11 +26,22 @@ function SettingsPanel({
   isRegeneratingThumbnails = false,
   sortBy,
   onSortByChange,
-  providerType = "local",
   pathSubstring = "",
 }) {
   const [showTagManager, setShowTagManager] = useState(false);
   const { tags, createTag, updateTag, deleteTag } = useTags();
+  const {
+    config,
+    loading: configLoading,
+    canRescan,
+    canRegenerateThumbnails,
+    canManageTags,
+    showConnectionStatus,
+    showDirectoryInfo,
+    directoryLabel,
+    directoryName,
+    isProviderType,
+  } = useServerConfig();
 
   // Calculate statistics
   const totalFiles = allMediaFiles.length;
@@ -132,17 +144,17 @@ function SettingsPanel({
             </div>
 
             {/* Directory/Server Info */}
-            {directoryName && (
+            {showDirectoryInfo && directoryName && (
               <div className="mb-2 sm:mb-3 p-2 bg-black-shades-700 rounded-lg">
                 <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">
-                  {providerType === "sb" ? "sb Server" : "Full Path"}
+                  {directoryLabel}
                 </div>
                 <div className="text-xs font-mono text-gray-200 break-all leading-tight">
                   {directoryName}
                 </div>
-                {providerType === "sb" && (
+                {showConnectionStatus && (
                   <div className="text-xs text-green-400 mt-1">
-                    ✓ Connected to sb
+                    ✓ Connected to {config?.provider?.schema?.description || 'server'}
                   </div>
                 )}
               </div>
@@ -320,77 +332,77 @@ function SettingsPanel({
           </div>
 
           {/* Actions Section */}
-          <div className="actions-section mb-6">
-            {providerType === "local" && (
+          {!configLoading && (canManageTags || canRescan || canRegenerateThumbnails) && (
+            <div className="actions-section mb-6">
               <div className="flex items-center gap-2 mb-2 sm:mb-3">
                 <h4 className="text-sm sm:text-base font-medium text-white m-0">
                   Actions
                 </h4>
               </div>
-            )}
 
-            <div className="space-y-2">
-              {/* Tag Manager - Only for Local proivder */}
-              {providerType === "local" && (
-                <button
-                  onClick={() => setShowTagManager(true)}
-                  className="w-full flex items-center justify-center gap-2 border-none py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl cursor-pointer text-xs sm:text-sm font-medium transition-all duration-200 ease-in-out active:scale-95 bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-white shadow-lg hover:shadow-xl"
-                >
-                  <span>Manage Tags</span>
-                </button>
-              )}
+              <div className="space-y-2">
+                {/* Tag Manager */}
+                {canManageTags && (
+                  <button
+                    onClick={() => setShowTagManager(true)}
+                    className="w-full flex items-center justify-center gap-2 border-none py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl cursor-pointer text-xs sm:text-sm font-medium transition-all duration-200 ease-in-out active:scale-95 bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-white shadow-lg hover:shadow-xl"
+                  >
+                    <span>Manage Tags</span>
+                  </button>
+                )}
 
-              {/* Rescan Directory - Only for Local proivder */}
-              {providerType === "local" && (
-                <button
-                  onClick={onRescan}
-                  disabled={isScanning || isRegeneratingThumbnails}
-                  className={`rescan-btn w-full flex items-center justify-center gap-2 border-none py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl cursor-pointer text-xs sm:text-sm font-medium transition-all duration-200 ease-in-out active:scale-95 ${isScanning || isRegeneratingThumbnails
+                {/* Rescan Directory */}
+                {canRescan && (
+                  <button
+                    onClick={onRescan}
+                    disabled={isScanning || isRegeneratingThumbnails}
+                    className={`rescan-btn w-full flex items-center justify-center gap-2 border-none py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl cursor-pointer text-xs sm:text-sm font-medium transition-all duration-200 ease-in-out active:scale-95 ${isScanning || isRegeneratingThumbnails
                       ? "bg-black bg-opacity-50 text-gray-500 cursor-not-allowed opacity-50"
                       : "bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-white shadow-lg hover:shadow-xl"
-                    }`}
-                >
-                  {isScanning ? (
-                    <>
-                      <div className="animate-spin w-3 h-3 sm:w-4 sm:h-4 border-2 border-gray-500 border-t-transparent rounded-full"></div>
-                      <span>Scanning...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Rescan Directory</span>
-                    </>
-                  )}
-                </button>
-              )}
+                      }`}
+                  >
+                    {isScanning ? (
+                      <>
+                        <div className="animate-spin w-3 h-3 sm:w-4 sm:h-4 border-2 border-gray-500 border-t-transparent rounded-full"></div>
+                        <span>Scanning...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Rescan Directory</span>
+                      </>
+                    )}
+                  </button>
+                )}
 
-              {/* Regenerate Thumbnails - Only for Local proivder */}
-              {providerType === "local" && (
-                <button
-                  onClick={onRegenerateThumbnails}
-                  disabled={isScanning || isRegeneratingThumbnails}
-                  className={`w-full flex items-center justify-center gap-2 border-none py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl cursor-pointer text-xs sm:text-sm font-medium transition-all duration-200 ease-in-out active:scale-95 ${isScanning || isRegeneratingThumbnails
+                {/* Regenerate Thumbnails */}
+                {canRegenerateThumbnails && (
+                  <button
+                    onClick={onRegenerateThumbnails}
+                    disabled={isScanning || isRegeneratingThumbnails}
+                    className={`w-full flex items-center justify-center gap-2 border-none py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl cursor-pointer text-xs sm:text-sm font-medium transition-all duration-200 ease-in-out active:scale-95 ${isScanning || isRegeneratingThumbnails
                       ? "bg-black bg-opacity-50 text-gray-500 cursor-not-allowed opacity-50"
                       : "bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-white shadow-lg hover:shadow-xl"
-                    }`}
-                >
-                  {isRegeneratingThumbnails ? (
-                    <>
-                      <div className="animate-spin w-3 h-3 sm:w-4 sm:h-4 border-2 border-gray-500 border-t-transparent rounded-full"></div>
-                      <span>Generating...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Regenerate All Thumbnails</span>
-                    </>
-                  )}
-                </button>
-              )}
+                      }`}
+                  >
+                    {isRegeneratingThumbnails ? (
+                      <>
+                        <div className="animate-spin w-3 h-3 sm:w-4 sm:h-4 border-2 border-gray-500 border-t-transparent rounded-full"></div>
+                        <span>Generating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Regenerate All Thumbnails</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* Tag Manager Modal - Only for local provider */}
-        {showTagManager && providerType === "local" && (
+        {/* Tag Manager Modal */}
+        {showTagManager && canManageTags && (
           <TagManager
             tags={tags}
             onCreateTag={handleCreateTag}

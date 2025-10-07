@@ -396,9 +396,6 @@ function App() {
           isScanning={isScanning}
           allMediaFiles={allMediaFiles}
           currentMediaFiles={mediaFiles}
-          directoryName={
-            config.provider?.directory || config.provider?.sbUrl || ""
-          }
           selectedTags={selectedTags}
           excludedTags={excludedTags}
           onTagsChange={handleTagsChange}
@@ -407,7 +404,6 @@ function App() {
           onRegenerateThumbnails={regenerateThumbnails}
           isRegeneratingThumbnails={isRegeneratingThumbnails}
           sortBy={sortBy}
-          providerType={config.provider?.type || "local"}
           pathSubstring={pathSubstring}
           onSortByChange={async (newSortBy) => {
             console.log('Changing sort to:', newSortBy);
