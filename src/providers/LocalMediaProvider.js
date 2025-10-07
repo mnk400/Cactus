@@ -64,11 +64,86 @@ const VIDEO_EXTENSIONS = [
 class LocalMediaProvider extends MediaSourceProvider {
   constructor(directoryPath) {
     super();
+    this.providerType = 'local';
     this.directoryPath = directoryPath;
     this.mediaDatabase = null;
     this.isInitialized = false;
     this.LOCK_FILE_PATH = null;
     this.THUMBNAIL_DIR = null;
+  }
+
+  /**
+   * Get provider configuration requirements
+   * @returns {Object} Configuration schema
+   */
+  static getConfigSchema() {
+    return {
+      description: "Local file system media provider",
+      example: "node server.js --provider local -d /path/to/media -p 3000",
+      requiredArgs: [
+        {
+          name: "directoryPath",
+          flag: "-d",
+          description: "Path to the media directory",
+          type: "string",
+        },
+      ],
+      optionalArgs: [
+        {
+          name: "port",
+          flag: "-p",
+          description: "Server port",
+          type: "number",
+          default: 3000,
+        },
+      ],
+    };
+  }
+
+  /**
+   * Validate configuration arguments
+   * @param {Object} args - Command line arguments
+   * @returns {Object} Validation result
+   */
+  static validateConfig(args) {
+    const fs = require("fs");
+    
+    if (!args.d) {
+      return {
+        success: false,
+        error: "Directory path is required for local provider",
+        usage: "node server.js --provider local -d /path/to/media -p 3000",
+      };
+    }
+
+    const directoryPath = args.d;
+
+    try {
+      const dirStat = fs.statSync(directoryPath);
+      if (!dirStat.isDirectory()) {
+        return {
+          success: false,
+          error: "Provided path is not a directory",
+          path: directoryPath,
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: "Directory does not exist or is not accessible",
+        path: directoryPath,
+        details: error.message,
+      };
+    }
+
+    return {
+      success: true,
+      constructorArgs: [directoryPath],
+      config: {
+        directoryPath,
+        port: args.p || 3000,
+      },
+    };
   }
 
   /**
@@ -985,6 +1060,64 @@ class LocalMediaProvider extends MediaSourceProvider {
   }
 
   /**
+   * Serve media file
+   * @param {string} filePath - Path to the media file
+   * @param {Object} res - Express response object
+   */
+  async serveMedia(filePath, res) {
+    const path = require("path");
+    const fs = require("fs");
+
+    try {
+      const absolutePath = path.isAbsolute(filePath)
+        ? filePath
+        : path.resolve(filePath);
+
+      if (!fs.existsSync(absolutePath)) {
+        return res.status(404).send("File not found");
+      }
+
+      res.sendFile(absolutePath);
+    } catch (error) {
+      log.error("Failed to serve media file", {
+        filePath,
+        error: error.message,
+      });
+      res.status(500).send("Failed to serve media file");
+    }
+  }
+
+  /**
+   * Serve thumbnail file
+   * @param {string} fileHash - File hash identifier
+   * @param {Object} res - Express response object
+   */
+  async serveThumbnail(fileHash, res) {
+    const path = require("path");
+    const fs = require("fs");
+
+    try {
+      if (!this.THUMBNAIL_DIR) {
+        return res.status(500).send("Thumbnail directory not configured");
+      }
+
+      const thumbnailPath = path.join(this.THUMBNAIL_DIR, `${fileHash}.webp`);
+
+      if (!fs.existsSync(thumbnailPath)) {
+        return res.status(404).send("Thumbnail not found");
+      }
+
+      res.sendFile(thumbnailPath);
+    } catch (error) {
+      log.error("Failed to serve thumbnail file", {
+        fileHash,
+        error: error.message,
+      });
+      res.status(500).send("Failed to serve thumbnail file");
+    }
+  }
+
+  /**
    * Close the provider and release resources
    */
   async close() {
@@ -998,7 +1131,7 @@ class LocalMediaProvider extends MediaSourceProvider {
       this.LOCK_FILE_PATH = null;
     }
 
-    this.isInitialized = false;
+    await super.close();
     log.info("LocalMediaProvider closed");
   }
 }

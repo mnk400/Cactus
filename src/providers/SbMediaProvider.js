@@ -44,11 +44,78 @@ const log = {
 class SbMediaProvider extends MediaSourceProvider {
   constructor(sbUrl = "http://192.168.0.23:9999/graphql") {
     super();
+    this.providerType = 'sb';
     this.sbUrl = sbUrl;
     this.isInitialized = false;
     this.mediaCache = [];
     this.lastFetchTime = null;
     this.cacheTimeout = 5 * 60 * 1000; // 5 minutes cache
+  }
+
+  /**
+   * Get provider configuration requirements
+   * @returns {Object} Configuration schema
+   */
+  static getConfigSchema() {
+    return {
+      description: "S GraphQL API media provider",
+      example: "node server.js --provider sb --sb-url http://192.168.0.23:9999/graphql -p 3000",
+      requiredArgs: [
+        {
+          name: "sbUrl",
+          flag: "--sb-url",
+          description: "URL to the S GraphQL endpoint",
+          type: "string",
+        },
+      ],
+      optionalArgs: [
+        {
+          name: "port",
+          flag: "-p",
+          description: "Server port",
+          type: "number",
+          default: 3000,
+        },
+      ],
+    };
+  }
+
+  /**
+   * Validate configuration arguments
+   * @param {Object} args - Command line arguments
+   * @returns {Object} Validation result
+   */
+  static validateConfig(args) {
+    const sbUrl = args["sb-url"] || process.env.SB_URL;
+    
+    if (!sbUrl) {
+      return {
+        success: false,
+        error: "Server URL is required for sb provider",
+        usage: "node server.js --provider sb --sb-url http://192.168.0.23:9999/graphql -p 3000",
+      };
+    }
+
+    // Simple URL validation
+    try {
+      new URL(sbUrl);
+    } catch (error) {
+      return {
+        success: false,
+        error: "Invalid URL format",
+        url: sbUrl,
+        details: error.message,
+      };
+    }
+
+    return {
+      success: true,
+      constructorArgs: [sbUrl],
+      config: {
+        sbUrl,
+        port: args.p || 3000,
+      },
+    };
   }
 
   /**
@@ -1453,6 +1520,95 @@ class SbMediaProvider extends MediaSourceProvider {
   }
 
   /**
+   * Serve media file (proxy from server)
+   * @param {string} filePath - URL or path to the media file
+   * @param {Object} res - Express response object
+   */
+  async serveMedia(filePath, res) {
+    try {
+      if (filePath.startsWith("http")) {
+        try {
+          const response = await fetch(filePath);
+          if (!response.ok) {
+            log.error("Server returned error", {
+              filePath,
+              status: response.status,
+              statusText: response.statusText,
+            });
+            return res.status(404).send("Media not found on server");
+          }
+
+          const contentType = response.headers.get("content-type");
+          if (contentType) {
+            res.set("Content-Type", contentType);
+          }
+
+          // Get the response as a buffer and send it
+          const buffer = await response.arrayBuffer();
+          res.send(Buffer.from(buffer));
+        } catch (fetchError) {
+          log.error("Failed to fetch media from Server", {
+            filePath,
+            error: fetchError.message,
+          });
+          return res.status(500).send("Failed to fetch media from server");
+        }
+      } else {
+        return res.status(400).send("Invalid media path for provider");
+      }
+    } catch (error) {
+      log.error("Failed to serve media file", {
+        filePath,
+        error: error.message,
+      });
+      res.status(500).send("Failed to serve media file");
+    }
+  }
+
+  /**
+   * Serve thumbnail file (proxy from server)
+   * @param {string} fileHash - File hash identifier
+   * @param {Object} res - Express response object
+   */
+  async serveThumbnail(fileHash, res) {
+    try {
+      // Get the thumbnail URL from the media data
+      const allMedia = await this.getAllMedia("all");
+      const mediaItem = allMedia.find((item) => item.file_hash === fileHash);
+
+      if (!mediaItem || !mediaItem.thumbnail_path) {
+        return res.status(404).send("Thumbnail not found");
+      }
+
+      // Proxy the thumbnail from source
+      const response = await fetch(mediaItem.thumbnail_path);
+      if (!response.ok) {
+        log.error("Server returned error for thumbnail", {
+          thumbnailPath: mediaItem.thumbnail_path,
+          status: response.status,
+          statusText: response.statusText,
+        });
+        return res.status(404).send("Thumbnail not found on server");
+      }
+
+      const contentType = response.headers.get("content-type");
+      if (contentType) {
+        res.set("Content-Type", contentType);
+      }
+
+      // Get the response as a buffer and send it
+      const buffer = await response.arrayBuffer();
+      res.send(Buffer.from(buffer));
+    } catch (error) {
+      log.error("Failed to serve thumbnail file", {
+        fileHash,
+        error: error.message,
+      });
+      res.status(500).send("Failed to serve thumbnail file");
+    }
+  }
+
+  /**
    * Close the provider (cleanup)
    * @returns {Promise<void>}
    */
@@ -1460,6 +1616,7 @@ class SbMediaProvider extends MediaSourceProvider {
     this.isInitialized = false;
     this.mediaCache = [];
     this.lastFetchTime = null;
+    await super.close();
     log.info("sbMediaProvider closed");
   }
 }

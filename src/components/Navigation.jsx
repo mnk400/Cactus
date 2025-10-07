@@ -110,7 +110,7 @@ const Navigation = memo(function Navigation({
   const computeDisplayName = () => {
     if (!currentMediaFile) return "";
 
-    // For SB (Stash) provider media
+    // For SB provider media
     if (currentMediaFile.file_hash?.startsWith('sb_')) {
       // For markers, prioritize scene info and performers
       if (currentMediaFile.sb_type === 'marker') {
@@ -149,8 +149,8 @@ const Navigation = memo(function Navigation({
           return `Image #${currentMediaFile.sb_id}`;
         }
       }
-      // Final fallback for SB: show "Stash Server"
-      return "Stash Server";
+      // Final fallback for SB: show "S Server"
+      return "S Server";
     }
 
     // For local provider media, extract directory name from path

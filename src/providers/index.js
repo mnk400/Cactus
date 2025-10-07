@@ -7,9 +7,11 @@
 const MediaSourceProvider = require("./MediaSourceProvider");
 const LocalMediaProvider = require("./LocalMediaProvider");
 const SbMediaProvider = require("./SbMediaProvider");
+const ProviderFactory = require("./ProviderFactory");
 
 module.exports = {
   MediaSourceProvider,
   LocalMediaProvider,
   SbMediaProvider,
+  ProviderFactory,
 };

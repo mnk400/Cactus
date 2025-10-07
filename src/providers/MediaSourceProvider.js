@@ -5,6 +5,35 @@
  * It serves as a contract for both LocalMediaProvider and sbMediaProvider.
  */
 class MediaSourceProvider {
+  constructor() {
+    this.providerType = 'unknown';
+    this.isInitialized = false;
+  }
+
+  /**
+   * Get provider configuration requirements
+   * @returns {Object} Configuration schema with required arguments and validation
+   */
+  static getConfigSchema() {
+    throw new Error("Method getConfigSchema() must be implemented by subclass");
+  }
+
+  /**
+   * Validate configuration arguments
+   * @param {Object} args - Command line arguments
+   * @returns {Object} Validation result with success status and error message
+   */
+  static validateConfig(args) {
+    throw new Error("Method validateConfig() must be implemented by subclass");
+  }
+
+  /**
+   * Get provider type identifier
+   * @returns {string} Provider type
+   */
+  getProviderType() {
+    return this.providerType;
+  }
   /**
    * Initialize the media provider
    * @returns {Promise<Object>} Result of initialization with success status
@@ -131,6 +160,60 @@ class MediaSourceProvider {
    */
   async getStats() {
     throw new Error("Method getStats() must be implemented by subclass");
+  }
+
+  /**
+   * Rescan/refresh media from source (optional operation)
+   * @returns {Promise<Array>} Array of media files or throws error if not supported
+   */
+  async rescanDirectory() {
+    throw new Error(`Rescan operation not supported for ${this.providerType} provider`);
+  }
+
+  /**
+   * Regenerate thumbnails (optional operation)
+   * @returns {Promise<number>} Number of regenerated thumbnails or throws error if not supported
+   */
+  async regenerateThumbnails() {
+    throw new Error(`Thumbnail regeneration not supported for ${this.providerType} provider`);
+  }
+
+  /**
+   * Get file hash for a given file path (optional operation)
+   * @param {string} filePath - Path to the file
+   * @returns {string} File hash or throws error if not supported
+   */
+  getFileHashForPath(filePath) {
+    throw new Error(`File hash lookup not supported for ${this.providerType} provider`);
+  }
+
+  /**
+   * Serve media file (provider-specific logic)
+   * @param {string} filePath - Path or URL to the media file
+   * @param {Object} res - Express response object
+   * @returns {Promise<void>} Handles the response
+   */
+  async serveMedia(filePath, res) {
+    throw new Error("Method serveMedia() must be implemented by subclass");
+  }
+
+  /**
+   * Serve thumbnail file (provider-specific logic)
+   * @param {string} fileHash - File hash identifier
+   * @param {Object} res - Express response object
+   * @returns {Promise<void>} Handles the response
+   */
+  async serveThumbnail(fileHash, res) {
+    throw new Error("Method serveThumbnail() must be implemented by subclass");
+  }
+
+  /**
+   * Close the provider and release resources
+   * @returns {Promise<void>}
+   */
+  async close() {
+    // Default implementation - can be overridden
+    this.isInitialized = false;
   }
 }
 
