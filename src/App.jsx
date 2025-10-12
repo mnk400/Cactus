@@ -301,7 +301,7 @@ function App() {
     <div className="container flex flex-col h-screen w-full max-w-full shadow-2xl overflow-hidden bg-black text-gray-200">
       <DebugInfo show={debugMode} />
 
-      <div className="media-container flex-1 relative overflow-hidden bg-black">
+      <div className="media-container flex-1 relative overflow-hidden bg-black pb-16">
         {loading && <LoadingMessage message={loading} />}
         {error && <ErrorMessage message={error} />}
 
@@ -365,19 +365,6 @@ function App() {
           </div>
         )}
 
-        {!isSettingsOpen && (
-          <Navigation
-            currentMediaFile={currentMediaFile}
-            onToggleSettings={() => setIsSettingsOpen(!isSettingsOpen)}
-            onToggleTagInput={handleToggleTagInput}
-            directoryName={directoryPath}
-            isFavorited={isFavorited}
-            onToggleFavorite={toggleFavorite}
-            onToggleGalleryView={() => updateSetting('galleryView', !isGalleryView)}
-            isGalleryView={isGalleryView}
-          />
-        )}
-
         {/* Side navigation buttons */}
         {!isSettingsOpen && !isGalleryView && (
           <SideNavigation
@@ -436,6 +423,20 @@ function App() {
           showTagInput={showTagInput}
           key={tagUpdateTrigger} // Force re-render when tags are updated
           isVideoPlaying={currentMediaFile?.media_type === "video"}
+        />
+      )}
+
+      {/* Navigation bar at bottom - full width */}
+      {!isSettingsOpen && (
+        <Navigation
+          currentMediaFile={currentMediaFile}
+          onToggleSettings={() => setIsSettingsOpen(!isSettingsOpen)}
+          onToggleTagInput={handleToggleTagInput}
+          directoryName={directoryPath}
+          isFavorited={isFavorited}
+          onToggleFavorite={toggleFavorite}
+          onToggleGalleryView={() => updateSetting('galleryView', !isGalleryView)}
+          isGalleryView={isGalleryView}
         />
       )}
 

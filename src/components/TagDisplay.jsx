@@ -122,9 +122,12 @@ const TagDisplay = memo(function TagDisplay({
 
   return (
     <div
-      className={`fixed pb-1 left-1/2 transform -translate-x-1/2 w-11/12 max-w-xl z-10 pointer-events-none transition-all duration-300 ${isVideoPlaying ? "bottom-20" : "bottom-16"}`}
+      className={`fixed pb-1 left-0 right-0 w-full z-10 pointer-events-none transition-all duration-300 ${isVideoPlaying ? "bottom-20" : "bottom-16"}`}
+      style={{
+        bottom: isVideoPlaying ? '84px' : '60px'
+      }}
     >
-      <div className="pb-3 pointer-events-auto">
+      <div className="pb-3 pointer-events-auto px-4">
         <div className="overflow-x-auto scrollbar-hide">
           <div className="flex gap-2 min-w-max pb-1">
             {mediaTags
@@ -140,7 +143,7 @@ const TagDisplay = memo(function TagDisplay({
                       tagRefs.current.delete(tag.id); // Cleanup on unmount
                     }
                   }}
-                  className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium text-white shadow-sm whitespace-nowrap flex-shrink-0 tag-animated"
+                  className="inline-flex items-center px-3 py-1.5 rounded-xl text-sm font-medium text-white shadow-sm whitespace-nowrap flex-shrink-0 tag-animated"
                   style={{
                     backgroundColor: tag.color,
                   }}
@@ -151,7 +154,7 @@ const TagDisplay = memo(function TagDisplay({
                       e.stopPropagation();
                       handleRemoveTag(tag.id);
                     }}
-                    className="ml-2 text-white hover:text-gray-200 focus:outline-none transition-colors duration-150 hover:bg-white hover:bg-opacity-20 rounded-full w-5 h-5 flex items-center justify-center text-lg leading-none"
+                    className="ml-2 text-white hover:text-gray-200 focus:outline-none transition-colors duration-150 hover:bg-white hover:bg-opacity-20 rounded-lg w-5 h-5 flex items-center justify-center text-lg leading-none"
                     aria-label={`Remove ${tag.name} tag`}
                   >
                     ×
