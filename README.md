@@ -12,171 +12,79 @@
 
 ```
 
-Extremely minimal randomized order media reviewer built with React
+Minimal randomized media viewer.
 
-## Features
+## Getting Started
 
-- **Media Display**: Shows images and videos from a specified directory in randomized order
-- **Navigation**: Arrow keys and touch gestures (swipe up/down) to navigate through media
-- **Media Filtering**: Filter by all media, photos only, or videos only
-- **Directory Rescanning**: Ability to rescan the directory for new files
-- **Video Controls**: Play/pause, progress bar, fullscreen support
-- **Touch Gestures**: Swipe up/down navigation with visual feedback
-- **Preloading**: Preloads adjacent media files for smooth navigation
-- **Responsive Design**: Works on mobile and desktop
-- **SQLite Storage**: Content-based file identification that survives moves and renames
-- **Enhanced Performance**: Fast database queries and optimized file scanning
-- **Comprehensive Tag Handling**: Supports adding, removing, and managing tags for media files. Also supports filtering media by tag(s).
-- **Gallery View**: Toggle between single media view and a grid-based gallery view with lazy loading and responsive columns.
-
-## Quick Start
-
-1. **Install dependencies:**
-
-   ```bash
-   bun install
-   ```
-
-2. **Start the application:**
-
-   ```bash
-   bun start -- -d /path/to/your/media/directory -p 3000
-   ```
-
-3. **Open your browser and go to http://localhost:3000**
-
-## Usage
-
-### Production
+**Install and run:**
 
 ```bash
-# Build and start the server
+bun install
 bun start -- -d /path/to/your/media/directory -p 3000
 ```
 
-### Development
+Open http://localhost:3000 in your browser.
+
+## Base Features
+
+**Flexible Viewing** - A default scrollable random media feed, and a gallery view to browse more flexibily 
+
+**Tagging System** - Powerful tagging system for all the media
+
+**Multiple Data Sources** - Built-in provider system supports local directories and external sources.
+
+**Performance Optimized** - Lazy loading, thumbnail generation, virtual scrolling, and smart caching for smooth browsing of large collections.
+
+## Navigation & Controls
+
+- **Keyboard**: Arrow keys or WASD to navigate
+- **Touch**: Swipe up/down on mobile devices  
+- **Gallery**: Click any thumbnail to jump to that media
+
+Access settings via the menu button (⋯) to filter media types, manage tags, or rescan directories.
+
+## Screenshots
+
+| View | Desktop | Mobile |
+|------|---------|--------|
+| **Single Media** | ![Desktop Single Media](screenshots/desktop_single_media.png) | ![Mobile Single Media](screenshots/mobile_single_media.png) |
+| **Gallery View** | ![Desktop Gallery](screenshots/desktop_gallery.png) | ![Mobile Gallery](screenshots/mobile_gallery.png) |
+
+## Development
 
 ```bash
-# Start development server with hot reloading
+# Frontend development server
 bun run dev
 
-# In another terminal, start the backend
-bun src/server.js -d /path/to/your/media/directory -p 3000
-
-# Open http://localhost:3001 for development with hot reloading
-```
-
-### Development with test data
-
-```bash
-# Start both frontend and backend for development
+# Backend with test data
 bun run start:dev
 ```
 
-## Navigation
+The development setup includes hot reloading and sample media files for testing.
 
-- **Arrow Keys**: Up/Down or Left/Right arrows to navigate
-- **Touch Gestures**: Swipe up for next, swipe down for previous
-- **Navigation Buttons**: Click the ↑/↓ buttons in the bottom navigation bar
-
-## Settings
-
-Click the ⋯ button to access:
-
-- **Media Type Filter**: Switch between All, Photos, or Videos
-- **Rescan Directory**: Refresh the media file list
-
-## Docker
-
-Deploy using Docker:
+## Docker Deployment
 
 ```bash
-# Build the Docker image
-docker build -t cactus-media-server .
-
-# Run the container
-docker run -p 3000:3000 -v /path/to/your/media/directory:/media cactus-media-server
+docker build -t cactus .
+docker run -p 3000:3000 -v /your/media:/media cactus
 ```
 
-## Architecture
+## Provider System
 
-Built with modern React architecture and SQLite for robust data persistence:
+Cactus supports multiple media sources through its provider architecture:
 
-### **Storage System**
+- **Local Provider**: Scan local directories (`-d /path/to/media`)
+- ...
 
-- **SQLite Database**: Persistent storage with content-based file identification
-- **Content Hashing**: Files identified by SHA-256 hash of content (survives moves/renames)
-- **WAL Mode**: Write-Ahead Logging for better concurrent performance
-- **Automatic Cleanup**: Orphaned file records are automatically removed
+### Build your providers
 
-### **Components**
-
-- `App.jsx` - Main application with state management
-- `MediaViewer.jsx` - Media display and touch gesture handling
-- `MediaItem.jsx` - Individual media items with animations
-- `Navigation.jsx` - Bottom navigation bar
-- `SettingsPanel.jsx` - Settings overlay
-- `VideoProgressBar.jsx` - Video progress indicator
-
-### **Custom Hooks**
-
-- `useMediaFiles.js` - Media loading, filtering, and rescanning
-- `useKeyboardNavigation.js` - Arrow key navigation
-- `useMediaPreloader.js` - Adjacent media preloading
-- `useMobileViewport.js` - Mobile viewport optimization
-
-### **Database Layer**
-
-- `database/index.js` - SQLite database service
-- `mediaScannerSQLite.js` - Enhanced media scanner with database integration
-
-### **File Structure**
-
-```
-src/
-├── components/         # React components
-├── hooks/              # Custom React hooks
-├── database/           # Database service and migrations
-├── utils/              # Utility functions
-├── App.jsx             # Main application
-├── main.jsx            # React entry point
-├── index.html          # HTML template
-├── index.css           # Styles with Tailwind CSS
-├── server.js           # Express server
-└── mediaScannerSQLite.js # SQLite-based media scanner
-```
-
-## API Endpoints
-
-- `GET /api/media?type=all|photos|videos` - Get filtered media files
-- `POST /rescan-directory` - Rescan directory for new files
-- `GET /media?path=<filepath>` - Serve media files
-- `GET /api/stats` - Get database statistics and file counts
-
-## Database Schema
-
-The SQLite database stores media files with content-based identification:
-
-```sql
--- Media files with content hashing for persistent identification
-CREATE TABLE media_files (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    file_hash TEXT UNIQUE NOT NULL,           -- SHA-256 content hash
-    file_path TEXT NOT NULL,                  -- Current file path
-    filename TEXT NOT NULL,                   -- Original filename
-    file_size INTEGER NOT NULL,               -- File size in bytes
-    media_type TEXT NOT NULL,                 -- 'image' or 'video'
-    date_added DATETIME DEFAULT CURRENT_TIMESTAMP,
-    date_modified DATETIME DEFAULT CURRENT_TIMESTAMP,
-    last_seen DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-```
+To build a provider you have to implement the `MediaSourceProvider.js` class and create your own class. This lets you offer your own data source for the media and offer your own set of possible configurations/settings to the user.
 
 ## Requirements
 
-- Bun 1.0.0 or higher
-- Modern web browser with ES6+ support
-- Directory with supported media files (jpg, png, gif, mp4, webm, etc.)
+- Bun 1.0.0+
+- Modern web browser
+- FFmpeg (for video thumbnails)
 
 ## License
 
