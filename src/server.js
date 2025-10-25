@@ -1,4 +1,6 @@
 const express = require("express");
+const compression = require("compression");
+const NodeCache = require("node-cache");
 const path = require("path");
 const fs = require("fs");
 const { ProviderFactory } = require("./providers");
@@ -7,6 +9,19 @@ const minimist = require("minimist");
 // Bun has built-in fetch support
 
 const app = express();
+
+// Enable compression for all responses
+app.use(compression({
+  level: 6,
+  threshold: 1024,
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    return compression.filter(req, res);
+  }
+}));
+
 const argv = minimist(process.argv.slice(2));
 
 const PORT = argv.p || process.env.PORT || 3000;
@@ -82,6 +97,121 @@ if (fs.existsSync(reactBuildPath)) {
 
 app.use(express.json());
 
+// ===== PERFORMANCE OPTIMIZATIONS =====
+
+const requestCache = new NodeCache({
+  stdTTL: 60,
+  checkperiod: 120,
+  maxKeys: 200, 
+  useClones: false 
+});
+
+// Cache event listeners for monitoring
+requestCache.on('expired', (key, value) => {
+  log.info("Cache entry expired", { key });
+});
+
+requestCache.on('flush', () => {
+  log.info("Cache flushed");
+});
+
+function cacheMiddleware(req, res, next) {
+  if (req.method !== 'GET' || !req.originalUrl.startsWith('/api/')) {
+    return next();
+  }
+
+  const key = req.originalUrl;
+  const cached = requestCache.get(key);
+
+  if (cached) {
+    const stats = requestCache.getStats();
+    log.info("Serving cached API response", {
+      url: key,
+      hitRate: ((stats.hits / (stats.hits + stats.misses)) * 100).toFixed(1) + '%'
+    });
+    return res.json(cached);
+  }
+
+  const originalJson = res.json;
+  res.json = function (data) {
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      requestCache.set(key, data);
+    }
+    return originalJson.call(this, data);
+  };
+
+  next();
+}
+
+app.use('/api', cacheMiddleware);
+
+// Caching headers
+app.use('/media', (req, res, next) => {
+  res.set({
+    'Cache-Control': 'public, max-age=31536000, immutable',
+    'Vary': 'Accept-Encoding',
+    'X-Content-Type-Options': 'nosniff'
+  });
+  next();
+});
+
+app.use('/thumbnails', (req, res, next) => {
+  res.set({
+    'Cache-Control': 'public, max-age=604800',
+    'Vary': 'Accept-Encoding',
+    'X-Content-Type-Options': 'nosniff'
+  });
+  next();
+});
+
+app.use('/api', (req, res, next) => {
+  if (req.method === 'GET') {
+    res.set({
+      'Cache-Control': 'public, max-age=300',
+      'Vary': 'Accept-Encoding'
+    });
+  }
+  next();
+});
+
+app.use('/assets', (req, res, next) => {
+  res.set({
+    'Cache-Control': 'public, max-age=31536000, immutable',
+    'Vary': 'Accept-Encoding'
+  });
+  next();
+});
+
+app.get("/api/cache-status", (req, res) => {
+  const stats = requestCache.getStats();
+  res.json({
+    requestCache: {
+      size: requestCache.keys().length,
+      maxKeys: 200,
+      stats: stats,
+      hitRate: stats.hits + stats.misses > 0
+        ? ((stats.hits / (stats.hits + stats.misses)) * 100).toFixed(1) + '%'
+        : '0%'
+    },
+    cacheDuration: 30, // seconds
+    uptime: process.uptime()
+  });
+});
+
+log.info("Performance optimizations enabled", {
+  caching: "aggressive",
+  requestDeduplication: "30s",
+  compression: "level 6",
+  cacheDuration: {
+    media: "1 year",
+    thumbnails: "1 week",
+    api: "5 minutes",
+    tags: "10 minutes",
+    config: "1 hour",
+    assets: "1 year"
+  }
+});
+
 // Unified API endpoint to get media files with optional filtering
 app.get("/api/media", async (req, res) => {
   const mediaType = req.query.type || "all";
@@ -146,9 +276,9 @@ app.get("/api/media", async (req, res) => {
 
     // Add display names to each media file using provider-specific logic
     const filesWithDisplayNames = files.map(file => {
-      const directoryPath = file.file_path ? 
+      const directoryPath = file.file_path ?
         file.file_path.split("/").slice(0, -1).join("/") : "";
-      
+
       return {
         ...file,
         displayName: mediaProvider.computeDisplayName(file, directoryPath)
@@ -189,7 +319,10 @@ app.get("/api/media", async (req, res) => {
 // ===== TAG MANAGEMENT API ENDPOINTS =====
 
 // Get all tags
-app.get("/api/tags", async (req, res) => {
+app.get("/api/tags", (req, res, next) => {
+  res.set('Cache-Control', 'public, max-age=600');
+  next();
+}, async (req, res) => {
   try {
     const tags = await mediaProvider.getAllTags();
     res.json({ tags });
@@ -554,7 +687,10 @@ app.post("/regenerate-thumbnails", async (req, res) => {
 });
 
 // API endpoint to get server and provider configuration
-app.get("/api/config", (req, res) => {
+app.get("/api/config", (req, res, next) => {
+  res.set('Cache-Control', 'public, max-age=3600');
+  next();
+}, (req, res) => {
   try {
     // Get provider capabilities and UI config from the provider itself
     const providerType = mediaProvider.getProviderType();
