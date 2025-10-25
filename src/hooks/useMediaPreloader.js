@@ -1,14 +1,15 @@
 import { useRef, useEffect, useCallback } from "react";
-import { useVideoSettings } from "./useVideoSettings";
+import PriorityQueue from "priorityqueuejs";
 
 export function useMediaPreloader(mediaFiles, currentIndex) {
   const preloadedMedia = useRef(new Map());
   const loadingPromises = useRef(new Map());
   const abortControllers = useRef(new Map());
-  const { isMuted } = useVideoSettings();
-
+  const preloadQueue = useRef(new PriorityQueue((a, b) => b.priority - a.priority));
+  const isProcessing = useRef(false);
+  const MAX_CONCURRENT_LOADS = 3;
   const preloadMedia = useCallback(
-    (indices) => {
+    (indices, priority = 1) => {
       indices.forEach((index) => {
         if (
           index < 0 ||
@@ -19,140 +20,171 @@ export function useMediaPreloader(mediaFiles, currentIndex) {
           return;
         }
 
-        const mediaFile = mediaFiles[index];
-        const abortController = new AbortController();
-        abortControllers.current.set(index, abortController);
+        preloadQueue.current.enq({ index, priority });
+      });
+      processPreloadQueue();
+    },
+    [mediaFiles],
+  );
 
-        if (mediaFile.media_type === "image") {
-          const img = new Image();
-          let isAborted = false;
-          
-          const loadPromise = new Promise((resolve, reject) => {
-            img.onload = () => {
-              if (!isAborted) {
-                preloadedMedia.current.set(index, img);
-                loadingPromises.current.delete(index);
-                abortControllers.current.delete(index);
-                resolve(img);
-              }
-            };
-            
-            img.onerror = () => {
-              if (!isAborted) {
-                loadingPromises.current.delete(index);
-                abortControllers.current.delete(index);
-                reject(new Error(`Failed to preload image at index ${index}`));
-              }
-            };
 
-            abortController.signal.addEventListener("abort", () => {
-              isAborted = true;
-              img.src = "";
-              loadingPromises.current.delete(index);
-              abortControllers.current.delete(index);
-            });
-          });
+  const processPreloadQueue = useCallback(async () => {
+    if (isProcessing.current || loadingPromises.current.size >= MAX_CONCURRENT_LOADS) {
+      return;
+    }
 
-          loadingPromises.current.set(index, loadPromise);
-          img.src = `/media?path=${encodeURIComponent(mediaFile.file_path)}`;
-        } else if (mediaFile.media_type === "video") {
-          const video = document.createElement("video");
-          let isAborted = false;
-          
-          const loadPromise = new Promise((resolve, reject) => {
-            let hasResolved = false;
+    if (preloadQueue.current.isEmpty()) {
+      return;
+    }
 
-            // Use canplaythrough for better buffering - video can play without interruption
-            const handleCanPlayThrough = () => {
-              if (!isAborted && !hasResolved) {
+    isProcessing.current = true;
+
+    while (!preloadQueue.current.isEmpty() && loadingPromises.current.size < MAX_CONCURRENT_LOADS) {
+      const { index, priority } = preloadQueue.current.deq();
+      
+
+      if (preloadedMedia.current.has(index) || loadingPromises.current.has(index)) {
+        continue;
+      }
+
+      const mediaFile = mediaFiles[index];
+      if (!mediaFile) continue;
+
+      const abortController = new AbortController();
+      abortControllers.current.set(index, abortController);
+
+      const loadPromise = loadMediaItem(index, mediaFile, abortController, priority);
+      loadingPromises.current.set(index, loadPromise);
+
+
+      loadPromise
+        .then(() => {
+          loadingPromises.current.delete(index);
+          abortControllers.current.delete(index);
+        })
+        .catch(() => {
+          loadingPromises.current.delete(index);
+          abortControllers.current.delete(index);
+        })
+        .finally(() => {
+          setTimeout(() => processPreloadQueue(), 0);
+        });
+    }
+
+    isProcessing.current = false;
+  }, [mediaFiles]);
+
+
+  const loadMediaItem = useCallback(async (index, mediaFile, abortController, priority) => {
+    if (mediaFile.media_type === "image") {
+      const img = new Image();
+      let isAborted = false;
+      
+      return new Promise((resolve, reject) => {
+        img.onload = () => {
+          if (!isAborted) {
+            preloadedMedia.current.set(index, img);
+            resolve(img);
+          }
+        };
+        
+        img.onerror = () => {
+          if (!isAborted) {
+            reject(new Error(`Failed to preload image at index ${index}`));
+          }
+        };
+
+        abortController.signal.addEventListener("abort", () => {
+          isAborted = true;
+          img.src = "";
+        });
+
+        img.src = `/media?path=${encodeURIComponent(mediaFile.file_path)}`;
+      });
+    } else if (mediaFile.media_type === "video") {
+      const video = document.createElement("video");
+      let isAborted = false;
+      
+      return new Promise((resolve, reject) => {
+        let hasResolved = false;
+
+        const handleCanPlayThrough = () => {
+          if (!isAborted && !hasResolved) {
+            hasResolved = true;
+            preloadedMedia.current.set(index, video);
+            resolve(video);
+          }
+        };
+
+        const handleLoadedData = () => {
+          if (!isAborted && !hasResolved) {
+            const timeout = priority > 5 ? 200 : 500;
+            setTimeout(() => {
+              if (!hasResolved && !isAborted) {
                 hasResolved = true;
                 preloadedMedia.current.set(index, video);
-                loadingPromises.current.delete(index);
-                abortControllers.current.delete(index);
                 resolve(video);
               }
-            };
+            }, timeout);
+          }
+        };
 
-            // Fallback to loadeddata if canplaythrough takes too long
-            const handleLoadedData = () => {
-              if (!isAborted && !hasResolved) {
-                // Wait a bit more for buffering, but don't wait forever
-                setTimeout(() => {
-                  if (!hasResolved && !isAborted) {
-                    hasResolved = true;
-                    preloadedMedia.current.set(index, video);
-                    loadingPromises.current.delete(index);
-                    abortControllers.current.delete(index);
-                    resolve(video);
-                  }
-                }, 500); // 500ms timeout for additional buffering
-              }
-            };
+        video.addEventListener("canplaythrough", handleCanPlayThrough);
+        video.addEventListener("loadeddata", handleLoadedData);
+        
+        video.onerror = () => {
+          if (!isAborted) {
+            reject(new Error(`Failed to preload video at index ${index}`));
+          }
+        };
 
-            video.addEventListener("canplaythrough", handleCanPlayThrough);
-            video.addEventListener("loadeddata", handleLoadedData);
-            
-            video.onerror = () => {
-              if (!isAborted) {
-                loadingPromises.current.delete(index);
-                abortControllers.current.delete(index);
-                reject(new Error(`Failed to preload video at index ${index}`));
-              }
-            };
-
-            abortController.signal.addEventListener("abort", () => {
-              isAborted = true;
-              video.removeEventListener("canplaythrough", handleCanPlayThrough);
-              video.removeEventListener("loadeddata", handleLoadedData);
-              video.src = "";
-              video.load();
-              loadingPromises.current.delete(index);
-              abortControllers.current.delete(index);
-            });
-          });
-
-          loadingPromises.current.set(index, loadPromise);
-          video.src = `/media?path=${encodeURIComponent(mediaFile.file_path)}`;
-          video.preload = "auto"; // Changed from "metadata" to "auto" for better buffering
-          video.setAttribute("playsinline", "");
-          video.muted = true;
-          
-          // Start loading immediately
+        abortController.signal.addEventListener("abort", () => {
+          isAborted = true;
+          video.removeEventListener("canplaythrough", handleCanPlayThrough);
+          video.removeEventListener("loadeddata", handleLoadedData);
+          video.src = "";
           video.load();
-        }
+        });
+
+        video.src = `/media?path=${encodeURIComponent(mediaFile.file_path)}`;
+        video.preload = "auto";
+        video.setAttribute("playsinline", "");
+        video.muted = true;
+        video.load();
       });
-    },
-    [mediaFiles, isMuted],
-  );
+    }
+  }, []);
 
   const cleanupPreloadedMedia = useCallback(() => {
     const currentMedia = mediaFiles[currentIndex];
     const keepIndices = new Set([
+      currentIndex - 2,
       currentIndex - 1,
       currentIndex,
       currentIndex + 1,
+      currentIndex + 2,
     ]);
 
-    // If current media is video, keep more preloaded videos
+
     if (currentMedia?.media_type === "video") {
-      for (let i = 2; i <= 4; i++) {
+      for (let i = 3; i <= 5; i++) {
         const lookAheadIndex = (currentIndex + i) % mediaFiles.length;
         const lookAheadMedia = mediaFiles[lookAheadIndex];
         if (lookAheadMedia?.media_type === "video") {
           keepIndices.add(lookAheadIndex);
-          break; // Only keep the next video
+          break;
         }
       }
     }
 
-    // Cancel loading promises for items we don't need
+
     for (const [index, abortController] of abortControllers.current.entries()) {
       if (!keepIndices.has(index)) {
         abortController.abort();
       }
     }
 
-    // Clean up preloaded media
+
     for (const [index, element] of preloadedMedia.current.entries()) {
       if (!keepIndices.has(index)) {
         if (element.tagName === "VIDEO") {
@@ -164,9 +196,19 @@ export function useMediaPreloader(mediaFiles, currentIndex) {
         preloadedMedia.current.delete(index);
       }
     }
+
+
+    const newQueue = new PriorityQueue((a, b) => b.priority - a.priority);
+    while (!preloadQueue.current.isEmpty()) {
+      const item = preloadQueue.current.deq();
+      if (keepIndices.has(item.index)) {
+        newQueue.enq(item);
+      }
+    }
+    preloadQueue.current = newQueue;
   }, [currentIndex, mediaFiles]);
 
-  // Preload adjacent media when currentIndex changes
+
   useEffect(() => {
     if (mediaFiles.length === 0) return;
 
@@ -174,36 +216,43 @@ export function useMediaPreloader(mediaFiles, currentIndex) {
     const nextIndex = (currentIndex + 1) % mediaFiles.length;
     const prevIndex = (currentIndex - 1 + mediaFiles.length) % mediaFiles.length;
     
-    // Always preload next and previous
-    const preloadIndices = [nextIndex, prevIndex];
-    
-    // If current media is video, also preload the next video more aggressively
-    // Right now it's set to 2 to save on bandwit but ngl this provides a 
-    // better UX even if it's data intensive 
+    preloadMedia([nextIndex], 10);
+    preloadMedia([prevIndex], 8);
     if (currentMedia?.media_type === "video") {
-      // Look ahead for more videos to preload
-      for (let i = 1; i <= 2; i++) {
+      const videoLookAhead = [];
+      for (let i = 2; i <= 3; i++) {
         const lookAheadIndex = (currentIndex + i) % mediaFiles.length;
         const lookAheadMedia = mediaFiles[lookAheadIndex];
-        if (lookAheadMedia?.media_type === "video" && !preloadIndices.includes(lookAheadIndex)) {
-          preloadIndices.push(lookAheadIndex);
-          break; // Only preload the next video
+        if (lookAheadMedia?.media_type === "video") {
+          videoLookAhead.push(lookAheadIndex);
+          break;
         }
+      }
+      if (videoLookAhead.length > 0) {
+        preloadMedia(videoLookAhead, 5);
       }
     }
 
-    preloadMedia(preloadIndices);
+
+    const additionalIndices = [];
+    for (let i = 2; i <= 4; i++) {
+      const forwardIndex = (currentIndex + i) % mediaFiles.length;
+      const backwardIndex = (currentIndex - i + mediaFiles.length) % mediaFiles.length;
+      additionalIndices.push(forwardIndex, backwardIndex);
+    }
+    preloadMedia(additionalIndices, 3);
+
     cleanupPreloadedMedia();
   }, [mediaFiles, currentIndex, preloadMedia, cleanupPreloadedMedia]);
 
-  // Clear all preloaded media when mediaFiles change
+
   useEffect(() => {
-    // Cancel all ongoing loads
+
     for (const abortController of abortControllers.current.values()) {
       abortController.abort();
     }
 
-    // Clean up all media elements
+
     for (const [, element] of preloadedMedia.current.entries()) {
       if (element.tagName === "VIDEO") {
         element.src = "";
@@ -216,9 +265,10 @@ export function useMediaPreloader(mediaFiles, currentIndex) {
     preloadedMedia.current.clear();
     loadingPromises.current.clear();
     abortControllers.current.clear();
+    preloadQueue.current = new PriorityQueue((a, b) => b.priority - a.priority);
   }, [mediaFiles]);
 
-  // Cleanup on unmount
+
   useEffect(() => {
     return () => {
       for (const abortController of abortControllers.current.values()) {
@@ -233,6 +283,8 @@ export function useMediaPreloader(mediaFiles, currentIndex) {
           element.src = "";
         }
       }
+
+      preloadQueue.current = new PriorityQueue((a, b) => b.priority - a.priority);
     };
   }, []);
 

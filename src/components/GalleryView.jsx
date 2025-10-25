@@ -18,10 +18,10 @@ function GalleryView({
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const isVisible = style?.display !== "none";
 
-  // Track scroll position for virtualization only
+
   const [actualScrollTop, setActualScrollTop] = useState(0);
 
-  // Responsive column sizing for masonry layout
+
   const getMasonryConfig = useCallback(() => {
     if (!containerSize.width) return { columnWidth: 250, gap: 16, padding: 20, columns: 1 };
 
@@ -29,13 +29,13 @@ function GalleryView({
     const gap = isMobile ? 12 : 16;
     const padding = isMobile ? 16 : 20;
 
-    // Calculate optimal column width and count
+
     const availableWidth = containerSize.width - padding * 2;
     const minColumnWidth = isMobile ? 150 : 200;
     const maxColumnWidth = isMobile ? 250 : 300;
 
     let columns = Math.floor(availableWidth / (minColumnWidth + gap));
-    columns = Math.max(2, Math.min(columns, isMobile ? 3 : 6)); // 2-3 cols mobile, 2-6 desktop
+    columns = Math.max(2, Math.min(columns, isMobile ? 3 : 6));
 
     const columnWidth = Math.min(
       maxColumnWidth,
@@ -47,24 +47,22 @@ function GalleryView({
 
   const { columnWidth, gap: GAP, padding: PADDING, columns } = getMasonryConfig();
 
-  // Store actual image dimensions
+
   const [imageDimensions, setImageDimensions] = useState(new Map());
 
-  // Calculate item height based on actual image aspect ratio
+
   const calculateItemHeight = useCallback((file, width) => {
     const dimensions = imageDimensions.get(file.file_hash);
 
     if (dimensions && dimensions.width && dimensions.height) {
-      // Use actual aspect ratio from loaded image
       const aspectRatio = dimensions.width / dimensions.height;
       return Math.floor(width / aspectRatio);
     }
 
-    // Fallback to a reasonable default aspect ratio while image loads
-    return Math.floor(width / 1.2); // Slightly portrait default
+    return Math.floor(width / 1.2);
   }, [imageDimensions]);
 
-  // Masonry layout calculation with virtualization
+
   const masonryLayout = useMemo(() => {
     if (!containerSize.width || !mediaFiles.length || !columns) {
       return {
@@ -78,13 +76,10 @@ function GalleryView({
     const items = [];
     const columnHeights = new Array(columns).fill(PADDING);
 
-    // Calculate positions for all items
+
     mediaFiles.forEach((file, index) => {
       const height = calculateItemHeight(file, columnWidth);
-
-      // Find shortest column
       const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
-
       const x = PADDING + shortestColumnIndex * (columnWidth + GAP);
       const y = columnHeights[shortestColumnIndex];
 
@@ -98,32 +93,35 @@ function GalleryView({
         isSelected: index === currentIndex,
       });
 
-      // Update column height
       columnHeights[shortestColumnIndex] += height + GAP;
     });
 
     const totalHeight = Math.max(...columnHeights) + PADDING;
 
-    // Calculate visible range with buffer
-    const buffer = 500; // pixels buffer
+    const buffer = Math.min(300, containerSize.height * 0.5);
     const visibleStart = Math.max(0, actualScrollTop - buffer);
     const visibleEnd = actualScrollTop + containerSize.height + buffer;
 
-    const visibleItems = items.filter(item =>
-      item.y + item.height >= visibleStart && item.y <= visibleEnd
-    );
 
-    const visibleRange = {
-      start: visibleItems.length > 0 ? visibleItems[0].index : 0,
-      end: visibleItems.length > 0 ? visibleItems[visibleItems.length - 1].index : 0
-    };
+    const visibleItems = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.y + item.height >= visibleStart && item.y <= visibleEnd) {
+        visibleItems.push(item);
+      } else if (item.y > visibleEnd) {
+        break;
+      }
+    }
 
     return {
       items: visibleItems,
-      allItems: items,
       totalHeight,
-      visibleRange,
-      columnHeights
+      visibleRange: {
+        start: visibleItems.length > 0 ? visibleItems[0].index : 0,
+        end: visibleItems.length > 0 ? visibleItems[visibleItems.length - 1].index : 0
+      },
+      renderedCount: visibleItems.length,
+      totalCount: mediaFiles.length
     };
   }, [
     containerSize,
@@ -137,7 +135,7 @@ function GalleryView({
     calculateItemHeight
   ]);
 
-  // Handle container resize and visibility changes
+
   useEffect(() => {
     const updateSize = () => {
       if (containerRef.current && isVisible) {
@@ -169,22 +167,19 @@ function GalleryView({
     return () => resizeObserver.disconnect();
   }, [isVisible]);
 
-  // Simple scroll position save/restore - only when switching views
+
   useEffect(() => {
     if (!isVisible && containerRef.current && setScrollPosition) {
-      // Save scroll position when leaving gallery view
       setScrollPosition(containerRef.current.scrollTop);
     }
   }, [isVisible, setScrollPosition]);
 
-  // Restore scroll position only once when becoming visible
+
   useEffect(() => {
     if (isVisible && containerRef.current && scrollPosition > 0) {
       containerRef.current.scrollTop = scrollPosition;
     }
-  }, [isVisible]); // Only depend on isVisible, not scrollPosition
-
-  // Track scroll position for virtualization - simple and non-interfering
+  }, [isVisible]);
   useEffect(() => {
     if (!isVisible || !containerRef.current) return;
 
@@ -202,7 +197,7 @@ function GalleryView({
     };
   }, [isVisible]);
 
-  // Handle dimension updates from loaded images
+
   const handleDimensionsLoad = useCallback((fileHash, dimensions) => {
     setImageDimensions(prev => {
       const newMap = new Map(prev);
@@ -237,14 +232,16 @@ function GalleryView({
   );
 }
 
-// Optimized gallery item component with memoization for masonry layout
+// Gallery item with intersection observer lazy loading
 const GalleryItem = React.memo(
   ({ file, index, x, y, width, height, isSelected, onSelect, onDimensionsLoad }) => {
     const [mediaLoaded, setMediaLoaded] = useState(false);
     const [mediaError, setMediaError] = useState(false);
     const [isVideo, setIsVideo] = useState(false);
     const [mediaTypeChecked, setMediaTypeChecked] = useState(false);
+    const [inView, setInView] = useState(false);
     const mediaRef = useRef(null);
+    const containerRef = useRef(null);
 
     const handleClick = useCallback((e) => {
       e.preventDefault();
@@ -255,7 +252,7 @@ const GalleryItem = React.memo(
     const handleMediaLoad = useCallback(() => {
       setMediaLoaded(true);
 
-      // Capture actual dimensions for aspect ratio calculation
+
       if (mediaRef.current && onDimensionsLoad) {
         const element = mediaRef.current;
         if (element.tagName === 'IMG') {
@@ -276,8 +273,32 @@ const GalleryItem = React.memo(
       setMediaError(true);
     }, []);
 
-    // Check if thumbnail is a video by making a HEAD request
+
     useEffect(() => {
+      const observer = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) {
+            setInView(true);
+            observer.disconnect();
+          }
+        },
+        { 
+          rootMargin: '200px',
+          threshold: 0.1 
+        }
+      );
+
+      if (containerRef.current) {
+        observer.observe(containerRef.current);
+      }
+
+      return () => observer.disconnect();
+    }, []);
+
+
+    useEffect(() => {
+      if (!inView) return;
+
       const checkMediaType = async () => {
         setMediaTypeChecked(false);
         setMediaLoaded(false);
@@ -300,9 +321,9 @@ const GalleryItem = React.memo(
       };
 
       checkMediaType();
-    }, [file.file_hash]);
+    }, [file.file_hash, inView]);
 
-    // Reset states when file changes
+
     useEffect(() => {
       setMediaLoaded(false);
       setMediaError(false);
@@ -310,6 +331,7 @@ const GalleryItem = React.memo(
 
     return (
       <div
+        ref={containerRef}
         className={`absolute rounded-lg overflow-hidden cursor-pointer transition-all duration-200 hover:scale-[1.02] border-2 ${isSelected
           ? "border-blue-500 shadow-lg shadow-blue-500/30 scale-[1.02]"
           : "border-transparent hover:border-gray-600"
@@ -330,7 +352,15 @@ const GalleryItem = React.memo(
           }
         }}
       >
-        {!mediaTypeChecked ? (
+        {!inView ? (
+          <div className="absolute inset-0 bg-black-shades-800 flex items-center justify-center">
+            <div className="w-8 h-8 text-gray-600">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+              </svg>
+            </div>
+          </div>
+        ) : !mediaTypeChecked ? (
           <div className="absolute inset-0 bg-black-shades-800 animate-pulse flex items-center justify-center">
             <div className="w-6 h-6 border-2 border-gray-600 border-t-gray-400 rounded-full animate-spin" />
           </div>
