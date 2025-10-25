@@ -240,6 +240,31 @@ class MediaSourceProvider {
   }
 
   /**
+   * Compute display name for a media file
+   * @param {Object} mediaFile - Media file object
+   * @param {string} directoryPath - Directory path context
+   * @returns {string} Display name
+   */
+  computeDisplayName(mediaFile, directoryPath) {
+    if (!mediaFile) return "";
+
+    // Default implementation: extract directory name from path
+    if (directoryPath) {
+      return directoryPath.split("/").pop() ||
+        directoryPath.split("/").slice(-2, -1)[0] ||
+        "Root";
+    }
+
+    // Final fallback: try to extract from file path
+    if (mediaFile.file_path) {
+      const pathParts = mediaFile.file_path.split("/");
+      return pathParts[pathParts.length - 2] || "Unknown";
+    }
+
+    return "";
+  }
+
+  /**
    * Close the provider and release resources
    * @returns {Promise<void>}
    */

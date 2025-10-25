@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback, memo } from "react";
+import { useState, useEffect, useCallback, memo } from "react";
 import FullscreenButton from "./FullscreenButton";
 import VideoProgressBar from "./VideoProgressBar";
+import useDisplayName from "../hooks/useDisplayName";
 
 const Navigation = memo(function Navigation({
   onToggleSettings,
@@ -106,70 +107,8 @@ const Navigation = memo(function Navigation({
     }
   }, [currentMediaFile]);
 
-  // Compute smart display name based on media source and available data
-  const computeDisplayName = () => {
-    if (!currentMediaFile) return "";
-
-    // For SB provider media
-    if (currentMediaFile.file_hash?.startsWith('sb_')) {
-      // For markers, prioritize scene info and performers
-      if (currentMediaFile.sb_type === 'marker') {
-        // Try performer names first
-        if (currentMediaFile.sb_scene_performers?.length > 0) {
-          const performers = currentMediaFile.sb_scene_performers.map(p => p.name).join(', ');
-          return performers.length > 30 ? performers.substring(0, 27) + '...' : performers;
-        }
-        // Fall back to scene title
-        if (currentMediaFile.sb_scene_title) {
-          return currentMediaFile.sb_scene_title.length > 30
-            ? currentMediaFile.sb_scene_title.substring(0, 27) + '...'
-            : currentMediaFile.sb_scene_title;
-        }
-        // Fall back to studio name
-        if (currentMediaFile.sb_scene_studio?.name) {
-          return currentMediaFile.sb_scene_studio.name;
-        }
-      } else {
-        // For regular images/videos, try performers first
-        if (currentMediaFile.sb_performers?.length > 0) {
-          const performers = currentMediaFile.sb_performers.map(p => p.name).join(', ');
-          return performers.length > 30 ? performers.substring(0, 27) + '...' : performers;
-        }
-        // Extract directory name from filename path
-        if (currentMediaFile.filename) {
-          const pathParts = currentMediaFile.filename.split('/');
-          // Get the deepest directory (second to last part, since last part is the file)
-          if (pathParts.length >= 2) {
-            const directoryName = pathParts[pathParts.length - 2];
-            return directoryName;
-          }
-        }
-        // Fall back to showing the image ID in a more user-friendly way
-        if (currentMediaFile.sb_id) {
-          return `Image #${currentMediaFile.sb_id}`;
-        }
-      }
-      // Final fallback for SB: show "S Server"
-      return "S Server";
-    }
-
-    // For local provider media, extract directory name from path
-    if (directoryName) {
-      return directoryName.split("/").pop() ||
-        directoryName.split("/").slice(-2, -1)[0] ||
-        "Root";
-    }
-
-    // Final fallback: try to extract from file path
-    if (currentMediaFile.file_path) {
-      const pathParts = currentMediaFile.file_path.split("/");
-      return pathParts[pathParts.length - 2] || "Unknown";
-    }
-
-    return "";
-  };
-
-  const displayName = computeDisplayName();
+  // Use provider-based display name computation
+  const { displayName } = useDisplayName(currentMediaFile, directoryName);
   const isVideoPlaying = currentMediaFile?.media_type === "video";
 
   return (

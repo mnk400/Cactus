@@ -87,7 +87,7 @@ class SbMediaProvider extends MediaSourceProvider {
    */
   static validateConfig(args) {
     const sbUrl = args["sb-url"] || process.env.SB_URL;
-    
+
     if (!sbUrl) {
       return {
         success: false,
@@ -400,7 +400,7 @@ class SbMediaProvider extends MediaSourceProvider {
 
     // manually avoid GIFs from isVideo because gifs can have "duration"
     const isGif = filename.toLowerCase().includes('.gif');
-    
+
     const isVideo = !isGif && visualFile && visualFile.duration !== undefined;
 
     return {
@@ -1553,6 +1553,57 @@ class SbMediaProvider extends MediaSourceProvider {
         ...(capabilities.canRegenerateThumbnails ? ['regenerate-thumbnails'] : []),
       ],
     };
+  }
+
+  /**
+   * Compute display name for SB media files
+   * @param {Object} mediaFile - Media file object
+   * @param {string} directoryPath - Directory path context (unused for SB)
+   * @returns {string} Display name
+   */
+  computeDisplayName(mediaFile, directoryPath) {
+    if (!mediaFile) return "";
+
+    // For markers, prioritize scene info and performers
+    if (mediaFile.sb_type === 'marker') {
+      // Try performer names first
+      if (mediaFile.sb_scene_performers?.length > 0) {
+        const performers = mediaFile.sb_scene_performers.map(p => p.name).join(', ');
+        return performers.length > 30 ? performers.substring(0, 27) + '...' : performers;
+      }
+      // Fall back to scene title
+      if (mediaFile.sb_scene_title) {
+        return mediaFile.sb_scene_title.length > 30
+          ? mediaFile.sb_scene_title.substring(0, 27) + '...'
+          : mediaFile.sb_scene_title;
+      }
+      // Fall back to studio name
+      if (mediaFile.sb_scene_studio?.name) {
+        return mediaFile.sb_scene_studio.name;
+      }
+    } else {
+      // For regular images/videos, try performers first
+      if (mediaFile.sb_performers?.length > 0) {
+        const performers = mediaFile.sb_performers.map(p => p.name).join(', ');
+        return performers.length > 30 ? performers.substring(0, 27) + '...' : performers;
+      }
+      // Extract directory name from filename path
+      if (mediaFile.filename) {
+        const pathParts = mediaFile.filename.split('/');
+        // Get the deepest directory (second to last part, since last part is the file)
+        if (pathParts.length >= 2) {
+          const directoryName = pathParts[pathParts.length - 2];
+          return directoryName;
+        }
+      }
+      // Fall back to showing the image ID in a more user-friendly way
+      if (mediaFile.sb_id) {
+        return `Image #${mediaFile.sb_id}`;
+      }
+    }
+
+    // Final fallback for SB: show "S Server"
+    return "S Server";
   }
 
   /**

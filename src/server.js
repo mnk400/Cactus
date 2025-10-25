@@ -144,9 +144,20 @@ app.get("/api/media", async (req, res) => {
       files = await mediaProvider.getAllMedia(mediaType, sortBy);
     }
 
+    // Add display names to each media file using provider-specific logic
+    const filesWithDisplayNames = files.map(file => {
+      const directoryPath = file.file_path ? 
+        file.file_path.split("/").slice(0, -1).join("/") : "";
+      
+      return {
+        ...file,
+        displayName: mediaProvider.computeDisplayName(file, directoryPath)
+      };
+    });
+
     res.json({
-      files: files,
-      count: files.length,
+      files: filesWithDisplayNames,
+      count: filesWithDisplayNames.length,
       type: mediaType,
       filters: {
         tags: tags
@@ -571,6 +582,11 @@ app.get("/api/config", (req, res) => {
       // UI configuration from provider
       ui: uiConfig,
 
+      // Display name computation configuration
+      displayName: {
+        providerType: providerType,
+      },
+
       // Available providers for potential switching
       availableProviders: providerFactory.getAvailableProviders(),
     });
@@ -579,6 +595,10 @@ app.get("/api/config", (req, res) => {
     res.status(500).json({ error: "Failed to get configuration" });
   }
 });
+
+
+
+
 
 // Serve React app for all other routes (SPA routing)
 app.get("*", (req, res) => {
