@@ -29,8 +29,12 @@ const MediaItem = memo(function MediaItem({
     const preloadedMedia = getPreloadedMedia(index);
     if (preloadedMedia) {
       // For videos, check if they're sufficiently buffered
-      if (mediaFile.media_type === "video" && preloadedMedia.tagName === "VIDEO") {
-        if (preloadedMedia.readyState >= 3) { // HAVE_FUTURE_DATA or higher
+      if (
+        mediaFile.media_type === "video" &&
+        preloadedMedia.tagName === "VIDEO"
+      ) {
+        if (preloadedMedia.readyState >= 3) {
+          // HAVE_FUTURE_DATA or higher
           setIsLoading(false);
         } else {
           // Wait for the video to buffer more
@@ -39,7 +43,7 @@ const MediaItem = memo(function MediaItem({
             preloadedMedia.removeEventListener("canplay", handleCanPlay);
           };
           preloadedMedia.addEventListener("canplay", handleCanPlay);
-          
+
           // Fallback timeout
           setTimeout(() => {
             setIsLoading(false);
@@ -151,7 +155,8 @@ const VideoPlayer = memo(function VideoPlayer({
 }) {
   const [isPaused, setIsPaused] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
-  const { isMuted, hasUserInteracted, toggleMute, setMuted } = useVideoSettings();
+  const { isMuted, hasUserInteracted, toggleMute, setMuted } =
+    useVideoSettings();
   const [autoplayFailed, setAutoplayFailed] = useState(false);
 
   // Memoized event handlers
@@ -200,7 +205,7 @@ const VideoPlayer = memo(function VideoPlayer({
   const handleToggleMute = useCallback(() => {
     const video = videoRef.current;
     toggleMute(); // Update the state
-    
+
     // Immediately update the video element
     if (video) {
       video.muted = !isMuted; // Use the opposite of current state since toggleMute will flip it
@@ -263,18 +268,24 @@ const VideoPlayer = memo(function VideoPlayer({
       // If user has interacted and chosen to unmute, try unmuted playback
       if (hasUserInteracted && !isMuted) {
         video.muted = false;
-        video.play().then(() => {
-          // Success! Video is playing with sound
-          setAutoplayFailed(false);
-        }).catch((err) => {
-          // Autoplay with sound failed, fall back to muted
-          console.log("Autoplay with sound failed, falling back to muted:", err.message);
-          video.muted = true;
-          setAutoplayFailed(true);
-          video.play().catch((mutedErr) => {
-            console.error("Failed to play video even when muted:", mutedErr);
+        video
+          .play()
+          .then(() => {
+            // Success! Video is playing with sound
+            setAutoplayFailed(false);
+          })
+          .catch((err) => {
+            // Autoplay with sound failed, fall back to muted
+            console.log(
+              "Autoplay with sound failed, falling back to muted:",
+              err.message,
+            );
+            video.muted = true;
+            setAutoplayFailed(true);
+            video.play().catch((mutedErr) => {
+              console.error("Failed to play video even when muted:", mutedErr);
+            });
           });
-        });
       } else {
         // Default behavior: start muted (safer for autoplay)
         video.muted = true;
@@ -291,7 +302,7 @@ const VideoPlayer = memo(function VideoPlayer({
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !isActive) return;
-    
+
     video.muted = isMuted;
     setAutoplayFailed(false); // Reset autoplay failed state when user changes preference
   }, [isMuted, isActive]);

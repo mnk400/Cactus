@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
 /**
  * Hook to fetch and manage server configuration
@@ -13,22 +13,22 @@ function useServerConfig() {
     try {
       setLoading(true);
       setError(null);
-      
-      const response = await fetch('/api/config');
+
+      const response = await fetch("/api/config");
       if (!response.ok) {
         throw new Error(`Failed to fetch config: ${response.status}`);
       }
-      
+
       const configData = await response.json();
       setConfig(configData);
     } catch (err) {
-      console.error('Failed to fetch server config:', err);
+      console.error("Failed to fetch server config:", err);
       setError(err.message);
-      
+
       // Fallback to basic config if fetch fails
       setConfig({
         provider: {
-          type: 'unknown',
+          type: "unknown",
           capabilities: {
             canRescan: false,
             canRegenerateThumbnails: false,
@@ -36,11 +36,11 @@ function useServerConfig() {
             canGetFileHashForPath: false,
             supportsLocalFiles: false,
             supportsRemoteFiles: false,
-          }
+          },
         },
         ui: {
           showDirectoryInfo: true,
-          directoryLabel: 'Directory',
+          directoryLabel: "Directory",
           showRescanButton: false,
           showRegenerateThumbnailsButton: false,
           showTagManager: false,
@@ -65,7 +65,7 @@ function useServerConfig() {
   };
 
   const getProviderType = () => {
-    return config?.provider?.type || 'unknown';
+    return config?.provider?.type || "unknown";
   };
 
   const getProviderCapabilities = () => {
@@ -85,24 +85,27 @@ function useServerConfig() {
     loading,
     error,
     refetch: fetchConfig,
-    
+
     // Helper functions
     canPerformAction,
     getProviderType,
     getProviderCapabilities,
     getUIConfig,
     isProviderType,
-    
+
     // Common capability checks
-    canRescan: canPerformAction('rescan-directory'),
-    canRegenerateThumbnails: canPerformAction('regenerate-thumbnails'),
-    canManageTags: canPerformAction('manage-tags'),
+    canRescan: canPerformAction("rescan-directory"),
+    canRegenerateThumbnails: canPerformAction("regenerate-thumbnails"),
+    canManageTags: canPerformAction("manage-tags"),
     showConnectionStatus: getUIConfig().showConnectionStatus,
     showDirectoryInfo: getUIConfig().showDirectoryInfo,
-    directoryLabel: getUIConfig().directoryLabel || 'Directory',
-    
+    directoryLabel: getUIConfig().directoryLabel || "Directory",
+
     // Directory information from provider config
-    directoryName: config?.provider?.config?.directoryPath || config?.provider?.config?.sbUrl || '',
+    directoryName:
+      config?.provider?.config?.directoryPath ||
+      config?.provider?.config?.sbUrl ||
+      "",
   };
 }
 

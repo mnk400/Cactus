@@ -124,7 +124,7 @@ const TagDisplay = memo(function TagDisplay({
     <div
       className={`fixed pb-1 left-0 right-0 w-full z-10 pointer-events-none transition-all duration-300 ${isVideoPlaying ? "bottom-20" : "bottom-16"}`}
       style={{
-        bottom: isVideoPlaying ? '84px' : '60px'
+        bottom: isVideoPlaying ? "84px" : "60px",
       }}
     >
       <div className="pb-3 pointer-events-auto px-4">

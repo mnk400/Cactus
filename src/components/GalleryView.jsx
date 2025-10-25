@@ -18,17 +18,15 @@ function GalleryView({
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const isVisible = style?.display !== "none";
 
-
   const [actualScrollTop, setActualScrollTop] = useState(0);
 
-
   const getMasonryConfig = useCallback(() => {
-    if (!containerSize.width) return { columnWidth: 250, gap: 16, padding: 20, columns: 1 };
+    if (!containerSize.width)
+      return { columnWidth: 250, gap: 16, padding: 20, columns: 1 };
 
     const isMobile = containerSize.width < 768;
     const gap = isMobile ? 12 : 16;
     const padding = isMobile ? 16 : 20;
-
 
     const availableWidth = containerSize.width - padding * 2;
     const minColumnWidth = isMobile ? 150 : 200;
@@ -39,29 +37,34 @@ function GalleryView({
 
     const columnWidth = Math.min(
       maxColumnWidth,
-      Math.floor((availableWidth - gap * (columns - 1)) / columns)
+      Math.floor((availableWidth - gap * (columns - 1)) / columns),
     );
 
     return { columnWidth, gap, padding, columns };
   }, [containerSize.width]);
 
-  const { columnWidth, gap: GAP, padding: PADDING, columns } = getMasonryConfig();
-
+  const {
+    columnWidth,
+    gap: GAP,
+    padding: PADDING,
+    columns,
+  } = getMasonryConfig();
 
   const [imageDimensions, setImageDimensions] = useState(new Map());
 
+  const calculateItemHeight = useCallback(
+    (file, width) => {
+      const dimensions = imageDimensions.get(file.file_hash);
 
-  const calculateItemHeight = useCallback((file, width) => {
-    const dimensions = imageDimensions.get(file.file_hash);
+      if (dimensions && dimensions.width && dimensions.height) {
+        const aspectRatio = dimensions.width / dimensions.height;
+        return Math.floor(width / aspectRatio);
+      }
 
-    if (dimensions && dimensions.width && dimensions.height) {
-      const aspectRatio = dimensions.width / dimensions.height;
-      return Math.floor(width / aspectRatio);
-    }
-
-    return Math.floor(width / 1.2);
-  }, [imageDimensions]);
-
+      return Math.floor(width / 1.2);
+    },
+    [imageDimensions],
+  );
 
   const masonryLayout = useMemo(() => {
     if (!containerSize.width || !mediaFiles.length || !columns) {
@@ -69,17 +72,18 @@ function GalleryView({
         items: [],
         totalHeight: 0,
         visibleRange: { start: 0, end: 0 },
-        columnHeights: []
+        columnHeights: [],
       };
     }
 
     const items = [];
     const columnHeights = new Array(columns).fill(PADDING);
 
-
     mediaFiles.forEach((file, index) => {
       const height = calculateItemHeight(file, columnWidth);
-      const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
+      const shortestColumnIndex = columnHeights.indexOf(
+        Math.min(...columnHeights),
+      );
       const x = PADDING + shortestColumnIndex * (columnWidth + GAP);
       const y = columnHeights[shortestColumnIndex];
 
@@ -102,7 +106,6 @@ function GalleryView({
     const visibleStart = Math.max(0, actualScrollTop - buffer);
     const visibleEnd = actualScrollTop + containerSize.height + buffer;
 
-
     const visibleItems = [];
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
@@ -118,10 +121,13 @@ function GalleryView({
       totalHeight,
       visibleRange: {
         start: visibleItems.length > 0 ? visibleItems[0].index : 0,
-        end: visibleItems.length > 0 ? visibleItems[visibleItems.length - 1].index : 0
+        end:
+          visibleItems.length > 0
+            ? visibleItems[visibleItems.length - 1].index
+            : 0,
       },
       renderedCount: visibleItems.length,
-      totalCount: mediaFiles.length
+      totalCount: mediaFiles.length,
     };
   }, [
     containerSize,
@@ -132,9 +138,8 @@ function GalleryView({
     columnWidth,
     GAP,
     PADDING,
-    calculateItemHeight
+    calculateItemHeight,
   ]);
-
 
   useEffect(() => {
     const updateSize = () => {
@@ -167,13 +172,11 @@ function GalleryView({
     return () => resizeObserver.disconnect();
   }, [isVisible]);
 
-
   useEffect(() => {
     if (!isVisible && containerRef.current && setScrollPosition) {
       setScrollPosition(containerRef.current.scrollTop);
     }
   }, [isVisible, setScrollPosition]);
-
 
   useEffect(() => {
     if (isVisible && containerRef.current && scrollPosition > 0) {
@@ -197,9 +200,8 @@ function GalleryView({
     };
   }, [isVisible]);
 
-
   const handleDimensionsLoad = useCallback((fileHash, dimensions) => {
-    setImageDimensions(prev => {
+    setImageDimensions((prev) => {
       const newMap = new Map(prev);
       newMap.set(fileHash, dimensions);
       return newMap;
@@ -234,7 +236,17 @@ function GalleryView({
 
 // Gallery item with intersection observer lazy loading
 const GalleryItem = React.memo(
-  ({ file, index, x, y, width, height, isSelected, onSelect, onDimensionsLoad }) => {
+  ({
+    file,
+    index,
+    x,
+    y,
+    width,
+    height,
+    isSelected,
+    onSelect,
+    onDimensionsLoad,
+  }) => {
     const [mediaLoaded, setMediaLoaded] = useState(false);
     const [mediaError, setMediaError] = useState(false);
     const [isVideo, setIsVideo] = useState(false);
@@ -243,27 +255,29 @@ const GalleryItem = React.memo(
     const mediaRef = useRef(null);
     const containerRef = useRef(null);
 
-    const handleClick = useCallback((e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      onSelect(index);
-    }, [index, onSelect]);
+    const handleClick = useCallback(
+      (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onSelect(index);
+      },
+      [index, onSelect],
+    );
 
     const handleMediaLoad = useCallback(() => {
       setMediaLoaded(true);
 
-
       if (mediaRef.current && onDimensionsLoad) {
         const element = mediaRef.current;
-        if (element.tagName === 'IMG') {
+        if (element.tagName === "IMG") {
           onDimensionsLoad(file.file_hash, {
             width: element.naturalWidth,
-            height: element.naturalHeight
+            height: element.naturalHeight,
           });
-        } else if (element.tagName === 'VIDEO') {
+        } else if (element.tagName === "VIDEO") {
           onDimensionsLoad(file.file_hash, {
             width: element.videoWidth,
-            height: element.videoHeight
+            height: element.videoHeight,
           });
         }
       }
@@ -273,7 +287,6 @@ const GalleryItem = React.memo(
       setMediaError(true);
     }, []);
 
-
     useEffect(() => {
       const observer = new IntersectionObserver(
         ([entry]) => {
@@ -282,10 +295,10 @@ const GalleryItem = React.memo(
             observer.disconnect();
           }
         },
-        { 
-          rootMargin: '200px',
-          threshold: 0.1 
-        }
+        {
+          rootMargin: "200px",
+          threshold: 0.1,
+        },
       );
 
       if (containerRef.current) {
@@ -294,7 +307,6 @@ const GalleryItem = React.memo(
 
       return () => observer.disconnect();
     }, []);
-
 
     useEffect(() => {
       if (!inView) return;
@@ -306,11 +318,12 @@ const GalleryItem = React.memo(
 
         try {
           const response = await fetch(`/thumbnails?hash=${file.file_hash}`, {
-            method: 'HEAD'
+            method: "HEAD",
           });
 
-          const contentType = response.headers.get('content-type');
-          const isVideoContent = contentType && contentType.startsWith('video/');
+          const contentType = response.headers.get("content-type");
+          const isVideoContent =
+            contentType && contentType.startsWith("video/");
 
           setIsVideo(isVideoContent);
           setMediaTypeChecked(true);
@@ -323,7 +336,6 @@ const GalleryItem = React.memo(
       checkMediaType();
     }, [file.file_hash, inView]);
 
-
     useEffect(() => {
       setMediaLoaded(false);
       setMediaError(false);
@@ -332,10 +344,11 @@ const GalleryItem = React.memo(
     return (
       <div
         ref={containerRef}
-        className={`absolute rounded-lg overflow-hidden cursor-pointer transition-all duration-200 hover:scale-[1.02] border-2 ${isSelected
-          ? "border-blue-500 shadow-lg shadow-blue-500/30 scale-[1.02]"
-          : "border-transparent hover:border-gray-600"
-          }`}
+        className={`absolute rounded-lg overflow-hidden cursor-pointer transition-all duration-200 hover:scale-[1.02] border-2 ${
+          isSelected
+            ? "border-blue-500 shadow-lg shadow-blue-500/30 scale-[1.02]"
+            : "border-transparent hover:border-gray-600"
+        }`}
         style={{
           left: x,
           top: y,
@@ -346,7 +359,7 @@ const GalleryItem = React.memo(
         role="button"
         tabIndex={0}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
+          if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             handleClick(e);
           }
@@ -356,7 +369,7 @@ const GalleryItem = React.memo(
           <div className="absolute inset-0 bg-black-shades-800 flex items-center justify-center">
             <div className="w-8 h-8 text-gray-600">
               <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+                <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" />
               </svg>
             </div>
           </div>
@@ -375,28 +388,30 @@ const GalleryItem = React.memo(
               <video
                 ref={mediaRef}
                 src={`/thumbnails?hash=${file.file_hash}`}
-                className={`w-full h-full object-cover transition-opacity duration-300 ${mediaLoaded ? "opacity-100" : "opacity-0"
-                  }`}
+                className={`w-full h-full object-cover transition-opacity duration-300 ${
+                  mediaLoaded ? "opacity-100" : "opacity-0"
+                }`}
                 onLoadedData={handleMediaLoad}
                 onError={handleMediaError}
                 muted
                 loop
                 autoPlay
                 playsInline
-                style={{ pointerEvents: 'none' }}
+                style={{ pointerEvents: "none" }}
               />
             ) : (
               <img
                 ref={mediaRef}
                 src={`/thumbnails?hash=${file.file_hash}`}
                 alt={`media-${index}`}
-                className={`w-full h-full object-cover transition-opacity duration-300 ${mediaLoaded ? "opacity-100" : "opacity-0"
-                  }`}
+                className={`w-full h-full object-cover transition-opacity duration-300 ${
+                  mediaLoaded ? "opacity-100" : "opacity-0"
+                }`}
                 onLoad={handleMediaLoad}
                 onError={handleMediaError}
                 loading="lazy"
                 decoding="async"
-                style={{ pointerEvents: 'none' }}
+                style={{ pointerEvents: "none" }}
               />
             )}
           </>

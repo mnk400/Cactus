@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from "react";
 
 /**
  * Custom hook for managing video playback settings
@@ -6,30 +6,30 @@ import { useState, useEffect, useCallback } from 'react';
 export const useVideoSettings = () => {
   const [isMuted, setIsMuted] = useState(() => {
     // Check localStorage for user preference, default to muted initially
-    const saved = localStorage.getItem('cactus-video-muted');
+    const saved = localStorage.getItem("cactus-video-muted");
     return saved !== null ? JSON.parse(saved) : true;
   });
 
   const [hasUserInteracted, setHasUserInteracted] = useState(() => {
     // Track if user has ever interacted with audio controls
-    const interacted = localStorage.getItem('cactus-user-audio-interaction');
-    return interacted === 'true';
+    const interacted = localStorage.getItem("cactus-user-audio-interaction");
+    return interacted === "true";
   });
 
   // Save mute preference to localStorage
   useEffect(() => {
-    localStorage.setItem('cactus-video-muted', JSON.stringify(isMuted));
+    localStorage.setItem("cactus-video-muted", JSON.stringify(isMuted));
   }, [isMuted]);
 
   // Save interaction state to localStorage
   useEffect(() => {
     if (hasUserInteracted) {
-      localStorage.setItem('cactus-user-audio-interaction', 'true');
+      localStorage.setItem("cactus-user-audio-interaction", "true");
     }
   }, [hasUserInteracted]);
 
   const toggleMute = useCallback(() => {
-    setIsMuted(prev => !prev);
+    setIsMuted((prev) => !prev);
     setHasUserInteracted(true);
   }, []);
 
@@ -42,6 +42,6 @@ export const useVideoSettings = () => {
     isMuted,
     hasUserInteracted,
     toggleMute,
-    setMuted
+    setMuted,
   };
 };

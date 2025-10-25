@@ -64,7 +64,7 @@ const VIDEO_EXTENSIONS = [
 class LocalMediaProvider extends MediaSourceProvider {
   constructor(directoryPath) {
     super();
-    this.providerType = 'local';
+    this.providerType = "local";
     this.directoryPath = directoryPath;
     this.mediaDatabase = null;
     this.isInitialized = false;
@@ -107,7 +107,7 @@ class LocalMediaProvider extends MediaSourceProvider {
    */
   static validateConfig(args) {
     const fs = require("fs");
-    
+
     if (!args.d) {
       return {
         success: false,
@@ -1082,15 +1082,17 @@ class LocalMediaProvider extends MediaSourceProvider {
     const capabilities = this.getCapabilities();
     return {
       showDirectoryInfo: true,
-      directoryLabel: 'Directory Path',
+      directoryLabel: "Directory Path",
       showConnectionStatus: false,
       showRescanButton: capabilities.canRescan,
       showRegenerateThumbnailsButton: capabilities.canRegenerateThumbnails,
       showTagManager: capabilities.canManageTags,
       availableActions: [
-        ...(capabilities.canManageTags ? ['manage-tags'] : []),
-        ...(capabilities.canRescan ? ['rescan-directory'] : []),
-        ...(capabilities.canRegenerateThumbnails ? ['regenerate-thumbnails'] : []),
+        ...(capabilities.canManageTags ? ["manage-tags"] : []),
+        ...(capabilities.canRescan ? ["rescan-directory"] : []),
+        ...(capabilities.canRegenerateThumbnails
+          ? ["regenerate-thumbnails"]
+          : []),
       ],
     };
   }
@@ -1106,9 +1108,11 @@ class LocalMediaProvider extends MediaSourceProvider {
 
     // For local provider media, extract directory name from path
     if (directoryPath) {
-      return directoryPath.split("/").pop() ||
+      return (
+        directoryPath.split("/").pop() ||
         directoryPath.split("/").slice(-2, -1)[0] ||
-        "Root";
+        "Root"
+      );
     }
 
     // Final fallback: try to extract from file path

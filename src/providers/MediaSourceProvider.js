@@ -6,7 +6,7 @@
  */
 class MediaSourceProvider {
   constructor() {
-    this.providerType = 'unknown';
+    this.providerType = "unknown";
     this.isInitialized = false;
   }
 
@@ -167,7 +167,9 @@ class MediaSourceProvider {
    * @returns {Promise<Array>} Array of media files or throws error if not supported
    */
   async rescanDirectory() {
-    throw new Error(`Rescan operation not supported for ${this.providerType} provider`);
+    throw new Error(
+      `Rescan operation not supported for ${this.providerType} provider`,
+    );
   }
 
   /**
@@ -175,7 +177,9 @@ class MediaSourceProvider {
    * @returns {Promise<number>} Number of regenerated thumbnails or throws error if not supported
    */
   async regenerateThumbnails() {
-    throw new Error(`Thumbnail regeneration not supported for ${this.providerType} provider`);
+    throw new Error(
+      `Thumbnail regeneration not supported for ${this.providerType} provider`,
+    );
   }
 
   /**
@@ -184,7 +188,9 @@ class MediaSourceProvider {
    * @returns {string} File hash or throws error if not supported
    */
   getFileHashForPath(filePath) {
-    throw new Error(`File hash lookup not supported for ${this.providerType} provider`);
+    throw new Error(
+      `File hash lookup not supported for ${this.providerType} provider`,
+    );
   }
 
   /**
@@ -230,7 +236,7 @@ class MediaSourceProvider {
     const capabilities = this.getCapabilities();
     return {
       showDirectoryInfo: true,
-      directoryLabel: 'Directory',
+      directoryLabel: "Directory",
       showConnectionStatus: false,
       showRescanButton: capabilities.canRescan,
       showRegenerateThumbnailsButton: capabilities.canRegenerateThumbnails,
@@ -250,9 +256,11 @@ class MediaSourceProvider {
 
     // Default implementation: extract directory name from path
     if (directoryPath) {
-      return directoryPath.split("/").pop() ||
+      return (
+        directoryPath.split("/").pop() ||
         directoryPath.split("/").slice(-2, -1)[0] ||
-        "Root";
+        "Root"
+      );
     }
 
     // Final fallback: try to extract from file path

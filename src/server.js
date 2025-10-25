@@ -11,16 +11,18 @@ const minimist = require("minimist");
 const app = express();
 
 // Enable compression for all responses
-app.use(compression({
-  level: 6,
-  threshold: 1024,
-  filter: (req, res) => {
-    if (req.headers['x-no-compression']) {
-      return false;
-    }
-    return compression.filter(req, res);
-  }
-}));
+app.use(
+  compression({
+    level: 6,
+    threshold: 1024,
+    filter: (req, res) => {
+      if (req.headers["x-no-compression"]) {
+        return false;
+      }
+      return compression.filter(req, res);
+    },
+  }),
+);
 
 const argv = minimist(process.argv.slice(2));
 
@@ -102,21 +104,21 @@ app.use(express.json());
 const requestCache = new NodeCache({
   stdTTL: 60,
   checkperiod: 120,
-  maxKeys: 200, 
-  useClones: false 
+  maxKeys: 200,
+  useClones: false,
 });
 
 // Cache event listeners for monitoring
-requestCache.on('expired', (key, value) => {
+requestCache.on("expired", (key, value) => {
   log.info("Cache entry expired", { key });
 });
 
-requestCache.on('flush', () => {
+requestCache.on("flush", () => {
   log.info("Cache flushed");
 });
 
 function cacheMiddleware(req, res, next) {
-  if (req.method !== 'GET' || !req.originalUrl.startsWith('/api/')) {
+  if (req.method !== "GET" || !req.originalUrl.startsWith("/api/")) {
     return next();
   }
 
@@ -127,7 +129,8 @@ function cacheMiddleware(req, res, next) {
     const stats = requestCache.getStats();
     log.info("Serving cached API response", {
       url: key,
-      hitRate: ((stats.hits / (stats.hits + stats.misses)) * 100).toFixed(1) + '%'
+      hitRate:
+        ((stats.hits / (stats.hits + stats.misses)) * 100).toFixed(1) + "%",
     });
     return res.json(cached);
   }
@@ -143,41 +146,41 @@ function cacheMiddleware(req, res, next) {
   next();
 }
 
-app.use('/api', cacheMiddleware);
+app.use("/api", cacheMiddleware);
 
 // Caching headers
-app.use('/media', (req, res, next) => {
+app.use("/media", (req, res, next) => {
   res.set({
-    'Cache-Control': 'public, max-age=31536000, immutable',
-    'Vary': 'Accept-Encoding',
-    'X-Content-Type-Options': 'nosniff'
+    "Cache-Control": "public, max-age=31536000, immutable",
+    Vary: "Accept-Encoding",
+    "X-Content-Type-Options": "nosniff",
   });
   next();
 });
 
-app.use('/thumbnails', (req, res, next) => {
+app.use("/thumbnails", (req, res, next) => {
   res.set({
-    'Cache-Control': 'public, max-age=604800',
-    'Vary': 'Accept-Encoding',
-    'X-Content-Type-Options': 'nosniff'
+    "Cache-Control": "public, max-age=604800",
+    Vary: "Accept-Encoding",
+    "X-Content-Type-Options": "nosniff",
   });
   next();
 });
 
-app.use('/api', (req, res, next) => {
-  if (req.method === 'GET') {
+app.use("/api", (req, res, next) => {
+  if (req.method === "GET") {
     res.set({
-      'Cache-Control': 'public, max-age=300',
-      'Vary': 'Accept-Encoding'
+      "Cache-Control": "public, max-age=300",
+      Vary: "Accept-Encoding",
     });
   }
   next();
 });
 
-app.use('/assets', (req, res, next) => {
+app.use("/assets", (req, res, next) => {
   res.set({
-    'Cache-Control': 'public, max-age=31536000, immutable',
-    'Vary': 'Accept-Encoding'
+    "Cache-Control": "public, max-age=31536000, immutable",
+    Vary: "Accept-Encoding",
   });
   next();
 });
@@ -189,12 +192,13 @@ app.get("/api/cache-status", (req, res) => {
       size: requestCache.keys().length,
       maxKeys: 200,
       stats: stats,
-      hitRate: stats.hits + stats.misses > 0
-        ? ((stats.hits / (stats.hits + stats.misses)) * 100).toFixed(1) + '%'
-        : '0%'
+      hitRate:
+        stats.hits + stats.misses > 0
+          ? ((stats.hits / (stats.hits + stats.misses)) * 100).toFixed(1) + "%"
+          : "0%",
     },
     cacheDuration: 30, // seconds
-    uptime: process.uptime()
+    uptime: process.uptime(),
   });
 });
 
@@ -208,8 +212,8 @@ log.info("Performance optimizations enabled", {
     api: "5 minutes",
     tags: "10 minutes",
     config: "1 hour",
-    assets: "1 year"
-  }
+    assets: "1 year",
+  },
 });
 
 // Unified API endpoint to get media files with optional filtering
@@ -240,15 +244,15 @@ app.get("/api/media", async (req, res) => {
     } else if (tags || excludeTags) {
       const tagList = tags
         ? tags
-          .split(",")
-          .map((t) => t.trim())
-          .filter((t) => t)
+            .split(",")
+            .map((t) => t.trim())
+            .filter((t) => t)
         : [];
       const excludeTagList = excludeTags
         ? excludeTags
-          .split(",")
-          .map((t) => t.trim())
-          .filter((t) => t)
+            .split(",")
+            .map((t) => t.trim())
+            .filter((t) => t)
         : [];
 
       log.info("Filtering media by tags", {
@@ -275,13 +279,14 @@ app.get("/api/media", async (req, res) => {
     }
 
     // Add display names to each media file using provider-specific logic
-    const filesWithDisplayNames = files.map(file => {
-      const directoryPath = file.file_path ?
-        file.file_path.split("/").slice(0, -1).join("/") : "";
+    const filesWithDisplayNames = files.map((file) => {
+      const directoryPath = file.file_path
+        ? file.file_path.split("/").slice(0, -1).join("/")
+        : "";
 
       return {
         ...file,
-        displayName: mediaProvider.computeDisplayName(file, directoryPath)
+        displayName: mediaProvider.computeDisplayName(file, directoryPath),
       };
     });
 
@@ -292,15 +297,15 @@ app.get("/api/media", async (req, res) => {
       filters: {
         tags: tags
           ? tags
-            .split(",")
-            .map((t) => t.trim())
-            .filter((t) => t)
+              .split(",")
+              .map((t) => t.trim())
+              .filter((t) => t)
           : [],
         excludeTags: excludeTags
           ? excludeTags
-            .split(",")
-            .map((t) => t.trim())
-            .filter((t) => t)
+              .split(",")
+              .map((t) => t.trim())
+              .filter((t) => t)
           : [],
         pathSubstring,
       },
@@ -319,18 +324,22 @@ app.get("/api/media", async (req, res) => {
 // ===== TAG MANAGEMENT API ENDPOINTS =====
 
 // Get all tags
-app.get("/api/tags", (req, res, next) => {
-  res.set('Cache-Control', 'public, max-age=600');
-  next();
-}, async (req, res) => {
-  try {
-    const tags = await mediaProvider.getAllTags();
-    res.json({ tags });
-  } catch (error) {
-    log.error("Failed to get tags", { error: error.message });
-    res.status(500).json({ error: "Failed to get tags" });
-  }
-});
+app.get(
+  "/api/tags",
+  (req, res, next) => {
+    res.set("Cache-Control", "public, max-age=600");
+    next();
+  },
+  async (req, res) => {
+    try {
+      const tags = await mediaProvider.getAllTags();
+      res.json({ tags });
+    } catch (error) {
+      log.error("Failed to get tags", { error: error.message });
+      res.status(500).json({ error: "Failed to get tags" });
+    }
+  },
+);
 
 // Create a new tag
 app.post("/api/tags", async (req, res) => {
@@ -687,54 +696,56 @@ app.post("/regenerate-thumbnails", async (req, res) => {
 });
 
 // API endpoint to get server and provider configuration
-app.get("/api/config", (req, res, next) => {
-  res.set('Cache-Control', 'public, max-age=3600');
-  next();
-}, (req, res) => {
-  try {
-    // Get provider capabilities and UI config from the provider itself
-    const providerType = mediaProvider.getProviderType();
-    const capabilities = mediaProvider.getCapabilities();
-    const uiConfig = mediaProvider.getUIConfig();
+app.get(
+  "/api/config",
+  (req, res, next) => {
+    res.set("Cache-Control", "public, max-age=3600");
+    next();
+  },
+  (req, res) => {
+    try {
+      // Get provider capabilities and UI config from the provider itself
+      const providerType = mediaProvider.getProviderType();
+      const capabilities = mediaProvider.getCapabilities();
+      const uiConfig = mediaProvider.getUIConfig();
 
-    // Get provider schema for UI hints
-    const ProviderClass = providerFactory.providers.get(providerType);
-    const providerSchema = ProviderClass ? ProviderClass.getConfigSchema() : null;
+      // Get provider schema for UI hints
+      const ProviderClass = providerFactory.providers.get(providerType);
+      const providerSchema = ProviderClass
+        ? ProviderClass.getConfigSchema()
+        : null;
 
-    res.json({
-      // Server configuration
-      predictEnabled: enablePredict,
-      predictApiUrl: predictApiUrl,
+      res.json({
+        // Server configuration
+        predictEnabled: enablePredict,
+        predictApiUrl: predictApiUrl,
 
-      // Provider information
-      provider: {
-        type: providerType,
-        name: mediaProvider.constructor.name,
-        config: validation.config,
-        capabilities: capabilities,
-        schema: providerSchema,
-      },
+        // Provider information
+        provider: {
+          type: providerType,
+          name: mediaProvider.constructor.name,
+          config: validation.config,
+          capabilities: capabilities,
+          schema: providerSchema,
+        },
 
-      // UI configuration from provider
-      ui: uiConfig,
+        // UI configuration from provider
+        ui: uiConfig,
 
-      // Display name computation configuration
-      displayName: {
-        providerType: providerType,
-      },
+        // Display name computation configuration
+        displayName: {
+          providerType: providerType,
+        },
 
-      // Available providers for potential switching
-      availableProviders: providerFactory.getAvailableProviders(),
-    });
-  } catch (error) {
-    log.error("Failed to get configuration", { error: error.message });
-    res.status(500).json({ error: "Failed to get configuration" });
-  }
-});
-
-
-
-
+        // Available providers for potential switching
+        availableProviders: providerFactory.getAvailableProviders(),
+      });
+    } catch (error) {
+      log.error("Failed to get configuration", { error: error.message });
+      res.status(500).json({ error: "Failed to get configuration" });
+    }
+  },
+);
 
 // Serve React app for all other routes (SPA routing)
 app.get("*", (req, res) => {
@@ -751,7 +762,10 @@ app.get("*", (req, res) => {
 // Initialize and start server
 (async () => {
   try {
-    const providerResult = await providerFactory.createProvider(providerType, argv);
+    const providerResult = await providerFactory.createProvider(
+      providerType,
+      argv,
+    );
 
     if (!providerResult.success) {
       log.error("Failed to create media provider", {

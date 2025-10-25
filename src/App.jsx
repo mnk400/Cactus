@@ -32,7 +32,7 @@ function App() {
     settings: urlSettings,
     updateSetting,
     updateSettings,
-    isInitialized
+    isInitialized,
   } = useURLSettings(tags);
 
   // Extract settings from URL hook
@@ -44,7 +44,7 @@ function App() {
     pathFilter: pathSubstring,
     galleryView: isGalleryView,
     debug: debugMode,
-    mediaId
+    mediaId,
   } = urlSettings;
 
   const {
@@ -104,7 +104,7 @@ function App() {
         excludedTags,
         pathSubstring,
         sortBy,
-        mediaId
+        mediaId,
       );
     }
   }, [isInitialized, tags.length]);
@@ -113,7 +113,7 @@ function App() {
   useEffect(() => {
     const debugStorage = localStorage.getItem("cactus-debug");
     if (debugStorage === "true" && !debugMode) {
-      updateSetting('debug', true, { replace: true });
+      updateSetting("debug", true, { replace: true });
     }
   }, [debugMode]);
 
@@ -121,7 +121,9 @@ function App() {
   useEffect(() => {
     if (mediaId && mediaFiles.length > 0 && isInitialized) {
       // If we have a media ID and files are loaded, find the correct index
-      const targetIndex = mediaFiles.findIndex(file => file.file_hash === mediaId);
+      const targetIndex = mediaFiles.findIndex(
+        (file) => file.file_hash === mediaId,
+      );
       if (targetIndex !== -1 && targetIndex !== currentIndex) {
         setIsUrlSync(true); // Mark as URL sync to prevent URL update
         setCurrentIndex(targetIndex);
@@ -131,24 +133,37 @@ function App() {
 
   // Update URL when current media changes (only when not from URL sync)
   useEffect(() => {
-    if (currentMediaFile && isInitialized && mediaFiles.length > 0 && !isUrlSync) {
+    if (
+      currentMediaFile &&
+      isInitialized &&
+      mediaFiles.length > 0 &&
+      !isUrlSync
+    ) {
       const currentHash = currentMediaFile.file_hash;
       if (currentHash && currentHash !== mediaId) {
-        updateSetting('mediaId', currentHash, { replace: true });
+        updateSetting("mediaId", currentHash, { replace: true });
       }
     }
     // Reset URL sync flag after processing
     if (isUrlSync) {
       setIsUrlSync(false);
     }
-  }, [currentIndex, mediaFiles, isInitialized, currentMediaFile, isUrlSync, mediaId]);
+  }, [
+    currentIndex,
+    mediaFiles,
+    isInitialized,
+    currentMediaFile,
+    isUrlSync,
+    mediaId,
+  ]);
 
   // Memoized navigation handler
   const handleNavigation = useCallback(
     (direction) => {
       if (mediaFiles.length > 0) {
         setCurrentIndex((prevIndex) => {
-          const newIndex = (prevIndex + direction + mediaFiles.length) % mediaFiles.length;
+          const newIndex =
+            (prevIndex + direction + mediaFiles.length) % mediaFiles.length;
           return newIndex;
         });
       }
@@ -157,19 +172,31 @@ function App() {
   );
 
   // Helper function to create complete settings object
-  const createSettingsUpdate = useCallback((overrides = {}) => {
-    return {
-      mediaType: currentMediaType,
-      sortBy: sortBy,
-      selectedTags: selectedTags.map(tag => tag.name || tag),
-      excludedTags: excludedTags.map(tag => tag.name || tag),
-      pathFilter: pathSubstring,
-      galleryView: isGalleryView,
-      debug: debugMode,
-      mediaId: mediaId,
-      ...overrides
-    };
-  }, [currentMediaType, sortBy, selectedTags, excludedTags, pathSubstring, isGalleryView, debugMode, mediaId]);
+  const createSettingsUpdate = useCallback(
+    (overrides = {}) => {
+      return {
+        mediaType: currentMediaType,
+        sortBy: sortBy,
+        selectedTags: selectedTags.map((tag) => tag.name || tag),
+        excludedTags: excludedTags.map((tag) => tag.name || tag),
+        pathFilter: pathSubstring,
+        galleryView: isGalleryView,
+        debug: debugMode,
+        mediaId: mediaId,
+        ...overrides,
+      };
+    },
+    [
+      currentMediaType,
+      sortBy,
+      selectedTags,
+      excludedTags,
+      pathSubstring,
+      isGalleryView,
+      debugMode,
+      mediaId,
+    ],
+  );
 
   // Keyboard navigation
   useKeyboardNavigation(
@@ -186,61 +213,85 @@ function App() {
   const handleMediaTypeChange = async (mediaType) => {
     if (mediaType === currentMediaType) return;
 
-    console.log('Changing media type to:', mediaType);
+    console.log("Changing media type to:", mediaType);
 
     const newSettings = createSettingsUpdate({
       mediaType: mediaType,
-      mediaId: ''
+      mediaId: "",
     });
 
-    console.log('New settings:', newSettings);
+    console.log("New settings:", newSettings);
     updateSettings(newSettings);
 
     setCurrentIndex(0);
-    await applyFilters(mediaType, selectedTags, excludedTags, pathSubstring, sortBy);
+    await applyFilters(
+      mediaType,
+      selectedTags,
+      excludedTags,
+      pathSubstring,
+      sortBy,
+    );
     setIsSettingsOpen(false);
   };
 
   const handleTagsChange = async (tags) => {
-    console.log('Changing selected tags to:', tags);
+    console.log("Changing selected tags to:", tags);
 
     const newSettings = createSettingsUpdate({
-      selectedTags: tags.map(tag => tag.name || tag),
-      mediaId: ''
+      selectedTags: tags.map((tag) => tag.name || tag),
+      mediaId: "",
     });
 
     updateSettings(newSettings);
 
     setCurrentIndex(0);
-    await applyFilters(currentMediaType, tags, excludedTags, pathSubstring, sortBy);
+    await applyFilters(
+      currentMediaType,
+      tags,
+      excludedTags,
+      pathSubstring,
+      sortBy,
+    );
   };
 
   const handleExcludedTagsChange = async (tags) => {
-    console.log('Changing excluded tags to:', tags);
+    console.log("Changing excluded tags to:", tags);
 
     const newSettings = createSettingsUpdate({
-      excludedTags: tags.map(tag => tag.name || tag),
-      mediaId: ''
+      excludedTags: tags.map((tag) => tag.name || tag),
+      mediaId: "",
     });
 
     updateSettings(newSettings);
 
     setCurrentIndex(0);
-    await applyFilters(currentMediaType, selectedTags, tags, pathSubstring, sortBy);
+    await applyFilters(
+      currentMediaType,
+      selectedTags,
+      tags,
+      pathSubstring,
+      sortBy,
+    );
   };
 
   const handlePathChange = async (substring) => {
-    console.log('Changing path filter to:', substring);
+    console.log("Changing path filter to:", substring);
 
     const newSettings = createSettingsUpdate({
       pathFilter: substring,
-      mediaId: ''
+      mediaId: "",
     });
 
     updateSettings(newSettings);
 
     setCurrentIndex(0);
-    await applyFilters(currentMediaType, selectedTags, excludedTags, substring, sortBy);
+    await applyFilters(
+      currentMediaType,
+      selectedTags,
+      excludedTags,
+      substring,
+      sortBy,
+    );
   };
 
   const applyFilters = async (
@@ -318,7 +369,7 @@ function App() {
                   setGalleryScrollPosition(galleryContainer.scrollTop);
                 }
                 setCurrentIndex(index);
-                updateSetting('galleryView', false);
+                updateSetting("galleryView", false);
               }}
               style={{ display: isGalleryView ? "flex" : "none" }}
               scrollPosition={galleryScrollPosition}
@@ -393,14 +444,14 @@ function App() {
           sortBy={sortBy}
           pathSubstring={pathSubstring}
           onSortByChange={async (newSortBy) => {
-            console.log('Changing sort to:', newSortBy);
+            console.log("Changing sort to:", newSortBy);
 
             const newSettings = createSettingsUpdate({
               sortBy: newSortBy,
-              mediaId: ''
+              mediaId: "",
             });
 
-            console.log('New settings:', newSettings);
+            console.log("New settings:", newSettings);
             updateSettings(newSettings);
 
             setCurrentIndex(0);
@@ -435,7 +486,9 @@ function App() {
           directoryName={directoryPath}
           isFavorited={isFavorited}
           onToggleFavorite={toggleFavorite}
-          onToggleGalleryView={() => updateSetting('galleryView', !isGalleryView)}
+          onToggleGalleryView={() =>
+            updateSetting("galleryView", !isGalleryView)
+          }
           isGalleryView={isGalleryView}
         />
       )}

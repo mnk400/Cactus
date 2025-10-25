@@ -54,15 +54,19 @@ export function useMediaFiles() {
         // If we have a priority media ID, reorder the files to put it first
         let orderedFiles = data.files;
         if (priorityMediaId && data.files && data.files.length > 0) {
-          const priorityIndex = data.files.findIndex(file => file.file_hash === priorityMediaId);
+          const priorityIndex = data.files.findIndex(
+            (file) => file.file_hash === priorityMediaId,
+          );
           if (priorityIndex !== -1) {
             // Move the priority media to the front
             orderedFiles = [
               data.files[priorityIndex],
               ...data.files.slice(0, priorityIndex),
-              ...data.files.slice(priorityIndex + 1)
+              ...data.files.slice(priorityIndex + 1),
             ];
-            console.log(`Reordered files to prioritize media ID: ${priorityMediaId}`);
+            console.log(
+              `Reordered files to prioritize media ID: ${priorityMediaId}`,
+            );
           }
         }
 
@@ -156,15 +160,19 @@ export function useMediaFiles() {
         // If we have a priority media ID, reorder the files to put it first
         let orderedFiles = data.files;
         if (priorityMediaId && data.files && data.files.length > 0) {
-          const priorityIndex = data.files.findIndex(file => file.file_hash === priorityMediaId);
+          const priorityIndex = data.files.findIndex(
+            (file) => file.file_hash === priorityMediaId,
+          );
           if (priorityIndex !== -1) {
             // Move the priority media to the front
             orderedFiles = [
               data.files[priorityIndex],
               ...data.files.slice(0, priorityIndex),
-              ...data.files.slice(priorityIndex + 1)
+              ...data.files.slice(priorityIndex + 1),
             ];
-            console.log(`Reordered filtered files to prioritize media ID: ${priorityMediaId}`);
+            console.log(
+              `Reordered filtered files to prioritize media ID: ${priorityMediaId}`,
+            );
           }
         }
 

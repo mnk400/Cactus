@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
-import { 
-  decodeSettingsFromURL, 
-  updateURL, 
+import { useState, useEffect, useCallback } from "react";
+import {
+  decodeSettingsFromURL,
+  updateURL,
   resolveTagNames,
   isValidMediaType,
-  isValidSortBy 
-} from '../utils/urlParams';
+  isValidSortBy,
+} from "../utils/urlParams";
 
 /**
  * Custom hook for managing settings through URL parameters
@@ -21,23 +21,23 @@ export const useURLSettings = (availableTags = []) => {
       setUrlSettings(newSettings);
     };
 
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
   // Initialize settings from URL on mount
   useEffect(() => {
     const initialSettings = decodeSettingsFromURL();
-    
+
     // Validate and sanitize settings
     if (!isValidMediaType(initialSettings.mediaType)) {
-      initialSettings.mediaType = 'all';
+      initialSettings.mediaType = "all";
     }
-    
+
     if (!isValidSortBy(initialSettings.sortBy)) {
-      initialSettings.sortBy = 'random';
+      initialSettings.sortBy = "random";
     }
-    
+
     setUrlSettings(initialSettings);
     setIsInitialized(true);
   }, []);
@@ -46,51 +46,56 @@ export const useURLSettings = (availableTags = []) => {
   const resolvedSettings = {
     ...urlSettings,
     selectedTags: resolveTagNames(urlSettings.selectedTags, availableTags),
-    excludedTags: resolveTagNames(urlSettings.excludedTags, availableTags)
+    excludedTags: resolveTagNames(urlSettings.excludedTags, availableTags),
   };
 
   // Update URL and state
   const updateSettings = useCallback((newSettings, options = {}) => {
-    const { 
-      updateURL: shouldUpdateURL = true, 
-      replace = false 
-    } = options;
-    
+    const { updateURL: shouldUpdateURL = true, replace = false } = options;
+
     // Convert tag objects to tag names for URL storage
     const settingsForURL = {
       ...newSettings,
-      selectedTags: newSettings.selectedTags?.map(tag => tag.name || tag) || [],
-      excludedTags: newSettings.excludedTags?.map(tag => tag.name || tag) || []
+      selectedTags:
+        newSettings.selectedTags?.map((tag) => tag.name || tag) || [],
+      excludedTags:
+        newSettings.excludedTags?.map((tag) => tag.name || tag) || [],
     };
-    
+
     setUrlSettings(settingsForURL);
-    
+
     if (shouldUpdateURL) {
       updateURL(settingsForURL, replace);
     }
   }, []);
 
   // Update individual setting
-  const updateSetting = useCallback((key, value, options = {}) => {
-    updateSettings({
-      ...urlSettings,
-      [key]: value
-    }, options);
-  }, [urlSettings, updateSettings]);
+  const updateSetting = useCallback(
+    (key, value, options = {}) => {
+      updateSettings(
+        {
+          ...urlSettings,
+          [key]: value,
+        },
+        options,
+      );
+    },
+    [urlSettings, updateSettings],
+  );
 
   // Clear all settings
   const clearSettings = useCallback(() => {
     const defaultSettings = {
-      mediaType: 'all',
-      sortBy: 'random',
+      mediaType: "all",
+      sortBy: "random",
       selectedTags: [],
       excludedTags: [],
-      pathFilter: '',
+      pathFilter: "",
       galleryView: false,
       debug: false,
-      mediaId: ''
+      mediaId: "",
     };
-    
+
     updateSettings(defaultSettings);
   }, [updateSettings]);
 
@@ -100,6 +105,6 @@ export const useURLSettings = (availableTags = []) => {
     updateSettings,
     updateSetting,
     clearSettings,
-    isInitialized
+    isInitialized,
   };
 };

@@ -44,7 +44,7 @@ const log = {
 class SbMediaProvider extends MediaSourceProvider {
   constructor(sbUrl = "http://192.168.0.23:9999/graphql") {
     super();
-    this.providerType = 'sb';
+    this.providerType = "sb";
     this.sbUrl = sbUrl;
     this.isInitialized = false;
     this.mediaCache = [];
@@ -59,7 +59,8 @@ class SbMediaProvider extends MediaSourceProvider {
   static getConfigSchema() {
     return {
       description: "S GraphQL API media provider",
-      example: "node server.js --provider sb --sb-url http://192.168.0.23:9999/graphql -p 3000",
+      example:
+        "node server.js --provider sb --sb-url http://192.168.0.23:9999/graphql -p 3000",
       requiredArgs: [
         {
           name: "sbUrl",
@@ -92,7 +93,8 @@ class SbMediaProvider extends MediaSourceProvider {
       return {
         success: false,
         error: "Server URL is required for sb provider",
-        usage: "node server.js --provider sb --sb-url http://192.168.0.23:9999/graphql -p 3000",
+        usage:
+          "node server.js --provider sb --sb-url http://192.168.0.23:9999/graphql -p 3000",
       };
     }
 
@@ -399,7 +401,7 @@ class SbMediaProvider extends MediaSourceProvider {
     const filename = visualFile?.path || sbImage.title || `Image ${sbImage.id}`;
 
     // manually avoid GIFs from isVideo because gifs can have "duration"
-    const isGif = filename.toLowerCase().includes('.gif');
+    const isGif = filename.toLowerCase().includes(".gif");
 
     const isVideo = !isGif && visualFile && visualFile.duration !== undefined;
 
@@ -1542,15 +1544,17 @@ class SbMediaProvider extends MediaSourceProvider {
     const capabilities = this.getCapabilities();
     return {
       showDirectoryInfo: true,
-      directoryLabel: 'Server',
+      directoryLabel: "Server",
       showConnectionStatus: true,
       showRescanButton: capabilities.canRescan,
       showRegenerateThumbnailsButton: capabilities.canRegenerateThumbnails,
       showTagManager: capabilities.canManageTags,
       availableActions: [
-        ...(capabilities.canManageTags ? ['manage-tags'] : []),
-        ...(capabilities.canRescan ? ['rescan-directory'] : []),
-        ...(capabilities.canRegenerateThumbnails ? ['regenerate-thumbnails'] : []),
+        ...(capabilities.canManageTags ? ["manage-tags"] : []),
+        ...(capabilities.canRescan ? ["rescan-directory"] : []),
+        ...(capabilities.canRegenerateThumbnails
+          ? ["regenerate-thumbnails"]
+          : []),
       ],
     };
   }
@@ -1565,16 +1569,20 @@ class SbMediaProvider extends MediaSourceProvider {
     if (!mediaFile) return "";
 
     // For markers, prioritize scene info and performers
-    if (mediaFile.sb_type === 'marker') {
+    if (mediaFile.sb_type === "marker") {
       // Try performer names first
       if (mediaFile.sb_scene_performers?.length > 0) {
-        const performers = mediaFile.sb_scene_performers.map(p => p.name).join(', ');
-        return performers.length > 30 ? performers.substring(0, 27) + '...' : performers;
+        const performers = mediaFile.sb_scene_performers
+          .map((p) => p.name)
+          .join(", ");
+        return performers.length > 30
+          ? performers.substring(0, 27) + "..."
+          : performers;
       }
       // Fall back to scene title
       if (mediaFile.sb_scene_title) {
         return mediaFile.sb_scene_title.length > 30
-          ? mediaFile.sb_scene_title.substring(0, 27) + '...'
+          ? mediaFile.sb_scene_title.substring(0, 27) + "..."
           : mediaFile.sb_scene_title;
       }
       // Fall back to studio name
@@ -1584,12 +1592,16 @@ class SbMediaProvider extends MediaSourceProvider {
     } else {
       // For regular images/videos, try performers first
       if (mediaFile.sb_performers?.length > 0) {
-        const performers = mediaFile.sb_performers.map(p => p.name).join(', ');
-        return performers.length > 30 ? performers.substring(0, 27) + '...' : performers;
+        const performers = mediaFile.sb_performers
+          .map((p) => p.name)
+          .join(", ");
+        return performers.length > 30
+          ? performers.substring(0, 27) + "..."
+          : performers;
       }
       // Extract directory name from filename path
       if (mediaFile.filename) {
-        const pathParts = mediaFile.filename.split('/');
+        const pathParts = mediaFile.filename.split("/");
         // Get the deepest directory (second to last part, since last part is the file)
         if (pathParts.length >= 2) {
           const directoryName = pathParts[pathParts.length - 2];
