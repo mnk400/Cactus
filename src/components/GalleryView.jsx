@@ -22,10 +22,10 @@ function GalleryView({
 
   const getMasonryConfig = useCallback(() => {
     if (!containerSize.width)
-      return { columnWidth: 250, gap: 16, padding: 20, columns: 1 };
+      return { columnWidth: 250, gap: 8, padding: 20, columns: 1 };
 
     const isMobile = containerSize.width < 768;
-    const gap = isMobile ? 12 : 16;
+    const gap = isMobile ? 6 : 8;
     const padding = isMobile ? 16 : 20;
 
     const availableWidth = containerSize.width - padding * 2;
@@ -344,9 +344,9 @@ const GalleryItem = React.memo(
     return (
       <div
         ref={containerRef}
-        className={`absolute rounded-lg overflow-hidden cursor-pointer transition-all duration-200 hover:scale-[1.02] border-2 ${
+        className={`absolute rounded-md overflow-hidden cursor-pointer transition-all duration-200 border-2 ${
           isSelected
-            ? "border-blue-500 shadow-lg shadow-blue-500/30 scale-[1.02]"
+            ? "border-blue-500 shadow-lg shadow-blue-500/30"
             : "border-transparent hover:border-gray-600"
         }`}
         style={{
