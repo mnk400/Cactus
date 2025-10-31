@@ -1,0 +1,100 @@
+import React from "react";
+import { motion } from "framer-motion";
+
+// Natural easing curves for human-like motion
+const slideVariants = {
+  // Gallery view animations - slides in from top
+  galleryEnter: {
+    y: "-100%",
+    opacity: 0.8,
+  },
+  galleryCenter: {
+    y: "0%",
+    opacity: 1,
+  },
+  galleryExit: {
+    y: "-100%",
+    opacity: 0.8,
+  },
+  // Media viewer animations - slides in from bottom
+  mediaEnter: {
+    y: "100%",
+    opacity: 0.8,
+  },
+  mediaCenter: {
+    y: "0%",
+    opacity: 1,
+  },
+  mediaExit: {
+    y: "100%",
+    opacity: 0.8,
+  },
+};
+
+// Smooth, natural spring transition - feels more human
+const springTransition = {
+  type: "spring",
+  stiffness: 300,
+  damping: 32,
+  mass: 0.7,
+  restDelta: 0.001,
+  restSpeed: 0.001,
+};
+
+
+
+function ViewTransition({ isGalleryView, children }) {
+  const [galleryView, mediaViewer] = React.Children.toArray(children);
+  
+  // Add slight delay for more natural feel when switching views
+  const getTransition = React.useCallback((isEntering) => ({
+    ...springTransition,
+    delay: isEntering ? 0.02 : 0, // Tiny delay for entering view
+  }), []);
+
+  return (
+    <div className="view-transition-container relative w-full h-full overflow-hidden">
+      {/* Gallery View */}
+      <motion.div
+        key="gallery"
+        className="absolute inset-0 w-full h-full"
+        initial={false}
+        animate={
+          isGalleryView
+            ? "galleryCenter"
+            : "galleryExit"
+        }
+        variants={slideVariants}
+        transition={getTransition(isGalleryView)}
+        style={{
+          pointerEvents: isGalleryView ? "auto" : "none",
+          zIndex: isGalleryView ? 2 : 1,
+        }}
+      >
+        {galleryView}
+      </motion.div>
+
+      {/* Media Viewer */}
+      <motion.div
+        key="media"
+        className="absolute inset-0 w-full h-full"
+        initial={false}
+        animate={
+          !isGalleryView
+            ? "mediaCenter"
+            : "mediaExit"
+        }
+        variants={slideVariants}
+        transition={getTransition(!isGalleryView)}
+        style={{
+          pointerEvents: !isGalleryView ? "auto" : "none",
+          zIndex: !isGalleryView ? 2 : 1,
+        }}
+      >
+        {mediaViewer}
+      </motion.div>
+    </div>
+  );
+}
+
+export default ViewTransition;

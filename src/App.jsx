@@ -9,6 +9,7 @@ import LoadingMessage from "./components/LoadingMessage";
 import ErrorMessage from "./components/ErrorMessage";
 import DebugInfo from "./components/DebugInfo";
 import GalleryView from "./components/GalleryView";
+import ViewTransition from "./components/ViewTransition";
 import { useMediaFiles } from "./hooks/useMediaFiles";
 import { useKeyboardNavigation } from "./hooks/useKeyboardNavigation";
 import { useFavorite } from "./hooks/useFavorite";
@@ -357,7 +358,7 @@ function App() {
         {error && <ErrorMessage message={error} />}
 
         {!loading && !error && mediaFiles.length > 0 && currentMediaFile && (
-          <>
+          <ViewTransition isGalleryView={isGalleryView}>
             <GalleryView
               mediaFiles={mediaFiles}
               currentIndex={currentIndex}
@@ -371,7 +372,6 @@ function App() {
                 setCurrentIndex(index);
                 updateSetting("galleryView", false);
               }}
-              style={{ display: isGalleryView ? "flex" : "none" }}
               scrollPosition={galleryScrollPosition}
               setScrollPosition={setGalleryScrollPosition}
             />
@@ -381,9 +381,8 @@ function App() {
               onNavigate={handleNavigation}
               showTagInput={showTagInput}
               onToggleTagInput={handleToggleTagInput}
-              style={{ display: isGalleryView ? "none" : "block" }}
             />
-          </>
+          </ViewTransition>
         )}
 
         {!loading && !error && mediaFiles.length === 0 && (
