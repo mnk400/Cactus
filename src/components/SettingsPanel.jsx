@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { CSSTransition } from "react-transition-group";
 
 import TagFilter from "./TagFilter";
 import GeneralFilter from "./GeneralFilter";
@@ -118,8 +117,7 @@ function SettingsPanel({
   };
 
   return (
-    <CSSTransition in={isOpen} timeout={300} classNames="fade" unmountOnExit>
-      <div className="fixed inset-0 bg-black-shades-900 p-4 sm:p-6 text-gray-200 z-50 overflow-y-auto rounded-2xl">
+    <div className="fixed inset-0 bg-black-shades-900 p-4 sm:p-6 text-gray-200 z-50 overflow-y-auto">
         {/* Header with Close Button */}
         <div className="flex justify-between items-center mb-3 sm:mb-4 max-w-4xl mx-auto">
           <h3 className="text-base sm:text-lg font-semibold text-white m-0">
@@ -415,8 +413,7 @@ function SettingsPanel({
             onClose={() => setShowTagManager(false)}
           />
         )}
-      </div>
-    </CSSTransition>
+    </div>
   );
 }
 

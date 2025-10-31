@@ -424,46 +424,48 @@ function App() {
           />
         )}
 
-        <SettingsPanel
-          isOpen={isSettingsOpen}
-          onClose={() => setIsSettingsOpen(false)}
-          currentMediaType={currentMediaType}
-          onMediaTypeChange={handleMediaTypeChange}
-          onRescan={handleRescan}
-          isScanning={isScanning}
-          allMediaFiles={allMediaFiles}
-          currentMediaFiles={mediaFiles}
-          selectedTags={selectedTags}
-          excludedTags={excludedTags}
-          onTagsChange={handleTagsChange}
-          onExcludedTagsChange={handleExcludedTagsChange}
-          onPathChange={handlePathChange}
-          onRegenerateThumbnails={regenerateThumbnails}
-          isRegeneratingThumbnails={isRegeneratingThumbnails}
-          sortBy={sortBy}
-          pathSubstring={pathSubstring}
-          onSortByChange={async (newSortBy) => {
-            console.log("Changing sort to:", newSortBy);
+        <ViewTransition isSettingsOpen={isSettingsOpen}>
+          <SettingsPanel
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
+            currentMediaType={currentMediaType}
+            onMediaTypeChange={handleMediaTypeChange}
+            onRescan={handleRescan}
+            isScanning={isScanning}
+            allMediaFiles={allMediaFiles}
+            currentMediaFiles={mediaFiles}
+            selectedTags={selectedTags}
+            excludedTags={excludedTags}
+            onTagsChange={handleTagsChange}
+            onExcludedTagsChange={handleExcludedTagsChange}
+            onPathChange={handlePathChange}
+            onRegenerateThumbnails={regenerateThumbnails}
+            isRegeneratingThumbnails={isRegeneratingThumbnails}
+            sortBy={sortBy}
+            pathSubstring={pathSubstring}
+            onSortByChange={async (newSortBy) => {
+              console.log("Changing sort to:", newSortBy);
 
-            const newSettings = createSettingsUpdate({
-              sortBy: newSortBy,
-              mediaId: "",
-            });
+              const newSettings = createSettingsUpdate({
+                sortBy: newSortBy,
+                mediaId: "",
+              });
 
-            console.log("New settings:", newSettings);
-            updateSettings(newSettings);
+              console.log("New settings:", newSettings);
+              updateSettings(newSettings);
 
-            setCurrentIndex(0);
-            await applyFilters(
-              currentMediaType,
-              selectedTags,
-              excludedTags,
-              pathSubstring,
-              newSortBy,
-            );
-            setIsSettingsOpen(false);
-          }}
-        />
+              setCurrentIndex(0);
+              await applyFilters(
+                currentMediaType,
+                selectedTags,
+                excludedTags,
+                pathSubstring,
+                newSortBy,
+              );
+              setIsSettingsOpen(false);
+            }}
+          />
+        </ViewTransition>
       </div>
 
       {/* Fixed position tag components - hidden in gallery view */}

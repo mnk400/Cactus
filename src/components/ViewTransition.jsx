@@ -1,5 +1,5 @@
 import React from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 // Natural easing curves for human-like motion
 const slideVariants = {
@@ -14,7 +14,7 @@ const slideVariants = {
   },
   galleryExit: {
     y: "-100%",
-    opacity: 0.8,
+    opacity: 0.0,
   },
   // Media viewer animations - slides in from bottom
   mediaEnter: {
@@ -26,6 +26,19 @@ const slideVariants = {
     opacity: 1,
   },
   mediaExit: {
+    y: "100%",
+    opacity: 0.8,
+  },
+  // Settings animations - slides up from bottom
+  settingsEnter: {
+    y: "100%",
+    opacity: 0.8,
+  },
+  settingsCenter: {
+    y: "0%",
+    opacity: 1,
+  },
+  settingsExit: {
     y: "100%",
     opacity: 0.8,
   },
@@ -41,9 +54,28 @@ const springTransition = {
   restSpeed: 0.001,
 };
 
+function ViewTransition({ isGalleryView, isSettingsOpen, children }) {
+  // Handle settings mode (single child)
+  if (isSettingsOpen !== undefined) {
+    return (
+      <AnimatePresence>
+        {isSettingsOpen && (
+          <motion.div
+            className="fixed inset-0 z-50"
+            initial="settingsEnter"
+            animate="settingsCenter"
+            exit="settingsExit"
+            variants={slideVariants}
+            transition={springTransition}
+          >
+            {children}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    );
+  }
 
-
-function ViewTransition({ isGalleryView, children }) {
+  // Handle gallery/media mode (two children)
   const [galleryView, mediaViewer] = React.Children.toArray(children);
   
   // Add slight delay for more natural feel when switching views
