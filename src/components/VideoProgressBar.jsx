@@ -1,147 +1,155 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 
 function VideoProgressBar({ videoElement }) {
-  const [progress, setProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  
   const videoRef = useRef(null);
+  const progressBarRef = useRef(null);
+  const animationRef = useRef(null);
 
-  // Helper function to format time in MM:SS or HH:MM:SS format
   const formatTime = (timeInSeconds) => {
     if (isNaN(timeInSeconds) || timeInSeconds < 0) return "0:00";
-
     const hours = Math.floor(timeInSeconds / 3600);
     const minutes = Math.floor((timeInSeconds % 3600) / 60);
     const seconds = Math.floor(timeInSeconds % 60);
-
     if (hours > 0) {
       return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
     }
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
+  const updateProgress = useCallback(() => {
+    if (!videoRef.current || !progressBarRef.current || isDragging) return;
+    
+    const progress = videoRef.current.duration ? 
+      (videoRef.current.currentTime / videoRef.current.duration) * 100 : 0;
+    
+    progressBarRef.current.style.width = `${Math.min(100, Math.max(0, progress))}%`;
+    setCurrentTime(videoRef.current.currentTime);
+  }, [isDragging]);
+
+  const seekTo = useCallback((clientX) => {
+    if (!videoRef.current?.duration) return;
+    
+    const rect = progressBarRef.current.parentElement.getBoundingClientRect();
+    const pos = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const newTime = pos * videoRef.current.duration;
+    
+    videoRef.current.currentTime = newTime;
+    progressBarRef.current.style.width = `${pos * 100}%`;
+    setCurrentTime(newTime);
+  }, []);
+
+  const handleStart = useCallback((e) => {
+    setIsDragging(true);
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    seekTo(clientX);
+  }, [seekTo]);
+
+  const handleMove = useCallback((e) => {
+    if (isDragging) {
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      seekTo(clientX);
+    }
+  }, [isDragging, seekTo]);
+
+  const handleEnd = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
   useEffect(() => {
-    // Clean up previous video element
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMove);
+      document.addEventListener('mouseup', handleEnd);
+      document.addEventListener('touchmove', handleMove);
+      document.addEventListener('touchend', handleEnd);
+      return () => {
+        document.removeEventListener('mousemove', handleMove);
+        document.removeEventListener('mouseup', handleEnd);
+        document.removeEventListener('touchmove', handleMove);
+        document.removeEventListener('touchend', handleEnd);
+      };
+    }
+  }, [isDragging, handleMove, handleEnd]);
+
+  useEffect(() => {
     if (videoRef.current && videoRef.current !== videoElement) {
-      setProgress(0);
+      if (progressBarRef.current) progressBarRef.current.style.width = '0%';
     }
 
     if (videoElement) {
       setIsVisible(true);
       videoRef.current = videoElement;
 
-      const handleTimeUpdate = () => {
-        // Double-check that this is still the current video element and it's valid
-        if (videoRef.current === videoElement && videoElement.duration) {
-          const progress =
-            (videoElement.currentTime / videoElement.duration) * 100;
-          setProgress(
-            isNaN(progress) ? 0 : Math.min(100, Math.max(0, progress)),
-          );
-          setCurrentTime(videoElement.currentTime);
-          setDuration(videoElement.duration);
-        }
+      const animate = () => {
+        updateProgress();
+        animationRef.current = requestAnimationFrame(animate);
       };
 
       const handleLoadedMetadata = () => {
-        // Reset progress when new video loads
-        if (videoRef.current === videoElement && videoElement.duration) {
-          const progress =
-            (videoElement.currentTime / videoElement.duration) * 100;
-          setProgress(
-            isNaN(progress) ? 0 : Math.min(100, Math.max(0, progress)),
-          );
-          setCurrentTime(videoElement.currentTime);
-          setDuration(videoElement.duration);
-        }
-      };
-
-      const handleDurationChange = () => {
-        // Handle duration changes
-        if (videoRef.current === videoElement) {
-          handleTimeUpdate();
-        }
+        setDuration(videoElement.duration);
+        setCurrentTime(videoElement.currentTime);
       };
 
       const handleLoadStart = () => {
-        // Reset progress when video starts loading
-        setProgress(0);
         setCurrentTime(0);
         setDuration(0);
+        if (progressBarRef.current) progressBarRef.current.style.width = '0%';
       };
 
-      // Add event listeners
-      videoElement.addEventListener("timeupdate", handleTimeUpdate);
       videoElement.addEventListener("loadedmetadata", handleLoadedMetadata);
-      videoElement.addEventListener("durationchange", handleDurationChange);
       videoElement.addEventListener("loadstart", handleLoadStart);
-
-      // Set initial progress if video is already loaded
+      
       if (videoElement.duration) {
-        handleTimeUpdate();
+        setDuration(videoElement.duration);
+        setCurrentTime(videoElement.currentTime);
       }
 
+      animationRef.current = requestAnimationFrame(animate);
+
       return () => {
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current);
+        }
         if (videoElement) {
-          videoElement.removeEventListener("timeupdate", handleTimeUpdate);
-          videoElement.removeEventListener(
-            "loadedmetadata",
-            handleLoadedMetadata,
-          );
-          videoElement.removeEventListener(
-            "durationchange",
-            handleDurationChange,
-          );
+          videoElement.removeEventListener("loadedmetadata", handleLoadedMetadata);
           videoElement.removeEventListener("loadstart", handleLoadStart);
         }
       };
     } else {
       setIsVisible(false);
-      setProgress(0);
       setCurrentTime(0);
       setDuration(0);
       videoRef.current = null;
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
     }
-  }, [videoElement]);
-
-  const handleProgressClick = (e) => {
-    if (!videoRef.current || !videoRef.current.duration) return;
-
-    const rect = e.currentTarget.getBoundingClientRect();
-    const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    const newTime = pos * videoRef.current.duration;
-
-    // Ensure the new time is valid
-    if (
-      !isNaN(newTime) &&
-      newTime >= 0 &&
-      newTime <= videoRef.current.duration
-    ) {
-      videoRef.current.currentTime = newTime;
-    }
-  };
+  }, [videoElement, updateProgress]);
 
   if (!isVisible) return null;
 
-  const remainingTime = duration - currentTime;
-
   return (
     <div className="video-progress-wrapper w-full flex items-center gap-3">
-      <span className="current-time text-sm text-white min-w-fit">
+      <span className="current-time text-sm text-white min-w-fit font-mono">
         {formatTime(currentTime)}
       </span>
       <div
         className="video-progress-container flex-1 h-3 bg-black-shades-600 rounded-full overflow-hidden cursor-pointer"
-        onClick={handleProgressClick}
+        onMouseDown={handleStart}
+        onTouchStart={handleStart}
       >
         <div
-          className="video-progress-bar h-full bg-white rounded-full transition-width duration-100 ease-linear"
-          style={{ width: `${progress}%` }}
+          ref={progressBarRef}
+          className="video-progress-bar h-full bg-white rounded-full"
+          style={{ width: '0%' }}
         />
       </div>
       <div className="time-info flex gap-2 text-sm text-white min-w-fit">
-        <span className="remaining-time">-{formatTime(remainingTime)}</span>
+        <span className="remaining-time font-mono">-{formatTime(duration - currentTime)}</span>
       </div>
     </div>
   );
