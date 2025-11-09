@@ -420,6 +420,19 @@ const GalleryItem = React.memo(
             <div className="text-gray-500 text-xs">Failed to load</div>
           </div>
         )}
+        
+        {/* Video indicator - only show for actual video media types */}
+        {mediaLoaded && !mediaError && file.media_type === 'video' && (
+          <div className="absolute bottom-1 right-1 bg-black/60 rounded-full p-1 pointer-events-none">
+            <svg 
+              className="w-3 h-3 text-white" 
+              viewBox="0 0 24 24" 
+              fill="currentColor"
+            >
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </div>
+        )}
       </div>
     );
   },

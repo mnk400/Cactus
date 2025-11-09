@@ -413,7 +413,7 @@ class SbMediaProvider extends MediaSourceProvider {
       filename: filename,
       file_size: visualFile?.size || 0,
       media_type: isVideo ? "video" : "image",
-      thumbnail_path: sbImage.paths?.preview || sbImage.paths?.thumbnail,
+      thumbnail_path: sbImage.paths?.thumbnail,
       date_added: sbImage.created_at,
       date_created: sbImage.date || sbImage.created_at,
       date_modified: sbImage.updated_at,
@@ -459,7 +459,7 @@ class SbMediaProvider extends MediaSourceProvider {
       filename: sbMarker.title || `Marker ${sbMarker.id}`,
       file_size: sceneFile?.size || 0,
       media_type: "video", // Markers are always video clips
-      thumbnail_path: sbMarker.preview || sbMarker.screenshot,
+      thumbnail_path: sbMarker.screenshot,
       date_added: sbMarker.created_at,
       date_created: sbMarker.scene?.date || sbMarker.created_at,
       date_modified: sbMarker.updated_at,
