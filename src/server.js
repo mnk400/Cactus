@@ -122,6 +122,10 @@ function cacheMiddleware(req, res, next) {
     return next();
   }
 
+  if (req.query.sortBy === "random") {
+    return next();
+  }
+
   const key = req.originalUrl;
   const cached = requestCache.get(key);
 
