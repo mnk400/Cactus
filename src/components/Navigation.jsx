@@ -12,6 +12,9 @@ const Navigation = memo(function Navigation({
   onToggleFavorite,
   onToggleGalleryView,
   isGalleryView,
+  onFilterByName,
+  activeFilter,
+  onClearFilter,
 }) {
   const [videoElement, setVideoElement] = useState(null);
 
@@ -207,12 +210,32 @@ const Navigation = memo(function Navigation({
           )}
         </div>
 
-        <div
-          className="media-source-info text-gray-200 text-base whitespace-nowrap overflow-hidden text-ellipsis"
-          title={displayName}
-        >
-          {displayName}
-        </div>
+        {activeFilter ? (
+          <div
+            className="inline-flex items-center px-3 py-1.5 rounded-xl text-sm font-medium text-white shadow-sm bg-red-500 cursor-pointer hover:bg-red-600 transition-all duration-200 active:scale-95"
+            title={`Active filter: ${activeFilter}`}
+          >
+            <span className="max-w-[200px] truncate">{activeFilter}</span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onClearFilter && onClearFilter();
+              }}
+              className="ml-2 text-white hover:text-gray-200 focus:outline-none transition-colors duration-150 hover:bg-white hover:bg-opacity-20 rounded-lg w-5 h-5 flex items-center justify-center text-lg leading-none"
+              aria-label="Clear filter"
+            >
+              ×
+            </button>
+          </div>
+        ) : (
+          <div
+            className="media-source-info text-gray-200 text-base whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer hover:text-blue-400 transition-colors duration-200 active:scale-95"
+            title={`Click to filter by: ${displayName}`}
+            onClick={() => onFilterByName && onFilterByName(displayName)}
+          >
+            {displayName}
+          </div>
+        )}
       </div>
     </div>
   );

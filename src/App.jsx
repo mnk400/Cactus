@@ -491,6 +491,9 @@ function App() {
             updateSetting("galleryView", !isGalleryView)
           }
           isGalleryView={isGalleryView}
+          onFilterByName={handlePathChange}
+          activeFilter={pathSubstring}
+          onClearFilter={() => handlePathChange("")}
         />
       )}
 
