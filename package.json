@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "start": "bun run build && bun src/server.js $@",
-    "start:dev": "concurrently \"bun run dev\" \"bun src/server.js -d ./test-media -p 3000\"",
+    "start:dev": "./dev-server.sh",
     "test": "echo \"No tests specified\" && exit 0",
     "format": "prettier --write ."
   },
