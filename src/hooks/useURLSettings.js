@@ -8,6 +8,25 @@ import {
 } from "../utils/urlParams";
 
 /**
+ * Validates and sanitizes settings to ensure they contain valid values
+ */
+const validateAndSanitizeSettings = (settings) => {
+  const sanitized = { ...settings };
+
+  // Validate and sanitize mediaType
+  if (!isValidMediaType(sanitized.mediaType)) {
+    sanitized.mediaType = "all";
+  }
+
+  // Validate and sanitize sortBy
+  if (!isValidSortBy(sanitized.sortBy)) {
+    sanitized.sortBy = "random";
+  }
+
+  return sanitized;
+};
+
+/**
  * Custom hook for managing settings through URL parameters
  */
 export const useURLSettings = (availableTags = []) => {
@@ -18,7 +37,9 @@ export const useURLSettings = (availableTags = []) => {
   useEffect(() => {
     const handlePopState = () => {
       const newSettings = decodeSettingsFromURL();
-      setUrlSettings(newSettings);
+      // Validate and sanitize settings (same as initialization)
+      const sanitizedSettings = validateAndSanitizeSettings(newSettings);
+      setUrlSettings(sanitizedSettings);
     };
 
     window.addEventListener("popstate", handlePopState);
@@ -28,17 +49,9 @@ export const useURLSettings = (availableTags = []) => {
   // Initialize settings from URL on mount
   useEffect(() => {
     const initialSettings = decodeSettingsFromURL();
-
     // Validate and sanitize settings
-    if (!isValidMediaType(initialSettings.mediaType)) {
-      initialSettings.mediaType = "all";
-    }
-
-    if (!isValidSortBy(initialSettings.sortBy)) {
-      initialSettings.sortBy = "random";
-    }
-
-    setUrlSettings(initialSettings);
+    const sanitizedSettings = validateAndSanitizeSettings(initialSettings);
+    setUrlSettings(sanitizedSettings);
     setIsInitialized(true);
   }, []);
 
