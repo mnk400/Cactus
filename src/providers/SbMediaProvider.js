@@ -712,6 +712,28 @@ class SbMediaProvider extends MediaSourceProvider {
         }
       }
 
+      if (excludeTags && excludeTags.length > 0) {
+        // Get tag IDs for exclude tags
+        const allTags = await this.getAllTags();
+        const excludeTagIds = [];
+
+        for (const tagName of excludeTags) {
+          const tag = allTags.find(
+            (t) => t.name.toLowerCase() === tagName.toLowerCase(),
+          );
+          if (tag) {
+            excludeTagIds.push(tag.id.toString());
+          }
+        }
+
+        if (excludeTagIds.length > 0) {
+          markerFilter.tags = {
+            ...markerFilter.tags,
+            excludes: excludeTagIds,
+          };
+        }
+      }
+
       // Fetch filtered images and markers in parallel
       const [imagesResult, markersResult] = await Promise.all([
         this.fetchImages({
