@@ -8,8 +8,10 @@ import React, {
 import { motion } from "framer-motion";
 import MediaItem from "./MediaItem";
 import { useMediaPreloader } from "../hooks/useMediaPreloader";
+import { useMedia } from "../context/MediaContext";
 
-function MediaViewer({ mediaFiles, currentIndex, onNavigate, showTagInput }) {
+function MediaViewer({ showTagInput }) {
+  const { mediaFiles, currentIndex, navigate } = useMedia();
   const containerRef = useRef(null);
   const [containerHeight, setContainerHeight] = useState(0);
   const [dragConstraints, setDragConstraints] = useState({ top: 0, bottom: 0 });
@@ -71,16 +73,15 @@ function MediaViewer({ mediaFiles, currentIndex, onNavigate, showTagInput }) {
           Math.min(currentIndex + direction, mediaFiles.length - 1),
         );
         if (targetIndex !== currentIndex) {
-          onNavigate(direction);
+          navigate(direction);
         }
       }
     },
     [
       showTagInput,
-      containerHeight,
       currentIndex,
       mediaFiles.length,
-      onNavigate,
+      navigate,
     ],
   );
 
@@ -98,11 +99,11 @@ function MediaViewer({ mediaFiles, currentIndex, onNavigate, showTagInput }) {
           Math.min(currentIndex + direction, mediaFiles.length - 1),
         );
         if (targetIndex !== currentIndex) {
-          onNavigate(direction);
+          navigate(direction);
         }
       }
     },
-    [showTagInput, currentIndex, mediaFiles.length, onNavigate],
+    [showTagInput, currentIndex, mediaFiles.length, navigate],
   );
 
   // Add wheel event listener for desktop

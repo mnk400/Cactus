@@ -1,46 +1,40 @@
 import { useState } from "react";
-
 import TagFilter from "./TagFilter";
 import GeneralFilter from "./GeneralFilter";
 import TagManager from "./TagManager";
-import useTags from "../hooks/useTags";
-import useServerConfig from "../hooks/useServerConfig";
+import { useMedia } from "../context/MediaContext";
 
-function SettingsPanel({
-  isOpen,
-  onClose,
-  currentMediaType,
-  onMediaTypeChange,
-  onRescan,
-  isScanning,
-  allMediaFiles = [],
-  currentMediaFiles = [],
-
-  selectedTags = [],
-  excludedTags = [],
-  onTagsChange,
-  onExcludedTagsChange,
-  onPathChange,
-  onRegenerateThumbnails,
-  isRegeneratingThumbnails = false,
-  sortBy,
-  onSortByChange,
-  pathSubstring = "",
-}) {
+function SettingsPanel({ isOpen, onClose }) {
   const [showTagManager, setShowTagManager] = useState(false);
-  const { tags, createTag, updateTag, deleteTag } = useTags();
+
   const {
+    settings,
+    allMediaFiles,
+    mediaFiles: currentMediaFiles,
+    isScanning,
+    isRegeneratingThumbnails,
+    setFilters,
+    rescan,
+    regenerateThumbnails,
     config,
-    loading: configLoading,
+    configLoading,
     canRescan,
     canRegenerateThumbnails,
     canManageTags,
-    showConnectionStatus,
-    showDirectoryInfo,
-    directoryLabel,
-    directoryName,
-    isProviderType,
-  } = useServerConfig();
+    ui,
+    tags,
+    createTag,
+    updateTag,
+    deleteTag
+  } = useMedia();
+
+  const {
+    mediaType: currentMediaType,
+    selectedTags,
+    excludedTags,
+    pathFilter,
+    sortBy
+  } = settings;
 
   // Calculate statistics
   const totalFiles = allMediaFiles.length;
@@ -108,311 +102,163 @@ function SettingsPanel({
   const handleDeleteTag = async (id) => {
     try {
       await deleteTag(id);
-      // Remove deleted tag from current filters
-      onTagsChange(selectedTags.filter((tag) => tag.id !== id));
-      onExcludedTagsChange(excludedTags.filter((tag) => tag.id !== id));
+      setFilters({
+        selectedTags: selectedTags.filter((tag) => tag.id !== id),
+        excludedTags: excludedTags.filter((tag) => tag.id !== id)
+      });
     } catch (error) {
       console.error("Failed to delete tag:", error);
     }
   };
 
+  if (!isOpen) return null;
+
+  const directoryName = config?.provider?.config?.directoryPath || config?.provider?.config?.sbUrl || "";
+
   return (
     <div className="fixed inset-0 bg-black-shades-900 p-4 sm:p-6 text-gray-200 z-50 overflow-y-auto">
-        {/* Header with Close Button */}
-        <div className="flex justify-between items-center mb-3 sm:mb-4 max-w-4xl mx-auto">
-          <h3 className="text-base sm:text-lg font-semibold text-white m-0">
-            Settings & Stats
-          </h3>
-          <button
-            onClick={() => onClose()}
-            className="px-3 py-1 bg-red-400 text-white rounded-lg hover:bg-red-500 transition-colors duration-200"
-            aria-label="Close settings"
-          >
-            Close
-          </button>
-        </div>
+      <div className="flex justify-between items-center mb-3 sm:mb-4 max-w-4xl mx-auto">
+        <h3 className="text-base sm:text-lg font-semibold text-white m-0">
+          Settings & Stats
+        </h3>
+        <button
+          onClick={() => onClose()}
+          className="px-3 py-1 bg-red-400 text-white rounded-lg hover:bg-red-500 transition-colors duration-200"
+          aria-label="Close settings"
+        >
+          Close
+        </button>
+      </div>
 
-        <div className="max-w-4xl mx-auto">
-          {/* Statistics Section */}
-          <div className="stats-section mb-3 sm:mb-4 p-2 sm:p-3 bg-black-shades-800 rounded-2xl">
-            <div className="flex items-center gap-2 mb-2 sm:mb-3">
-              <h4 className="text-sm sm:text-base font-medium text-white m-0">
-                Media Library
-              </h4>
-            </div>
+      <div className="max-w-4xl mx-auto">
+        <div className="stats-section mb-3 sm:mb-4 p-2 sm:p-3 bg-black-shades-800 rounded-2xl">
+          <div className="flex items-center gap-2 mb-2 sm:mb-3">
+            <h4 className="text-sm sm:text-base font-medium text-white m-0">
+              Media Library
+            </h4>
+          </div>
 
-            {/* Directory/Server Info */}
-            {showDirectoryInfo && directoryName && (
-              <div className="mb-2 sm:mb-3 p-2 bg-black-shades-700 rounded-lg">
-                <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">
-                  {directoryLabel}
-                </div>
-                <div className="text-xs font-mono text-gray-200 break-all leading-tight">
-                  {directoryName}
-                </div>
-                {showConnectionStatus && (
-                  <div className="text-xs text-green-400 mt-1">
-                    ✓ Connected to{" "}
-                    {config?.provider?.schema?.description || "server"}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Current View Stats */}
+          {ui.showDirectoryInfo && directoryName && (
             <div className="mb-2 sm:mb-3 p-2 bg-black-shades-700 rounded-lg">
-              <div className="text-xs text-gray-300 uppercase tracking-wide mb-1">
-                Currently Viewing
+              <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">
+                {ui.directoryLabel || 'Directory'}
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm sm:text-base font-bold text-white">
-                  {currentCount}
-                </span>
-                <span className="text-xs text-gray-300">
-                  {getMediaTypeLabel(currentMediaType)}
-                </span>
+              <div className="text-xs font-mono text-gray-200 break-all leading-tight">
+                {directoryName}
               </div>
+              {ui.showConnectionStatus && (
+                <div className="text-xs text-green-400 mt-1">
+                  ✓ Connected
+                </div>
+              )}
             </div>
+          )}
 
-            {/* Total Stats Grid */}
-            <div className="grid grid-cols-3 gap-1.5 sm:gap-2 text-center mb-2 sm:mb-3">
-              <div className="stat-item p-1.5 sm:p-2 bg-black-shades-700 rounded-lg">
-                <div className="text-sm sm:text-base font-bold text-white">
-                  {totalFiles}
-                </div>
-                <div className="text-xs text-gray-400 uppercase tracking-wide">
-                  Total
-                </div>
-              </div>
-              <div className="stat-item p-1.5 sm:p-2 bg-black-shades-700 rounded-lg">
-                <div className="text-sm sm:text-base font-bold text-gray-200">
-                  {totalPhotos}
-                </div>
-                <div className="text-xs text-gray-300 uppercase tracking-wide">
-                  Photos
-                </div>
-              </div>
-              <div className="stat-item p-1.5 sm:p-2 bg-black-shades-700 rounded-lg">
-                <div className="text-sm sm:text-base font-bold text-gray-200">
-                  {totalVideos}
-                </div>
-                <div className="text-xs text-gray-300 uppercase tracking-wide">
-                  Videos
-                </div>
-              </div>
+          <div className="mb-2 sm:mb-3 p-2 bg-black-shades-700 rounded-lg">
+            <div className="text-xs text-gray-300 uppercase tracking-wide mb-1">
+              Currently Viewing
             </div>
-
-            {/* Visual Breakdown Bar */}
-            {totalFiles > 0 && (
-              <div>
-                <div className="text-xs text-gray-400 mb-1">Distribution</div>
-                <div className="flex h-1.5 bg-black-shades-600 rounded-full overflow-hidden">
-                  <div
-                    className="bg-white bg-opacity-60"
-                    style={{ width: `${photoPercentage}%` }}
-                    title={`Photos: ${photoPercentage}%`}
-                  />
-                  <div
-                    className="bg-black-shades-400 bg-opacity-80"
-                    style={{ width: `${videoPercentage}%` }}
-                    title={`Videos: ${videoPercentage}%`}
-                  />
-                </div>
-                <div className="flex justify-between text-xs text-gray-400 mt-1">
-                  <span>📸 {photoPercentage}%</span>
-                  <span>🎥 {videoPercentage}%</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Media Type Filter Section */}
-          <div className="filter-section mb-3 sm:mb-4">
-            <div className="flex items-center gap-2 mb-2 sm:mb-3">
-              <h4 className="text-sm sm:text-base font-medium text-white m-0">
-                Media Type
-              </h4>
-            </div>
-
-            <div className="media-type-selector flex gap-1.5 sm:gap-2">
-              <button
-                onClick={() => onMediaTypeChange("all")}
-                className={getButtonClass("all")}
-              >
-                <div className="flex items-center justify-center gap-1">
-                  <span className="opacity-80 text-xs sm:text-sm">🎭</span>
-                  <span className="text-xs sm:text-sm">All</span>
-                </div>
-              </button>
-              <button
-                onClick={() => onMediaTypeChange("photos")}
-                className={getButtonClass("photos")}
-              >
-                <div className="flex items-center justify-center gap-1">
-                  <span className="opacity-80 text-xs sm:text-sm">📸</span>
-                  <span className="text-xs sm:text-sm">Photos</span>
-                </div>
-              </button>
-              <button
-                onClick={() => onMediaTypeChange("videos")}
-                className={getButtonClass("videos")}
-              >
-                <div className="flex items-center justify-center gap-1">
-                  <span className="opacity-80 text-xs sm:text-sm">🎥</span>
-                  <span className="text-xs sm:text-sm">Videos</span>
-                </div>
-              </button>
+            <div className="flex justify-between items-center">
+              <span className="text-sm sm:text-base font-bold text-white">
+                {currentCount}
+              </span>
+              <span className="text-xs text-gray-300">
+                {getMediaTypeLabel(currentMediaType)}
+              </span>
             </div>
           </div>
 
-          {/* Sort By Options */}
-          <div className="filter-section mb-3 sm:mb-4">
-            <div className="flex items-center gap-2 mb-2 sm:mb-3">
-              <h4 className="text-sm sm:text-base font-medium text-white m-0">
-                Sort By
-              </h4>
+          <div className="grid grid-cols-3 gap-1.5 sm:gap-2 text-center mb-2 sm:mb-3">
+            <div className="stat-item p-1.5 sm:p-2 bg-black-shades-700 rounded-lg">
+              <div className="text-sm sm:text-base font-bold text-white">{totalFiles}</div>
+              <div className="text-xs text-gray-400 uppercase tracking-wide">Total</div>
             </div>
-            <div className="media-type-selector flex gap-1.5 sm:gap-2">
-              <button
-                onClick={() => onSortByChange("random")}
-                className={getSortButtonClass("random")}
-              >
-                <div className="flex items-center justify-center gap-1">
-                  <span className="text-xs sm:text-sm">Random</span>
-                </div>
-              </button>
-              <button
-                onClick={() => onSortByChange("date_added")}
-                className={getSortButtonClass("date_added")}
-              >
-                <div className="flex items-center justify-center gap-1">
-                  <span className="text-xs sm:text-sm">Date Added</span>
-                </div>
-              </button>
-              <button
-                onClick={() => onSortByChange("date_created")}
-                className={getSortButtonClass("date_created")}
-              >
-                <div className="flex items-center justify-center gap-1">
-                  <span className="text-xs sm:text-sm">Date Created</span>
-                </div>
-              </button>
+            <div className="stat-item p-1.5 sm:p-2 bg-black-shades-700 rounded-lg">
+              <div className="text-sm sm:text-base font-bold text-gray-200">{totalPhotos}</div>
+              <div className="text-xs text-gray-300 uppercase tracking-wide">Photos</div>
+            </div>
+            <div className="stat-item p-1.5 sm:p-2 bg-black-shades-700 rounded-lg">
+              <div className="text-sm sm:text-base font-bold text-gray-200">{totalVideos}</div>
+              <div className="text-xs text-gray-300 uppercase tracking-wide">Videos</div>
             </div>
           </div>
 
-          {/* Tag Filter Section */}
-          <div className="tag-filter-section mb-3 sm:mb-4 p-2 sm:p-3 bg-black bg-opacity-40 backdrop-blur-sm rounded-2xl z-10 relative">
-            <div className="flex items-center gap-2 mb-2 sm:mb-3">
-              <h4 className="text-sm sm:text-base font-medium text-white m-0">
-                Tag Filters
-              </h4>
-            </div>
-
-            <TagFilter
-              tags={tags}
-              selectedTags={selectedTags}
-              excludedTags={excludedTags}
-              onTagsChange={onTagsChange}
-              onExcludedTagsChange={onExcludedTagsChange}
-            />
-          </div>
-
-          {/* General Filter Section */}
-          <div className="general-filter-section mb-3 sm:mb-4 p-2 sm:p-3 bg-black bg-opacity-40 backdrop-blur-sm rounded-2xl">
-            <div className="flex items-center gap-2 mb-2 sm:mb-3">
-              <h4 className="text-sm sm:text-base font-medium text-white m-0">
-                General Filter
-              </h4>
-            </div>
-            <GeneralFilter
-              onFilterChange={onPathChange}
-              initialValue={pathSubstring || ""}
-            />
-          </div>
-
-          {/* Actions Section */}
-          {!configLoading &&
-            (canManageTags || canRescan || canRegenerateThumbnails) && (
-              <div className="actions-section mb-6">
-                <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                  <h4 className="text-sm sm:text-base font-medium text-white m-0">
-                    Actions
-                  </h4>
-                </div>
-
-                <div className="space-y-2">
-                  {/* Tag Manager */}
-                  {canManageTags && (
-                    <button
-                      onClick={() => setShowTagManager(true)}
-                      className="w-full flex items-center justify-center gap-2 border-none py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl cursor-pointer text-xs sm:text-sm font-medium transition-all duration-200 ease-in-out active:scale-95 bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-white shadow-lg hover:shadow-xl"
-                    >
-                      <span>Manage Tags</span>
-                    </button>
-                  )}
-
-                  {/* Rescan Directory */}
-                  {canRescan && (
-                    <button
-                      onClick={onRescan}
-                      disabled={isScanning || isRegeneratingThumbnails}
-                      className={`rescan-btn w-full flex items-center justify-center gap-2 border-none py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl cursor-pointer text-xs sm:text-sm font-medium transition-all duration-200 ease-in-out active:scale-95 ${
-                        isScanning || isRegeneratingThumbnails
-                          ? "bg-black bg-opacity-50 text-gray-500 cursor-not-allowed opacity-50"
-                          : "bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-white shadow-lg hover:shadow-xl"
-                      }`}
-                    >
-                      {isScanning ? (
-                        <>
-                          <div className="animate-spin w-3 h-3 sm:w-4 sm:h-4 border-2 border-gray-500 border-t-transparent rounded-full"></div>
-                          <span>Scanning...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>Rescan Directory</span>
-                        </>
-                      )}
-                    </button>
-                  )}
-
-                  {/* Regenerate Thumbnails */}
-                  {canRegenerateThumbnails && (
-                    <button
-                      onClick={onRegenerateThumbnails}
-                      disabled={isScanning || isRegeneratingThumbnails}
-                      className={`w-full flex items-center justify-center gap-2 border-none py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl cursor-pointer text-xs sm:text-sm font-medium transition-all duration-200 ease-in-out active:scale-95 ${
-                        isScanning || isRegeneratingThumbnails
-                          ? "bg-black bg-opacity-50 text-gray-500 cursor-not-allowed opacity-50"
-                          : "bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-white shadow-lg hover:shadow-xl"
-                      }`}
-                    >
-                      {isRegeneratingThumbnails ? (
-                        <>
-                          <div className="animate-spin w-3 h-3 sm:w-4 sm:h-4 border-2 border-gray-500 border-t-transparent rounded-full"></div>
-                          <span>Generating...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>Regenerate All Thumbnails</span>
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
+          {totalFiles > 0 && (
+            <div>
+              <div className="text-xs text-gray-400 mb-1">Distribution</div>
+              <div className="flex h-1.5 bg-black-shades-600 rounded-full overflow-hidden">
+                <div className="bg-white bg-opacity-60" style={{ width: `${photoPercentage}%` }} />
+                <div className="bg-black-shades-400 bg-opacity-80" style={{ width: `${videoPercentage}%` }} />
               </div>
-            )}
+              <div className="flex justify-between text-xs text-gray-400 mt-1">
+                <span>📸 {photoPercentage}%</span>
+                <span>🎥 {videoPercentage}%</span>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Tag Manager Modal */}
-        {showTagManager && canManageTags && (
-          <TagManager
+        <div className="filter-section mb-3 sm:mb-4">
+          <h4 className="text-sm sm:text-base font-medium text-white mb-2 sm:mb-3">Media Type</h4>
+          <div className="media-type-selector flex gap-1.5 sm:gap-2">
+            <button onClick={() => setFilters({ mediaType: "all" })} className={getButtonClass("all")}>All</button>
+            <button onClick={() => setFilters({ mediaType: "photos" })} className={getButtonClass("photos")}>Photos</button>
+            <button onClick={() => setFilters({ mediaType: "videos" })} className={getButtonClass("videos")}>Videos</button>
+          </div>
+        </div>
+
+        <div className="filter-section mb-3 sm:mb-4">
+          <h4 className="text-sm sm:text-base font-medium text-white mb-2 sm:mb-3">Sort By</h4>
+          <div className="media-type-selector flex gap-1.5 sm:gap-2">
+            <button onClick={() => setFilters({ sortBy: "random" })} className={getSortButtonClass("random")}>Random</button>
+            <button onClick={() => setFilters({ sortBy: "date_added" })} className={getSortButtonClass("date_added")}>Date Added</button>
+            <button onClick={() => setFilters({ sortBy: "date_created" })} className={getSortButtonClass("date_created")}>Date Created</button>
+          </div>
+        </div>
+
+        <div className="tag-filter-section mb-3 sm:mb-4 p-2 sm:p-3 bg-black bg-opacity-40 rounded-2xl">
+          <h4 className="text-sm sm:text-base font-medium text-white mb-2 sm:mb-3">Tag Filters</h4>
+          <TagFilter
             tags={tags}
-            onCreateTag={handleCreateTag}
-            onUpdateTag={handleUpdateTag}
-            onDeleteTag={handleDeleteTag}
-            onClose={() => setShowTagManager(false)}
+            selectedTags={selectedTags}
+            excludedTags={excludedTags}
+            onTagsChange={(tags) => setFilters({ selectedTags: tags })}
+            onExcludedTagsChange={(tags) => setFilters({ excludedTags: tags })}
           />
+        </div>
+
+        <div className="general-filter-section mb-3 sm:mb-4 p-2 sm:p-3 bg-black bg-opacity-40 rounded-2xl">
+          <h4 className="text-sm sm:text-base font-medium text-white mb-2 sm:mb-3">General Filter</h4>
+          <GeneralFilter onFilterChange={(path) => setFilters({ pathFilter: path })} initialValue={pathFilter || ""} />
+        </div>
+
+        {!configLoading && (canManageTags || canRescan || canRegenerateThumbnails) && (
+          <div className="actions-section mb-6">
+            <h4 className="text-sm sm:text-base font-medium text-white mb-2 sm:mb-3">Actions</h4>
+            <div className="space-y-2">
+              {canManageTags && (
+                <button onClick={() => setShowTagManager(true)} className="w-full py-2.5 rounded-xl bg-black bg-opacity-50 text-white hover:bg-opacity-20 transition-all">
+                  Manage Tags
+                </button>
+              )}
+              {canRescan && (
+                <button onClick={rescan} disabled={isScanning} className="w-full py-2.5 rounded-xl bg-black bg-opacity-50 text-white hover:bg-opacity-20 transition-all">
+                  {isScanning ? "Scanning..." : "Rescan Directory"}
+                </button>
+              )}
+              {canRegenerateThumbnails && (
+                <button onClick={regenerateThumbnails} disabled={isRegeneratingThumbnails} className="w-full py-2.5 rounded-xl bg-black bg-opacity-50 text-white hover:bg-opacity-20 transition-all">
+                  {isRegeneratingThumbnails ? "Generating..." : "Regenerate All Thumbnails"}
+                </button>
+              )}
+            </div>
+          </div>
         )}
+      </div>
+
+      {showTagManager && canManageTags && (
+        <TagManager tags={tags} onCreateTag={handleCreateTag} onUpdateTag={handleUpdateTag} onDeleteTag={handleDeleteTag} onClose={() => setShowTagManager(false)} />
+      )}
     </div>
   );
 }

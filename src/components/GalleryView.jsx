@@ -5,15 +5,14 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
+import { useMedia } from "../context/MediaContext";
 
 function GalleryView({
-  mediaFiles,
-  currentIndex,
-  onSelectMedia,
   scrollPosition,
   setScrollPosition,
   style,
 }) {
+  const { mediaFiles, currentIndex, selectMedia } = useMedia();
   const containerRef = useRef(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const isVisible = style?.display !== "none";
@@ -182,7 +181,8 @@ function GalleryView({
     if (isVisible && containerRef.current && scrollPosition > 0) {
       containerRef.current.scrollTop = scrollPosition;
     }
-  }, [isVisible]);
+  }, [isVisible, scrollPosition]);
+
   useEffect(() => {
     if (!isVisible || !containerRef.current) return;
 
@@ -225,7 +225,7 @@ function GalleryView({
             width={item.width}
             height={item.height}
             isSelected={item.isSelected}
-            onSelect={onSelectMedia}
+            onSelect={selectMedia}
             onDimensionsLoad={handleDimensionsLoad}
           />
         ))}
@@ -344,16 +344,15 @@ const GalleryItem = React.memo(
     return (
       <div
         ref={containerRef}
-        className={`absolute rounded-md overflow-hidden cursor-pointer transition-all duration-200 border-2 ${
-          isSelected
-            ? "border-blue-500 shadow-lg shadow-blue-500/30"
-            : "border-transparent hover:border-gray-600"
-        }`}
+        className={`gallery-item absolute rounded-md overflow-hidden cursor-pointer transition-all duration-200 border-2 ${isSelected
+          ? "border-blue-500 shadow-lg shadow-blue-500/30"
+          : "border-transparent hover:border-gray-600"
+          }`}
         style={{
-          left: x,
-          top: y,
+          transform: `translate3d(${x}px, ${y}px, 0)`,
           width: width,
           height: height,
+          willChange: "transform",
         }}
         onClick={handleClick}
         role="button"
@@ -388,9 +387,8 @@ const GalleryItem = React.memo(
               <video
                 ref={mediaRef}
                 src={`/thumbnails?hash=${file.file_hash}`}
-                className={`w-full h-full object-cover transition-opacity duration-300 ${
-                  mediaLoaded ? "opacity-100" : "opacity-0"
-                }`}
+                className={`w-full h-full object-cover transition-opacity duration-300 ${mediaLoaded ? "opacity-100" : "opacity-0"
+                  }`}
                 onLoadedData={handleMediaLoad}
                 onError={handleMediaError}
                 muted
@@ -404,9 +402,8 @@ const GalleryItem = React.memo(
                 ref={mediaRef}
                 src={`/thumbnails?hash=${file.file_hash}`}
                 alt={`media-${index}`}
-                className={`w-full h-full object-cover transition-opacity duration-300 ${
-                  mediaLoaded ? "opacity-100" : "opacity-0"
-                }`}
+                className={`w-full h-full object-cover transition-opacity duration-300 ${mediaLoaded ? "opacity-100" : "opacity-0"
+                  }`}
                 onLoad={handleMediaLoad}
                 onError={handleMediaError}
                 loading="lazy"
@@ -420,13 +417,13 @@ const GalleryItem = React.memo(
             <div className="text-gray-500 text-xs">Failed to load</div>
           </div>
         )}
-        
+
         {/* Video indicator - only show for actual video media types */}
         {mediaLoaded && !mediaError && file.media_type === 'video' && (
           <div className="absolute bottom-1 right-1 bg-black/60 rounded-full p-1 pointer-events-none">
-            <svg 
-              className="w-3 h-3 text-white" 
-              viewBox="0 0 24 24" 
+            <svg
+              className="w-3 h-3 text-white"
+              viewBox="0 0 24 24"
               fill="currentColor"
             >
               <path d="M8 5v14l11-7z" />
