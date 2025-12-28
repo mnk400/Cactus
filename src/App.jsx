@@ -27,29 +27,29 @@ function App() {
     loading,
     error,
     settings,
-    navigate
+    navigate,
   } = useMedia();
 
-  const {
-    pathFilter,
-    galleryView: isGalleryView,
-    debug: debugMode
-  } = settings;
+  const { pathFilter, galleryView: isGalleryView, debug: debugMode } = settings;
 
-  const directoryPath = useMemo(() =>
-    currentMediaFile
-      ? currentMediaFile.file_path.split("/").slice(0, -1).join("/") || "/"
-      : "",
+  const directoryPath = useMemo(
+    () =>
+      currentMediaFile
+        ? currentMediaFile.file_path.split("/").slice(0, -1).join("/") || "/"
+        : "",
     [currentMediaFile],
   );
 
   // Keyboard navigation
   useKeyboardNavigation(
-    useCallback((direction) => {
-      if (mediaFiles.length > 0 && !showTagInput) {
-        navigate(direction);
-      }
-    }, [mediaFiles.length, showTagInput, navigate])
+    useCallback(
+      (direction) => {
+        if (mediaFiles.length > 0 && !showTagInput) {
+          navigate(direction);
+        }
+      },
+      [mediaFiles.length, showTagInput, navigate],
+    ),
   );
 
   const handleToggleTagInput = (show) => {
@@ -90,15 +90,14 @@ function App() {
             <div>
               <p className="text-lg mb-2">No media files found</p>
               <p className="text-sm">
-                Try adjusting your filters or check if the directory contains supported media files.
+                Try adjusting your filters or check if the directory contains
+                supported media files.
               </p>
             </div>
           </div>
         )}
 
-        {!isSettingsOpen && !isGalleryView && (
-          <SideNavigation />
-        )}
+        {!isSettingsOpen && !isGalleryView && <SideNavigation />}
 
         <ViewTransition isSettingsOpen={isSettingsOpen}>
           <SettingsPanel

@@ -77,12 +77,15 @@ function ViewTransition({ isGalleryView, isSettingsOpen, children }) {
 
   // Handle gallery/media mode (two children)
   const [galleryView, mediaViewer] = React.Children.toArray(children);
-  
+
   // Add slight delay for more natural feel when switching views
-  const getTransition = React.useCallback((isEntering) => ({
-    ...springTransition,
-    delay: isEntering ? 0.02 : 0, // Tiny delay for entering view
-  }), []);
+  const getTransition = React.useCallback(
+    (isEntering) => ({
+      ...springTransition,
+      delay: isEntering ? 0.02 : 0, // Tiny delay for entering view
+    }),
+    [],
+  );
 
   return (
     <div className="view-transition-container relative w-full h-full overflow-hidden">
@@ -91,11 +94,7 @@ function ViewTransition({ isGalleryView, isSettingsOpen, children }) {
         key="gallery"
         className="absolute inset-0 w-full h-full"
         initial={false}
-        animate={
-          isGalleryView
-            ? "galleryCenter"
-            : "galleryExit"
-        }
+        animate={isGalleryView ? "galleryCenter" : "galleryExit"}
         variants={slideVariants}
         transition={getTransition(isGalleryView)}
         style={{
@@ -111,11 +110,7 @@ function ViewTransition({ isGalleryView, isSettingsOpen, children }) {
         key="media"
         className="absolute inset-0 w-full h-full"
         initial={false}
-        animate={
-          !isGalleryView
-            ? "mediaCenter"
-            : "mediaExit"
-        }
+        animate={!isGalleryView ? "mediaCenter" : "mediaExit"}
         variants={slideVariants}
         transition={getTransition(!isGalleryView)}
         style={{

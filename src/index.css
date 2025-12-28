@@ -431,17 +431,17 @@ textarea {
   /* Hardware acceleration for smooth transitions */
   transform: translate3d(0, 0, 0);
   -webkit-transform: translate3d(0, 0, 0);
-  
+
   /* Better compositing layer */
   will-change: transform;
-  
+
   /* Optimize for performance */
   contain: layout style paint;
-  
+
   /* Prevent subpixel rendering issues */
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
-  
+
   /* Smooth rendering */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -452,10 +452,10 @@ textarea {
   /* Hardware acceleration */
   transform: translate3d(0, 0, 0);
   -webkit-transform: translate3d(0, 0, 0);
-  
+
   /* Better compositing */
   contain: layout style paint;
-  
+
   /* Prevent rendering issues during animation */
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
@@ -470,7 +470,7 @@ textarea {
     /* Prevent iOS scroll bounce issues */
     overscroll-behavior: contain;
   }
-  
+
   .view-transition-container {
     /* iOS-specific optimizations */
     -webkit-transform: translateZ(0);

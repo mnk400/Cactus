@@ -11,12 +11,7 @@ const Navigation = memo(function Navigation({
   isFavorited,
   onToggleFavorite,
 }) {
-  const {
-    currentMediaFile,
-    toggleGallery,
-    settings,
-    setFilters
-  } = useMedia();
+  const { currentMediaFile, toggleGallery, settings, setFilters } = useMedia();
 
   const { galleryView: isGalleryView, pathFilter: activeFilter } = settings;
   const [videoElement, setVideoElement] = useState(null);

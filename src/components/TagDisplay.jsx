@@ -6,7 +6,7 @@ import React, {
   memo,
   useCallback,
 } from "react";
-import useTags from "../hooks/useTags";
+import { useMedia } from "../context/MediaContext";
 
 const TagDisplay = memo(function TagDisplay({
   currentMediaFile,
@@ -14,24 +14,49 @@ const TagDisplay = memo(function TagDisplay({
   isVideoPlaying,
 }) {
   const [mediaTags, setMediaTags] = useState([]);
-  const { getMediaTags, removeTagFromMedia } = useTags();
+  const { fetchTags } = useMedia();
 
   const tagRefs = useRef(new Map());
   const prevTagPositions = useRef(new Map());
 
+  // Stable function to fetch media tags - doesn't change between renders
+  const fetchMediaTags = useCallback(async (filePath) => {
+    try {
+      const response = await fetch(
+        `/api/media-path/tags?path=${encodeURIComponent(filePath)}`,
+      );
+      if (!response.ok) {
+        throw new Error("Failed to fetch media tags");
+      }
+      const data = await response.json();
+      return data.tags || [];
+    } catch (err) {
+      console.error("Error fetching media tags:", err);
+      return [];
+    }
+  }, []);
+
   // Load tags for current media file
   useEffect(() => {
+    let isMounted = true;
+
     const loadMediaTags = async () => {
       if (currentMediaFile) {
         try {
-          const tags = await getMediaTags(currentMediaFile.file_path);
-          setMediaTags(tags);
+          const tags = await fetchMediaTags(currentMediaFile.file_path);
+          if (isMounted) {
+            setMediaTags(tags);
+          }
         } catch (error) {
           console.error("Failed to load media tags:", error);
-          setMediaTags([]);
+          if (isMounted) {
+            setMediaTags([]);
+          }
         }
       } else {
-        setMediaTags([]);
+        if (isMounted) {
+          setMediaTags([]);
+        }
       }
     };
 
@@ -41,9 +66,10 @@ const TagDisplay = memo(function TagDisplay({
     window.addEventListener("tags-updated", handleTagsUpdated);
 
     return () => {
+      isMounted = false;
       window.removeEventListener("tags-updated", handleTagsUpdated);
     };
-  }, [currentMediaFile, getMediaTags]);
+  }, [currentMediaFile?.file_path, fetchMediaTags]);
 
   const handleRemoveTag = useCallback(
     async (tagId) => {
@@ -58,10 +84,21 @@ const TagDisplay = memo(function TagDisplay({
           const data = await response.json();
 
           if (data.fileHash) {
-            await removeTagFromMedia(data.fileHash, tagId);
+            // Remove the tag directly via API
+            const removeResponse = await fetch(
+              `/api/media/${data.fileHash}/tags/${tagId}`,
+              { method: "DELETE" },
+            );
+            if (!removeResponse.ok) {
+              throw new Error("Failed to remove tag");
+            }
             // Reload tags for current media
-            const updatedTags = await getMediaTags(currentMediaFile.file_path);
+            const updatedTags = await fetchMediaTags(
+              currentMediaFile.file_path,
+            );
             setMediaTags(updatedTags);
+            // Refresh global tags to update usage counts
+            fetchTags();
             window.dispatchEvent(new CustomEvent("tags-updated"));
           }
         } catch (error) {
@@ -69,7 +106,7 @@ const TagDisplay = memo(function TagDisplay({
         }
       }
     },
-    [currentMediaFile, removeTagFromMedia, getMediaTags],
+    [currentMediaFile, fetchMediaTags, fetchTags],
   );
 
   useLayoutEffect(() => {

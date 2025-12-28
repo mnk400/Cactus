@@ -27,7 +27,7 @@ Open http://localhost:3000 in your browser.
 
 ## Base Features
 
-**Flexible Viewing** - A default scrollable random media feed, and a gallery view to browse more flexibily 
+**Flexible Viewing** - A default scrollable random media feed, and a gallery view to browse more flexibily
 
 **Tagging System** - Powerful tagging system for all the media
 
@@ -38,17 +38,17 @@ Open http://localhost:3000 in your browser.
 ## Navigation & Controls
 
 - **Keyboard**: Arrow keys or WASD to navigate
-- **Touch**: Swipe up/down on mobile devices  
+- **Touch**: Swipe up/down on mobile devices
 - **Gallery**: Click any thumbnail to jump to that media
 
 Access settings via the menu button (⋯) to filter media types, manage tags, or rescan directories.
 
 ## Screenshots
 
-| View | Desktop | Mobile |
-|------|---------|--------|
+| View             | Desktop                                                       | Mobile                                                      |
+| ---------------- | ------------------------------------------------------------- | ----------------------------------------------------------- |
 | **Single Media** | ![Desktop Single Media](screenshots/desktop_single_media.png) | ![Mobile Single Media](screenshots/mobile_single_media.png) |
-| **Gallery View** | ![Desktop Gallery](screenshots/desktop_gallery.png) | ![Mobile Gallery](screenshots/mobile_gallery.png) |
+| **Gallery View** | ![Desktop Gallery](screenshots/desktop_gallery.png)           | ![Mobile Gallery](screenshots/mobile_gallery.png)           |
 
 ## Development
 

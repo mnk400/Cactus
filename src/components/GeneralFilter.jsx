@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 const GeneralFilter = ({ onFilterChange, initialValue = "" }) => {
   const [substring, setSubstring] = useState(initialValue);
 
-const isFilterActive = initialValue !== "" && initialValue.length > 0;
+  const isFilterActive = initialValue !== "" && initialValue.length > 0;
 
   // Update local state when initialValue changes (from URL)
   useEffect(() => {

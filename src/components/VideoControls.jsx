@@ -1,10 +1,6 @@
 import React from "react";
 
-const VideoControls = ({
-  isMuted,
-  onToggleMute,
-  className = "",
-}) => {
+const VideoControls = ({ isMuted, onToggleMute, className = "" }) => {
   return (
     <div className={`video-controls ${className}`}>
       <button
@@ -15,9 +11,10 @@ const VideoControls = ({
         className={`
           audio-toggle-btn flex items-center justify-center
           w-8 h-8 rounded-lg transition-all duration-200
-          ${isMuted
-            ? "bg-black-shades-800 bg-opacity-60 hover:bg-opacity-80 text-gray-500"
-            : "bg-black-shades-700 bg-opacity-80 hover:bg-opacity-100 text-gray-200"
+          ${
+            isMuted
+              ? "bg-black-shades-800 bg-opacity-60 hover:bg-opacity-80 text-gray-500"
+              : "bg-black-shades-700 bg-opacity-80 hover:bg-opacity-100 text-gray-200"
           }
           shadow-md hover:shadow-lg backdrop-blur-sm
         `}

@@ -77,12 +77,7 @@ function MediaViewer({ showTagInput }) {
         }
       }
     },
-    [
-      showTagInput,
-      currentIndex,
-      mediaFiles.length,
-      navigate,
-    ],
+    [showTagInput, currentIndex, mediaFiles.length, navigate],
   );
 
   // Memoized wheel handler

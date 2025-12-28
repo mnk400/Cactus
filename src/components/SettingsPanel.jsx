@@ -25,7 +25,7 @@ function SettingsPanel({ isOpen, onClose }) {
     tags,
     createTag,
     updateTag,
-    deleteTag
+    deleteTag,
   } = useMedia();
 
   const {
@@ -33,7 +33,7 @@ function SettingsPanel({ isOpen, onClose }) {
     selectedTags,
     excludedTags,
     pathFilter,
-    sortBy
+    sortBy,
   } = settings;
 
   // Calculate statistics
@@ -104,7 +104,7 @@ function SettingsPanel({ isOpen, onClose }) {
       await deleteTag(id);
       setFilters({
         selectedTags: selectedTags.filter((tag) => tag.id !== id),
-        excludedTags: excludedTags.filter((tag) => tag.id !== id)
+        excludedTags: excludedTags.filter((tag) => tag.id !== id),
       });
     } catch (error) {
       console.error("Failed to delete tag:", error);
@@ -113,7 +113,10 @@ function SettingsPanel({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  const directoryName = config?.provider?.config?.directoryPath || config?.provider?.config?.sbUrl || "";
+  const directoryName =
+    config?.provider?.config?.directoryPath ||
+    config?.provider?.config?.sbUrl ||
+    "";
 
   return (
     <div className="fixed inset-0 bg-black-shades-900 p-4 sm:p-6 text-gray-200 z-50 overflow-y-auto">
@@ -141,15 +144,13 @@ function SettingsPanel({ isOpen, onClose }) {
           {ui.showDirectoryInfo && directoryName && (
             <div className="mb-2 sm:mb-3 p-2 bg-black-shades-700 rounded-lg">
               <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">
-                {ui.directoryLabel || 'Directory'}
+                {ui.directoryLabel || "Directory"}
               </div>
               <div className="text-xs font-mono text-gray-200 break-all leading-tight">
                 {directoryName}
               </div>
               {ui.showConnectionStatus && (
-                <div className="text-xs text-green-400 mt-1">
-                  ✓ Connected
-                </div>
+                <div className="text-xs text-green-400 mt-1">✓ Connected</div>
               )}
             </div>
           )}
@@ -170,16 +171,28 @@ function SettingsPanel({ isOpen, onClose }) {
 
           <div className="grid grid-cols-3 gap-1.5 sm:gap-2 text-center mb-2 sm:mb-3">
             <div className="stat-item p-1.5 sm:p-2 bg-black-shades-700 rounded-lg">
-              <div className="text-sm sm:text-base font-bold text-white">{totalFiles}</div>
-              <div className="text-xs text-gray-400 uppercase tracking-wide">Total</div>
+              <div className="text-sm sm:text-base font-bold text-white">
+                {totalFiles}
+              </div>
+              <div className="text-xs text-gray-400 uppercase tracking-wide">
+                Total
+              </div>
             </div>
             <div className="stat-item p-1.5 sm:p-2 bg-black-shades-700 rounded-lg">
-              <div className="text-sm sm:text-base font-bold text-gray-200">{totalPhotos}</div>
-              <div className="text-xs text-gray-300 uppercase tracking-wide">Photos</div>
+              <div className="text-sm sm:text-base font-bold text-gray-200">
+                {totalPhotos}
+              </div>
+              <div className="text-xs text-gray-300 uppercase tracking-wide">
+                Photos
+              </div>
             </div>
             <div className="stat-item p-1.5 sm:p-2 bg-black-shades-700 rounded-lg">
-              <div className="text-sm sm:text-base font-bold text-gray-200">{totalVideos}</div>
-              <div className="text-xs text-gray-300 uppercase tracking-wide">Videos</div>
+              <div className="text-sm sm:text-base font-bold text-gray-200">
+                {totalVideos}
+              </div>
+              <div className="text-xs text-gray-300 uppercase tracking-wide">
+                Videos
+              </div>
             </div>
           </div>
 
@@ -187,8 +200,14 @@ function SettingsPanel({ isOpen, onClose }) {
             <div>
               <div className="text-xs text-gray-400 mb-1">Distribution</div>
               <div className="flex h-1.5 bg-black-shades-600 rounded-full overflow-hidden">
-                <div className="bg-white bg-opacity-60" style={{ width: `${photoPercentage}%` }} />
-                <div className="bg-black-shades-400 bg-opacity-80" style={{ width: `${videoPercentage}%` }} />
+                <div
+                  className="bg-white bg-opacity-60"
+                  style={{ width: `${photoPercentage}%` }}
+                />
+                <div
+                  className="bg-black-shades-400 bg-opacity-80"
+                  style={{ width: `${videoPercentage}%` }}
+                />
               </div>
               <div className="flex justify-between text-xs text-gray-400 mt-1">
                 <span>📸 {photoPercentage}%</span>
@@ -199,25 +218,61 @@ function SettingsPanel({ isOpen, onClose }) {
         </div>
 
         <div className="filter-section mb-3 sm:mb-4">
-          <h4 className="text-sm sm:text-base font-medium text-white mb-2 sm:mb-3">Media Type</h4>
+          <h4 className="text-sm sm:text-base font-medium text-white mb-2 sm:mb-3">
+            Media Type
+          </h4>
           <div className="media-type-selector flex gap-1.5 sm:gap-2">
-            <button onClick={() => setFilters({ mediaType: "all" })} className={getButtonClass("all")}>All</button>
-            <button onClick={() => setFilters({ mediaType: "photos" })} className={getButtonClass("photos")}>Photos</button>
-            <button onClick={() => setFilters({ mediaType: "videos" })} className={getButtonClass("videos")}>Videos</button>
+            <button
+              onClick={() => setFilters({ mediaType: "all" })}
+              className={getButtonClass("all")}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setFilters({ mediaType: "photos" })}
+              className={getButtonClass("photos")}
+            >
+              Photos
+            </button>
+            <button
+              onClick={() => setFilters({ mediaType: "videos" })}
+              className={getButtonClass("videos")}
+            >
+              Videos
+            </button>
           </div>
         </div>
 
         <div className="filter-section mb-3 sm:mb-4">
-          <h4 className="text-sm sm:text-base font-medium text-white mb-2 sm:mb-3">Sort By</h4>
+          <h4 className="text-sm sm:text-base font-medium text-white mb-2 sm:mb-3">
+            Sort By
+          </h4>
           <div className="media-type-selector flex gap-1.5 sm:gap-2">
-            <button onClick={() => setFilters({ sortBy: "random" })} className={getSortButtonClass("random")}>Random</button>
-            <button onClick={() => setFilters({ sortBy: "date_added" })} className={getSortButtonClass("date_added")}>Date Added</button>
-            <button onClick={() => setFilters({ sortBy: "date_created" })} className={getSortButtonClass("date_created")}>Date Created</button>
+            <button
+              onClick={() => setFilters({ sortBy: "random" })}
+              className={getSortButtonClass("random")}
+            >
+              Random
+            </button>
+            <button
+              onClick={() => setFilters({ sortBy: "date_added" })}
+              className={getSortButtonClass("date_added")}
+            >
+              Date Added
+            </button>
+            <button
+              onClick={() => setFilters({ sortBy: "date_created" })}
+              className={getSortButtonClass("date_created")}
+            >
+              Date Created
+            </button>
           </div>
         </div>
 
         <div className="tag-filter-section mb-3 sm:mb-4 p-2 sm:p-3 bg-black bg-opacity-40 rounded-2xl">
-          <h4 className="text-sm sm:text-base font-medium text-white mb-2 sm:mb-3">Tag Filters</h4>
+          <h4 className="text-sm sm:text-base font-medium text-white mb-2 sm:mb-3">
+            Tag Filters
+          </h4>
           <TagFilter
             tags={tags}
             selectedTags={selectedTags}
@@ -228,36 +283,63 @@ function SettingsPanel({ isOpen, onClose }) {
         </div>
 
         <div className="general-filter-section mb-3 sm:mb-4 p-2 sm:p-3 bg-black bg-opacity-40 rounded-2xl">
-          <h4 className="text-sm sm:text-base font-medium text-white mb-2 sm:mb-3">General Filter</h4>
-          <GeneralFilter onFilterChange={(path) => setFilters({ pathFilter: path })} initialValue={pathFilter || ""} />
+          <h4 className="text-sm sm:text-base font-medium text-white mb-2 sm:mb-3">
+            General Filter
+          </h4>
+          <GeneralFilter
+            onFilterChange={(path) => setFilters({ pathFilter: path })}
+            initialValue={pathFilter || ""}
+          />
         </div>
 
-        {!configLoading && (canManageTags || canRescan || canRegenerateThumbnails) && (
-          <div className="actions-section mb-6">
-            <h4 className="text-sm sm:text-base font-medium text-white mb-2 sm:mb-3">Actions</h4>
-            <div className="space-y-2">
-              {canManageTags && (
-                <button onClick={() => setShowTagManager(true)} className="w-full py-2.5 rounded-xl bg-black bg-opacity-50 text-white hover:bg-opacity-20 transition-all">
-                  Manage Tags
-                </button>
-              )}
-              {canRescan && (
-                <button onClick={rescan} disabled={isScanning} className="w-full py-2.5 rounded-xl bg-black bg-opacity-50 text-white hover:bg-opacity-20 transition-all">
-                  {isScanning ? "Scanning..." : "Rescan Directory"}
-                </button>
-              )}
-              {canRegenerateThumbnails && (
-                <button onClick={regenerateThumbnails} disabled={isRegeneratingThumbnails} className="w-full py-2.5 rounded-xl bg-black bg-opacity-50 text-white hover:bg-opacity-20 transition-all">
-                  {isRegeneratingThumbnails ? "Generating..." : "Regenerate All Thumbnails"}
-                </button>
-              )}
+        {!configLoading &&
+          (canManageTags || canRescan || canRegenerateThumbnails) && (
+            <div className="actions-section mb-6">
+              <h4 className="text-sm sm:text-base font-medium text-white mb-2 sm:mb-3">
+                Actions
+              </h4>
+              <div className="space-y-2">
+                {canManageTags && (
+                  <button
+                    onClick={() => setShowTagManager(true)}
+                    className="w-full py-2.5 rounded-xl bg-black bg-opacity-50 text-white hover:bg-opacity-20 transition-all"
+                  >
+                    Manage Tags
+                  </button>
+                )}
+                {canRescan && (
+                  <button
+                    onClick={rescan}
+                    disabled={isScanning}
+                    className="w-full py-2.5 rounded-xl bg-black bg-opacity-50 text-white hover:bg-opacity-20 transition-all"
+                  >
+                    {isScanning ? "Scanning..." : "Rescan Directory"}
+                  </button>
+                )}
+                {canRegenerateThumbnails && (
+                  <button
+                    onClick={regenerateThumbnails}
+                    disabled={isRegeneratingThumbnails}
+                    className="w-full py-2.5 rounded-xl bg-black bg-opacity-50 text-white hover:bg-opacity-20 transition-all"
+                  >
+                    {isRegeneratingThumbnails
+                      ? "Generating..."
+                      : "Regenerate All Thumbnails"}
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
       </div>
 
       {showTagManager && canManageTags && (
-        <TagManager tags={tags} onCreateTag={handleCreateTag} onUpdateTag={handleUpdateTag} onDeleteTag={handleDeleteTag} onClose={() => setShowTagManager(false)} />
+        <TagManager
+          tags={tags}
+          onCreateTag={handleCreateTag}
+          onUpdateTag={handleUpdateTag}
+          onDeleteTag={handleDeleteTag}
+          onClose={() => setShowTagManager(false)}
+        />
       )}
     </div>
   );

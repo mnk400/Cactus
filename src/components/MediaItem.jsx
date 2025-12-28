@@ -308,7 +308,7 @@ const VideoPlayer = memo(function VideoPlayer({
 
     // If user explicitly unmuted, we can try to reset autoplay failure if it was set
     if (!isMuted && autoplayFailed) {
-      // We don't reset it here because if it failed, it failed. 
+      // We don't reset it here because if it failed, it failed.
       // Only user interaction (toggleMute) should reset it.
     }
   }, [isMuted, isActive, autoplayFailed]);
