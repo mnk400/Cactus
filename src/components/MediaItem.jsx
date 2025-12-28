@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from "react";
 import VideoControls from "./VideoControls";
-import { useVideoSettings } from "../hooks/useVideoSettings";
+import { useMedia } from "../context/MediaContext";
 
 const MediaItem = memo(function MediaItem({
   mediaFile,
@@ -155,8 +155,7 @@ const VideoPlayer = memo(function VideoPlayer({
 }) {
   const [isPaused, setIsPaused] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
-  const { isMuted, hasUserInteracted, toggleMute, setMuted } =
-    useVideoSettings();
+  const { isMuted, hasUserInteracted, toggleMute, setMuted } = useMedia();
   const [autoplayFailed, setAutoplayFailed] = useState(false);
 
   // Memoized event handlers
@@ -203,14 +202,14 @@ const VideoPlayer = memo(function VideoPlayer({
 
   // Handle mute toggle with immediate video element update
   const handleToggleMute = useCallback(() => {
-    const video = videoRef.current;
-    toggleMute(); // Update the state
-
-    // Immediately update the video element
-    if (video) {
-      video.muted = !isMuted; // Use the opposite of current state since toggleMute will flip it
+    const isEffectivelyMuted = isMuted || autoplayFailed;
+    if (isEffectivelyMuted) {
+      setMuted(false);
+      setAutoplayFailed(false);
+    } else {
+      setMuted(true);
     }
-  }, [toggleMute, isMuted, videoRef]);
+  }, [isMuted, autoplayFailed, setMuted]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -298,14 +297,21 @@ const VideoPlayer = memo(function VideoPlayer({
     }
   }, [isActive, videoRef, isMuted, hasUserInteracted]);
 
-  // Sync mute state when user toggles it during playback
+  // Sync mute state when user toggles it or when component starts
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !isActive) return;
+    if (!video) return;
 
-    video.muted = isMuted;
-    setAutoplayFailed(false); // Reset autoplay failed state when user changes preference
-  }, [isMuted, isActive]);
+    // The video element should be muted if the global setting is muted,
+    // OR if we're active and autoplay failed (meaning the browser forced it to be muted).
+    video.muted = isMuted || (isActive && autoplayFailed);
+
+    // If user explicitly unmuted, we can try to reset autoplay failure if it was set
+    if (!isMuted && autoplayFailed) {
+      // We don't reset it here because if it failed, it failed. 
+      // Only user interaction (toggleMute) should reset it.
+    }
+  }, [isMuted, isActive, autoplayFailed]);
 
   return (
     <>
@@ -343,9 +349,8 @@ const VideoPlayer = memo(function VideoPlayer({
       {!isLoading && (
         <div className="absolute top-4 left-4 z-20">
           <VideoControls
-            isMuted={isMuted}
+            isMuted={isMuted || autoplayFailed}
             onToggleMute={handleToggleMute}
-            showHint={isMuted && !hasUserInteracted}
           />
         </div>
       )}

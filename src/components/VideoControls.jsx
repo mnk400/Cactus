@@ -3,7 +3,6 @@ import React from "react";
 const VideoControls = ({
   isMuted,
   onToggleMute,
-  showHint = false,
   className = "",
 }) => {
   return (
@@ -16,10 +15,9 @@ const VideoControls = ({
         className={`
           audio-toggle-btn flex items-center justify-center
           w-8 h-8 rounded-lg transition-all duration-200
-          ${
-            isMuted
-              ? "bg-black-shades-800 bg-opacity-60 hover:bg-opacity-80 text-gray-500"
-              : "bg-black-shades-700 bg-opacity-80 hover:bg-opacity-100 text-gray-200"
+          ${isMuted
+            ? "bg-black-shades-800 bg-opacity-60 hover:bg-opacity-80 text-gray-500"
+            : "bg-black-shades-700 bg-opacity-80 hover:bg-opacity-100 text-gray-200"
           }
           shadow-md hover:shadow-lg backdrop-blur-sm
         `}
@@ -38,16 +36,6 @@ const VideoControls = ({
           </svg>
         )}
       </button>
-
-      {showHint && (
-        <div
-          className="audio-hint absolute top-10 left-0 
-                       bg-black bg-opacity-90 text-white text-xs px-2 py-1 rounded
-                       whitespace-nowrap pointer-events-none z-30"
-        >
-          {isMuted ? "Tap to enable audio" : "Audio enabled"}
-        </div>
-      )}
     </div>
   );
 };

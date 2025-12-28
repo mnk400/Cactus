@@ -15,6 +15,15 @@ export const MediaProvider = ({ children }) => {
     const [isRegeneratingThumbnails, setIsRegeneratingThumbnails] = useState(false);
     const [isUrlSync, setIsUrlSync] = useState(false);
 
+    // Audio state
+    const [isMuted, setIsMuted] = useState(() => {
+        const saved = localStorage.getItem("cactus-video-muted");
+        return saved !== null ? JSON.parse(saved) : true;
+    });
+    const [hasUserInteracted, setHasUserInteracted] = useState(() => {
+        return localStorage.getItem("cactus-user-audio-interaction") === "true";
+    });
+
     // Tags state
     const [tags, setTags] = useState([]);
     const [tagsLoading, setTagsLoading] = useState(false);
@@ -262,6 +271,27 @@ export const MediaProvider = ({ children }) => {
         }
     }, [isRegeneratingThumbnails, fetchMedia]);
 
+    const toggleMute = useCallback(() => {
+        setIsMuted(prev => !prev);
+        setHasUserInteracted(true);
+    }, []);
+
+    const setMuted = useCallback((muted) => {
+        setIsMuted(muted);
+        setHasUserInteracted(true);
+    }, []);
+
+    // Sync audio preferences to localStorage
+    useEffect(() => {
+        localStorage.setItem("cactus-video-muted", JSON.stringify(isMuted));
+    }, [isMuted]);
+
+    useEffect(() => {
+        if (hasUserInteracted) {
+            localStorage.setItem("cactus-user-audio-interaction", "true");
+        }
+    }, [hasUserInteracted]);
+
     const value = {
         mediaFiles,
         allMediaFiles,
@@ -292,7 +322,12 @@ export const MediaProvider = ({ children }) => {
         fetchTags,
         createTag,
         updateTag,
-        deleteTag
+        deleteTag,
+        // Audio
+        isMuted,
+        hasUserInteracted,
+        toggleMute,
+        setMuted
     };
 
     return (
