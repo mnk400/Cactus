@@ -1,5 +1,7 @@
 const express = require("express");
 const compression = require("compression");
+const session = require("express-session");
+const crypto = require("crypto");
 const NodeCache = require("node-cache");
 const path = require("path");
 const fs = require("fs");
@@ -34,6 +36,11 @@ const enablePredict =
   false; // Flag to enable extremely experimental prediction functionality
 const predictApiUrl =
   argv["predict-api-url"] || process.env.PREDICT_API_URL || "http://localhost"; // Prediction API URL super WIP
+
+// Authentication configuration
+const keyphrase = argv.keyphrase || process.env.CACTUS_KEYPHRASE || null;
+const sessionSecret =
+  process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
 
 // Provider factory and media provider instance
 const providerFactory = new ProviderFactory();
@@ -89,15 +96,109 @@ if (!validation.success) {
 
 // Serve React build from dist directory
 const reactBuildPath = path.join(__dirname, "..", "dist");
-if (fs.existsSync(reactBuildPath)) {
-  app.use(express.static(reactBuildPath));
-  log.info("Serving React application from dist directory");
-} else {
+if (!fs.existsSync(reactBuildPath)) {
   log.error('React build not found. Please run "npm run build" first.');
   process.exit(1);
 }
 
+// ===== SESSION AND AUTHENTICATION =====
+
+// Session middleware (always enabled for consistent behavior)
+app.use(
+  session({
+    secret: sessionSecret,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: false, // Set to true if using HTTPS
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    },
+  }),
+);
+
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// ===== AUTH API ENDPOINTS =====
+
+// Get auth status - always allowed
+app.get("/api/auth/status", (req, res) => {
+  res.json({
+    authRequired: !!keyphrase,
+    authenticated: !keyphrase || !!req.session.authenticated,
+  });
+});
+
+// Login endpoint
+app.post("/api/auth/login", (req, res) => {
+  if (!keyphrase) {
+    return res.json({ success: true });
+  }
+
+  const { keyphrase: inputKeyphrase } = req.body;
+
+  if (inputKeyphrase === keyphrase) {
+    req.session.authenticated = true;
+    log.info("User authenticated successfully");
+    res.json({ success: true });
+  } else {
+    log.warn("Failed authentication attempt");
+    res.status(401).json({ error: "Invalid keyphrase" });
+  }
+});
+
+// Logout endpoint
+app.post("/api/auth/logout", (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      log.error("Failed to destroy session", { error: err.message });
+      return res.status(500).json({ error: "Failed to logout" });
+    }
+    res.json({ success: true });
+  });
+});
+
+// Authentication middleware - protects API and media routes
+const authMiddleware = (req, res, next) => {
+  // If no keyphrase configured, skip auth
+  if (!keyphrase) {
+    return next();
+  }
+
+  // Always allow auth endpoints
+  if (req.path.startsWith("/api/auth/")) {
+    return next();
+  }
+
+  // Check if authenticated
+  if (req.session.authenticated) {
+    return next();
+  }
+
+  // Return 401 for protected API/media routes
+  if (
+    req.path.startsWith("/api/") ||
+    req.path.startsWith("/media") ||
+    req.path.startsWith("/thumbnails")
+  ) {
+    return res.status(401).json({ error: "Authentication required" });
+  }
+
+  // Allow static files (React app) to load - auth check happens in React
+  next();
+};
+
+app.use(authMiddleware);
+
+// Serve static files after auth check
+app.use(express.static(reactBuildPath));
+
+if (keyphrase) {
+  log.info("Authentication enabled - keyphrase required to access");
+} else {
+  log.info("Authentication disabled - no keyphrase configured");
+}
 
 // ===== PERFORMANCE OPTIMIZATIONS =====
 
