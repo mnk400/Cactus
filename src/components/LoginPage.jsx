@@ -38,7 +38,9 @@ function LoginPage({ onLoginSuccess }) {
         <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">
           Cactus
         </h1>
-        <p className="text-sm text-gray-400 mb-6">Enter keyphrase to continue</p>
+        <p className="text-sm text-gray-400 mb-6">
+          Enter keyphrase to continue
+        </p>
 
         {error && (
           <div className="mb-4 p-2.5 bg-red-500 bg-opacity-20 border border-red-500 border-opacity-50 rounded-xl text-red-400 text-sm">

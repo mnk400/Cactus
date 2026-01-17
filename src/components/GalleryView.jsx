@@ -7,11 +7,11 @@ import React, {
 } from "react";
 import { useMedia } from "../context/MediaContext";
 
-function GalleryView({ scrollPosition, setScrollPosition, style }) {
+function GalleryView({ scrollPosition, setScrollPosition, style, isVisible: isVisibleProp }) {
   const { mediaFiles, currentIndex, selectMedia } = useMedia();
   const containerRef = useRef(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
-  const isVisible = style?.display !== "none";
+  const isVisible = isVisibleProp ?? (style?.display !== "none");
 
   const [actualScrollTop, setActualScrollTop] = useState(0);
 

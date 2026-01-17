@@ -23,7 +23,9 @@ export const MediaProvider = ({ children }) => {
   const [isRegeneratingThumbnails, setIsRegeneratingThumbnails] =
     useState(false);
   const [isUrlSync, setIsUrlSync] = useState(false);
-  const hasFetchedInitialMedia = useRef(false);
+  // Track filters used in the last fetch to prevent duplicate fetches
+  // and enable refetching when URL changes via browser navigation
+  const lastFetchedFilters = useRef(null);
 
   // Audio state
   const [isMuted, setIsMuted] = useState(() => {
@@ -147,6 +149,15 @@ export const MediaProvider = ({ children }) => {
             : pathFilter,
       };
 
+      // Update last fetched filters to prevent duplicate fetches from the effect
+      lastFetchedFilters.current = JSON.stringify({
+        mediaType: params.type,
+        sortBy: params.sortBy,
+        tags: params.tags,
+        excludeTags: params["exclude-tags"],
+        pathFilter: params.pathSubstring || "",
+      });
+
       // For initial load, use mediaId from overrides. Don't use state mediaId to avoid loops.
       const targetMediaId = overrides.mediaId;
 
@@ -228,15 +239,35 @@ export const MediaProvider = ({ children }) => {
     init();
   }, [fetchConfig, fetchTags]);
 
-  // Fetch media when URL is initialized
-  // We use hasFetchedInitialMedia ref to prevent refetching when fetchMedia reference changes
+  // Fetch media when URL is initialized or when filters change (e.g., browser back/forward)
+  // We track the last fetched filters to prevent duplicate fetches while still
+  // allowing refetches when URL parameters change via browser navigation
   useEffect(() => {
-    if (isUrlInitialized && !hasFetchedInitialMedia.current) {
-      hasFetchedInitialMedia.current = true;
-      // Pass mediaId from URL for initial positioning
+    if (!isUrlInitialized) return;
+
+    // Build a filter key from current state to compare with last fetch
+    const currentFilterKey = JSON.stringify({
+      mediaType,
+      sortBy,
+      tags: selectedTags.map((t) => t.name || t).join(","),
+      excludeTags: excludedTags.map((t) => t.name || t).join(","),
+      pathFilter: pathFilter || "",
+    });
+
+    // Only fetch if filters have changed (or first load when ref is null)
+    if (lastFetchedFilters.current !== currentFilterKey) {
       fetchMedia({ mediaId });
     }
-  }, [isUrlInitialized, fetchMedia, mediaId]);
+  }, [
+    isUrlInitialized,
+    fetchMedia,
+    mediaId,
+    mediaType,
+    sortBy,
+    selectedTags,
+    excludedTags,
+    pathFilter,
+  ]);
 
   // Sync state to URL when index changes
   useEffect(() => {

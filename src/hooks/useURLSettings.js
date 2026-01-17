@@ -66,20 +66,25 @@ export const useURLSettings = (availableTags = []) => {
   const updateSettings = useCallback((newSettings, options = {}) => {
     const { updateURL: shouldUpdateURL = true, replace = false } = options;
 
-    // Convert tag objects to tag names for URL storage
-    const settingsForURL = {
-      ...newSettings,
-      selectedTags:
-        newSettings.selectedTags?.map((tag) => tag.name || tag) || [],
-      excludedTags:
-        newSettings.excludedTags?.map((tag) => tag.name || tag) || [],
-    };
+    setUrlSettings((prevSettings) => {
+      // Merge with previous settings to preserve unspecified values
+      const mergedSettings = { ...prevSettings, ...newSettings };
 
-    setUrlSettings(settingsForURL);
+      // Convert tag objects to tag names for URL storage
+      const settingsForURL = {
+        ...mergedSettings,
+        selectedTags:
+          mergedSettings.selectedTags?.map((tag) => tag.name || tag) || [],
+        excludedTags:
+          mergedSettings.excludedTags?.map((tag) => tag.name || tag) || [],
+      };
 
-    if (shouldUpdateURL) {
-      updateURL(settingsForURL, replace);
-    }
+      if (shouldUpdateURL) {
+        updateURL(settingsForURL, replace);
+      }
+
+      return settingsForURL;
+    });
   }, []);
 
   // Update individual setting

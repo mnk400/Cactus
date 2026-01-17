@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo } from "react";
 import MediaViewer from "./components/MediaViewer";
 import Navigation from "./components/Navigation";
 import SideNavigation from "./components/SideNavigation";
@@ -10,7 +10,6 @@ import ErrorMessage from "./components/ErrorMessage";
 import DebugInfo from "./components/DebugInfo";
 import GalleryView from "./components/GalleryView";
 import ViewTransition from "./components/ViewTransition";
-import LoginPage from "./components/LoginPage";
 import { useKeyboardNavigation } from "./hooks/useKeyboardNavigation";
 import { useFavorite } from "./hooks/useFavorite";
 import { useMedia } from "./context/MediaContext";
@@ -20,40 +19,6 @@ function App() {
   const [showTagInput, setShowTagInput] = useState(false);
   const [tagUpdateTrigger, setTagUpdateTrigger] = useState(0);
   const [galleryScrollPosition, setGalleryScrollPosition] = useState(0);
-  const [authState, setAuthState] = useState({
-    checking: true,
-    authRequired: false,
-    authenticated: false,
-    error: null,
-  });
-
-  // Check authentication status on mount
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await fetch("/api/auth/status");
-        const data = await response.json();
-        setAuthState({
-          checking: false,
-          authRequired: data.authRequired,
-          authenticated: data.authenticated,
-          error: null,
-        });
-      } catch (err) {
-        setAuthState({
-          checking: false,
-          authRequired: false,
-          authenticated: false,
-          error: "Failed to connect to server",
-        });
-      }
-    };
-    checkAuth();
-  }, []);
-
-  const handleLoginSuccess = useCallback(() => {
-    setAuthState((prev) => ({ ...prev, authenticated: true }));
-  }, []);
 
   const {
     mediaFiles,
@@ -99,29 +64,6 @@ function App() {
     currentMediaFile?.file_path,
   );
 
-  // Show loading while checking auth
-  if (authState.checking) {
-    return (
-      <div className="container flex flex-col h-screen w-full max-w-full shadow-2xl overflow-hidden bg-black text-gray-200">
-        <LoadingMessage message="Loading..." />
-      </div>
-    );
-  }
-
-  // Show error if auth check failed
-  if (authState.error) {
-    return (
-      <div className="container flex flex-col h-screen w-full max-w-full shadow-2xl overflow-hidden bg-black text-gray-200">
-        <ErrorMessage message={authState.error} />
-      </div>
-    );
-  }
-
-  // Show login page if auth required and not authenticated
-  if (authState.authRequired && !authState.authenticated) {
-    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
-  }
-
   return (
     <div className="container flex flex-col h-screen w-full max-w-full shadow-2xl overflow-hidden bg-black text-gray-200">
       <DebugInfo show={debugMode} />
@@ -135,6 +77,7 @@ function App() {
             <GalleryView
               scrollPosition={galleryScrollPosition}
               setScrollPosition={setGalleryScrollPosition}
+              isVisible={isGalleryView}
             />
             <MediaViewer
               showTagInput={showTagInput}

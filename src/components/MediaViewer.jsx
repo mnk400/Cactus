@@ -13,8 +13,14 @@ import { useMedia } from "../context/MediaContext";
 function MediaViewer({ showTagInput }) {
   const { mediaFiles, currentIndex, navigate } = useMedia();
   const containerRef = useRef(null);
+  const currentIndexRef = useRef(currentIndex);
   const [containerHeight, setContainerHeight] = useState(0);
   const [dragConstraints, setDragConstraints] = useState({ top: 0, bottom: 0 });
+
+  // Keep ref in sync with latest currentIndex to avoid stale closures
+  useEffect(() => {
+    currentIndexRef.current = currentIndex;
+  }, [currentIndex]);
 
   const { getPreloadedMedia } = useMediaPreloader(mediaFiles, currentIndex);
 
@@ -68,16 +74,18 @@ function MediaViewer({ showTagInput }) {
       }
 
       if (direction !== 0) {
+        const currentIdx = currentIndexRef.current;
         const targetIndex = Math.max(
           0,
-          Math.min(currentIndex + direction, mediaFiles.length - 1),
+          Math.min(currentIdx + direction, mediaFiles.length - 1),
         );
-        if (targetIndex !== currentIndex) {
+        if (targetIndex !== currentIdx) {
+          currentIndexRef.current = targetIndex; // Update ref immediately to prevent stale reads
           navigate(direction);
         }
       }
     },
-    [showTagInput, currentIndex, mediaFiles.length, navigate],
+    [showTagInput, mediaFiles.length, navigate],
   );
 
   // Memoized wheel handler
@@ -89,16 +97,18 @@ function MediaViewer({ showTagInput }) {
       if (Math.abs(delta) > 50) {
         event.preventDefault();
         const direction = delta > 0 ? 1 : -1;
+        const currentIdx = currentIndexRef.current;
         const targetIndex = Math.max(
           0,
-          Math.min(currentIndex + direction, mediaFiles.length - 1),
+          Math.min(currentIdx + direction, mediaFiles.length - 1),
         );
-        if (targetIndex !== currentIndex) {
+        if (targetIndex !== currentIdx) {
+          currentIndexRef.current = targetIndex; // Update ref immediately to prevent stale reads
           navigate(direction);
         }
       }
     },
-    [showTagInput, currentIndex, mediaFiles.length, navigate],
+    [showTagInput, mediaFiles.length, navigate],
   );
 
   // Add wheel event listener for desktop

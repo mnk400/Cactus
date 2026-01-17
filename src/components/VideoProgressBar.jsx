@@ -9,6 +9,7 @@ function VideoProgressBar({ videoElement }) {
   const videoRef = useRef(null);
   const progressBarRef = useRef(null);
   const animationRef = useRef(null);
+  const isDraggingRef = useRef(false);
 
   const formatTime = (timeInSeconds) => {
     if (isNaN(timeInSeconds) || timeInSeconds < 0) return "0:00";
@@ -22,7 +23,7 @@ function VideoProgressBar({ videoElement }) {
   };
 
   const updateProgress = useCallback(() => {
-    if (!videoRef.current || !progressBarRef.current || isDragging) return;
+    if (!videoRef.current || !progressBarRef.current || isDraggingRef.current) return;
 
     const progress = videoRef.current.duration
       ? (videoRef.current.currentTime / videoRef.current.duration) * 100
@@ -30,7 +31,7 @@ function VideoProgressBar({ videoElement }) {
 
     progressBarRef.current.style.width = `${Math.min(100, Math.max(0, progress))}%`;
     setCurrentTime(videoRef.current.currentTime);
-  }, [isDragging]);
+  }, []);
 
   const seekTo = useCallback((clientX) => {
     if (!videoRef.current?.duration) return;
@@ -66,6 +67,11 @@ function VideoProgressBar({ videoElement }) {
   const handleEnd = useCallback(() => {
     setIsDragging(false);
   }, []);
+
+  // Keep the ref in sync with state
+  useEffect(() => {
+    isDraggingRef.current = isDragging;
+  }, [isDragging]);
 
   useEffect(() => {
     if (isDragging) {
@@ -138,7 +144,7 @@ function VideoProgressBar({ videoElement }) {
         cancelAnimationFrame(animationRef.current);
       }
     }
-  }, [videoElement, updateProgress]);
+  }, [videoElement]);
 
   if (!isVisible) return null;
 

@@ -10,6 +10,7 @@ const MediaItem = memo(function MediaItem({
 }) {
   const mediaRef = useRef(null);
   const videoRef = useRef(null);
+  const imgRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Memoized loading state handler
@@ -72,6 +73,22 @@ const MediaItem = memo(function MediaItem({
     }
   }, [isActive, mediaFile]);
 
+  // Check if image is already loaded (e.g., from browser cache)
+  // This handles cases where onLoad doesn't fire for cached images
+  useEffect(() => {
+    if (mediaFile?.media_type !== "image") return;
+
+    // Use setTimeout to ensure the check runs after React flushes the DOM
+    const timer = setTimeout(() => {
+      const img = imgRef.current;
+      if (img?.complete && img.naturalWidth > 0) {
+        setIsLoading(false);
+      }
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [mediaFile?.file_path, mediaFile?.media_type]);
+
   // Don't render anything if no media file
   if (!mediaFile) {
     return null;
@@ -93,6 +110,7 @@ const MediaItem = memo(function MediaItem({
           </div>
         )}
         <img
+          ref={imgRef}
           src={imgSrc}
           alt="Media content"
           className={`max-h-full max-w-full object-cover transition-opacity duration-300 ${isLoading ? "opacity-0" : "opacity-100"}`}

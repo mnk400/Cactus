@@ -67,9 +67,6 @@ body {
   /* Better compositing layer */
   will-change: transform;
 
-  /* Optimize performance */
-  contain: layout style paint;
-
   /* Better mobile performance */
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
@@ -127,9 +124,6 @@ video {
   /* Hardware acceleration with 3D transform */
   transform: translate3d(0, 0, 0);
   -webkit-transform: translate3d(0, 0, 0);
-
-  /* Better compositing */
-  contain: layout style paint;
 
   /* Prevent subpixel rendering issues */
   -webkit-backface-visibility: hidden;
@@ -435,9 +429,6 @@ textarea {
   /* Better compositing layer */
   will-change: transform;
 
-  /* Optimize for performance */
-  contain: layout style paint;
-
   /* Prevent subpixel rendering issues */
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
@@ -452,9 +443,6 @@ textarea {
   /* Hardware acceleration */
   transform: translate3d(0, 0, 0);
   -webkit-transform: translate3d(0, 0, 0);
-
-  /* Better compositing */
-  contain: layout style paint;
 
   /* Prevent rendering issues during animation */
   -webkit-backface-visibility: hidden;
