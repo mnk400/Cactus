@@ -42,10 +42,11 @@ const log = {
 };
 
 class SbMediaProvider extends MediaSourceProvider {
-  constructor(sbUrl = "http://192.168.0.23:9999/graphql") {
+  constructor(sbUrl = "http://192.168.0.23:9999/graphql", apiKey = null) {
     super();
     this.providerType = "sb";
     this.sbUrl = sbUrl;
+    this.apiKey = apiKey;
     this.isInitialized = false;
     this.mediaCache = [];
     this.lastFetchTime = null;
@@ -60,16 +61,24 @@ class SbMediaProvider extends MediaSourceProvider {
     return {
       description: "S GraphQL API media provider",
       example:
-        "node server.js --provider sb --sb-url http://192.168.0.23:9999/graphql -p 3000",
+        "node server.js --provider sb --sb-url http://192.168.0.23:9999/graphql --sb-api-key YOUR_API_KEY -p 3000",
       requiredArgs: [
         {
           name: "sbUrl",
           flag: "--sb-url",
           description: "URL to the S GraphQL endpoint",
           type: "string",
+          env: "SB_URL",
         },
       ],
       optionalArgs: [
+        {
+          name: "sbApiKey",
+          flag: "--sb-api-key",
+          description: "API key for S server authentication",
+          type: "string",
+          env: "SB_API_KEY",
+        },
         {
           name: "port",
           flag: "-p",
@@ -88,13 +97,14 @@ class SbMediaProvider extends MediaSourceProvider {
    */
   static validateConfig(args) {
     const sbUrl = args["sb-url"] || process.env.SB_URL;
+    const sbApiKey = args["sb-api-key"] || process.env.SB_API_KEY || null;
 
     if (!sbUrl) {
       return {
         success: false,
         error: "Server URL is required for sb provider",
         usage:
-          "node server.js --provider sb --sb-url http://192.168.0.23:9999/graphql -p 3000",
+          "node server.js --provider sb --sb-url http://192.168.0.23:9999/graphql --sb-api-key YOUR_API_KEY -p 3000",
       };
     }
 
@@ -112,9 +122,10 @@ class SbMediaProvider extends MediaSourceProvider {
 
     return {
       success: true,
-      constructorArgs: [sbUrl],
+      constructorArgs: [sbUrl, sbApiKey],
       config: {
         sbUrl,
+        sbApiKey: sbApiKey ? "***" : null, // Mask the key in config output
         port: args.p || 3000,
       },
     };
@@ -138,6 +149,7 @@ class SbMediaProvider extends MediaSourceProvider {
       this.isInitialized = true;
       log.info("sbMediaProvider initialized successfully", {
         sbUrl: this.sbUrl,
+        authEnabled: !!this.apiKey,
       });
 
       return { success: true };
@@ -188,11 +200,18 @@ class SbMediaProvider extends MediaSourceProvider {
    */
   async makeGraphQLRequest(query, variables = {}) {
     try {
+      const headers = {
+        "Content-Type": "application/json",
+      };
+
+      // Add API key header if configured
+      if (this.apiKey) {
+        headers["ApiKey"] = this.apiKey;
+      }
+
       const response = await fetch(this.sbUrl, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify({
           query,
           variables,
@@ -1649,7 +1668,16 @@ class SbMediaProvider extends MediaSourceProvider {
     try {
       if (filePath.startsWith("http")) {
         try {
-          const response = await fetch(filePath);
+          const fetchOptions = {};
+
+          // Add API key header if configured
+          if (this.apiKey) {
+            fetchOptions.headers = {
+              ApiKey: this.apiKey,
+            };
+          }
+
+          const response = await fetch(filePath, fetchOptions);
           if (!response.ok) {
             log.error("Server returned error", {
               filePath,
@@ -1702,7 +1730,16 @@ class SbMediaProvider extends MediaSourceProvider {
       }
 
       // Proxy the thumbnail from source
-      const response = await fetch(mediaItem.thumbnail_path);
+      const fetchOptions = {};
+
+      // Add API key header if configured
+      if (this.apiKey) {
+        fetchOptions.headers = {
+          ApiKey: this.apiKey,
+        };
+      }
+
+      const response = await fetch(mediaItem.thumbnail_path, fetchOptions);
       if (!response.ok) {
         log.error("Server returned error for thumbnail", {
           thumbnailPath: mediaItem.thumbnail_path,
