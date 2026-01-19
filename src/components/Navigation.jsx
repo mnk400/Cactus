@@ -84,7 +84,11 @@ const Navigation = memo(function Navigation({
 
   return (
     <div
-      className={`navigation fixed bottom-0 left-0 right-0 w-full flex flex-col justify-end z-20 bg-black-shades-1000 transition-all duration-300 py-3`}
+      className={`navigation fixed bottom-0 left-0 flex flex-col justify-end z-20 bg-black-shades-1000 transition-all duration-300 py-3`}
+      style={{
+        right: "var(--settings-drawer-width, 0px)",
+        width: "calc(100% - var(--settings-drawer-width, 0px))",
+      }}
     >
       <div
         className={`w-full overflow-hidden transition-all duration-300 px-4 ${isVideoPlaying && !isGalleryView ? "max-h-8 mb-2" : "max-h-0"}`}

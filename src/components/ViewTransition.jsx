@@ -1,5 +1,6 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { isMobile } from "../utils/helpers";
 
 // Natural easing curves for human-like motion
 const slideVariants = {
@@ -29,7 +30,7 @@ const slideVariants = {
     y: "100%",
     opacity: 0.8,
   },
-  // Settings animations - slides up from bottom
+  // Settings animations - slides up from bottom (mobile)
   settingsEnter: {
     y: "100%",
     opacity: 0.8,
@@ -40,6 +41,19 @@ const slideVariants = {
   },
   settingsExit: {
     y: "100%",
+    opacity: 0.8,
+  },
+  // Settings animations - slides in from right (desktop)
+  settingsEnterDesktop: {
+    x: "100%",
+    opacity: 0.8,
+  },
+  settingsCenterDesktop: {
+    x: "0%",
+    opacity: 1,
+  },
+  settingsExitDesktop: {
+    x: "100%",
     opacity: 0.8,
   },
 };
@@ -57,6 +71,14 @@ const springTransition = {
 function ViewTransition({ isGalleryView, isSettingsOpen, children }) {
   // Handle settings mode (single child)
   if (isSettingsOpen !== undefined) {
+    const isDesktop = !isMobile();
+
+    // On desktop, always render (SettingsPanel handles its own animation and visibility)
+    if (isDesktop) {
+      return <>{children}</>;
+    }
+
+    // On mobile, use full-screen slide animation
     return (
       <AnimatePresence>
         {isSettingsOpen && (

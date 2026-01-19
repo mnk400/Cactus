@@ -8,7 +8,9 @@ export function shuffleArray(array) {
   return newArray;
 }
 
-// Device detection
+// Device detection - checks both user agent and screen width
 export function isMobile() {
-  return /Mobi|Android/i.test(navigator.userAgent);
+  const isMobileDevice = /Mobi|Android/i.test(navigator.userAgent);
+  const isNarrowScreen = window.innerWidth < 768; // md breakpoint
+  return isMobileDevice || isNarrowScreen;
 }

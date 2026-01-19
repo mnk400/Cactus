@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import TagFilter from "./TagFilter";
 import GeneralFilter from "./GeneralFilter";
 import TagManager from "./TagManager";
 import { useMedia } from "../context/MediaContext";
+import { isMobile } from "../utils/helpers";
 
 function SettingsPanel({ isOpen, onClose }) {
   const [showTagManager, setShowTagManager] = useState(false);
+  const [shouldAnimate, setShouldAnimate] = useState(false);
 
   const {
     settings,
@@ -111,17 +113,49 @@ function SettingsPanel({ isOpen, onClose }) {
     }
   };
 
-  if (!isOpen) return null;
-
   const directoryName =
     config?.provider?.config?.directoryPath ||
     config?.provider?.config?.sbUrl ||
     "";
 
+  const isDesktop = !isMobile();
+
+  // Handle animation timing for desktop drawer
+  useEffect(() => {
+    if (isDesktop && isOpen) {
+      // Start off-screen, then animate in after a frame
+      setShouldAnimate(false);
+      requestAnimationFrame(() => {
+        setShouldAnimate(true);
+      });
+    } else if (isDesktop && !isOpen) {
+      setShouldAnimate(false);
+    }
+  }, [isOpen, isDesktop]);
+
+  // Mobile: return null when closed (handled by ViewTransition)
+  // Desktop: always render (with transform animation)
+  if (!isOpen && !isDesktop) return null;
+
   return (
-    <div className="fixed inset-0 bg-black-shades-900 p-4 sm:p-6 text-gray-200 z-50 overflow-y-auto">
-      <div className="flex justify-between items-center mb-3 sm:mb-4 max-w-4xl mx-auto">
-        <h3 className="text-base sm:text-lg font-semibold text-white m-0">
+    <div
+      className={`fixed bg-black-shades-900 p-6 text-gray-200 z-50 overflow-y-auto ${
+        isDesktop
+          ? "top-0 right-0 bottom-0 w-[420px] lg:w-[450px]"
+          : "inset-0"
+      }`}
+      style={
+        isDesktop
+          ? {
+              transform: shouldAnimate ? "translateX(0)" : "translateX(100%)",
+              transition: "transform 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+              pointerEvents: isOpen ? "auto" : "none",
+            }
+          : {}
+      }
+    >
+      <div className="flex justify-between items-center mb-4 max-w-4xl mx-auto">
+        <h3 className="text-lg font-semibold text-white m-0">
           Settings & Stats
         </h3>
         <button
@@ -134,15 +168,15 @@ function SettingsPanel({ isOpen, onClose }) {
       </div>
 
       <div className="max-w-4xl mx-auto">
-        <div className="stats-section mb-3 sm:mb-4 p-2 sm:p-3 bg-black-shades-800 rounded-2xl">
-          <div className="flex items-center gap-2 mb-2 sm:mb-3">
-            <h4 className="text-sm sm:text-base font-medium text-white m-0">
+        <div className="stats-section mb-4 p-3 bg-black-shades-800 rounded-2xl">
+          <div className="flex items-center gap-2 mb-3">
+            <h4 className="text-base font-medium text-white m-0">
               Media Library
             </h4>
           </div>
 
           {ui.showDirectoryInfo && directoryName && (
-            <div className="mb-2 sm:mb-3 p-2 bg-black-shades-700 rounded-lg">
+            <div className="mb-3 p-2 bg-black-shades-700 rounded-lg">
               <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">
                 {ui.directoryLabel || "Directory"}
               </div>
@@ -155,12 +189,12 @@ function SettingsPanel({ isOpen, onClose }) {
             </div>
           )}
 
-          <div className="mb-2 sm:mb-3 p-2 bg-black-shades-700 rounded-lg">
+          <div className="mb-3 p-2 bg-black-shades-700 rounded-lg">
             <div className="text-xs text-gray-300 uppercase tracking-wide mb-1">
               Currently Viewing
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm sm:text-base font-bold text-white">
+              <span className="text-base font-bold text-white">
                 {currentCount}
               </span>
               <span className="text-xs text-gray-300">
@@ -169,25 +203,25 @@ function SettingsPanel({ isOpen, onClose }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-1.5 sm:gap-2 text-center mb-2 sm:mb-3">
-            <div className="stat-item p-1.5 sm:p-2 bg-black-shades-700 rounded-lg">
-              <div className="text-sm sm:text-base font-bold text-white">
+          <div className="grid grid-cols-3 gap-2 text-center mb-3">
+            <div className="stat-item p-2 bg-black-shades-700 rounded-lg">
+              <div className="text-base font-bold text-white">
                 {totalFiles}
               </div>
               <div className="text-xs text-gray-400 uppercase tracking-wide">
                 Total
               </div>
             </div>
-            <div className="stat-item p-1.5 sm:p-2 bg-black-shades-700 rounded-lg">
-              <div className="text-sm sm:text-base font-bold text-gray-200">
+            <div className="stat-item p-2 bg-black-shades-700 rounded-lg">
+              <div className="text-base font-bold text-gray-200">
                 {totalPhotos}
               </div>
               <div className="text-xs text-gray-300 uppercase tracking-wide">
                 Photos
               </div>
             </div>
-            <div className="stat-item p-1.5 sm:p-2 bg-black-shades-700 rounded-lg">
-              <div className="text-sm sm:text-base font-bold text-gray-200">
+            <div className="stat-item p-2 bg-black-shades-700 rounded-lg">
+              <div className="text-base font-bold text-gray-200">
                 {totalVideos}
               </div>
               <div className="text-xs text-gray-300 uppercase tracking-wide">
@@ -217,11 +251,11 @@ function SettingsPanel({ isOpen, onClose }) {
           )}
         </div>
 
-        <div className="filter-section mb-3 sm:mb-4">
-          <h4 className="text-sm sm:text-base font-medium text-white mb-2 sm:mb-3">
+        <div className="filter-section mb-4">
+          <h4 className="text-base font-medium text-white mb-3">
             Media Type
           </h4>
-          <div className="media-type-selector flex gap-1.5 sm:gap-2">
+          <div className="media-type-selector flex gap-2">
             <button
               onClick={() => setFilters({ mediaType: "all" })}
               className={getButtonClass("all")}
@@ -243,11 +277,11 @@ function SettingsPanel({ isOpen, onClose }) {
           </div>
         </div>
 
-        <div className="filter-section mb-3 sm:mb-4">
-          <h4 className="text-sm sm:text-base font-medium text-white mb-2 sm:mb-3">
+        <div className="filter-section mb-4">
+          <h4 className="text-base font-medium text-white mb-3">
             Sort By
           </h4>
-          <div className="media-type-selector flex gap-1.5 sm:gap-2">
+          <div className="media-type-selector flex gap-2">
             <button
               onClick={() => setFilters({ sortBy: "random" })}
               className={getSortButtonClass("random")}
@@ -269,8 +303,8 @@ function SettingsPanel({ isOpen, onClose }) {
           </div>
         </div>
 
-        <div className="tag-filter-section mb-3 sm:mb-4 p-2 sm:p-3 bg-black bg-opacity-40 rounded-2xl">
-          <h4 className="text-sm sm:text-base font-medium text-white mb-2 sm:mb-3">
+        <div className="tag-filter-section mb-4 p-3 bg-black bg-opacity-40 rounded-2xl">
+          <h4 className="text-base font-medium text-white mb-3">
             Tag Filters
           </h4>
           <TagFilter
@@ -282,8 +316,8 @@ function SettingsPanel({ isOpen, onClose }) {
           />
         </div>
 
-        <div className="general-filter-section mb-3 sm:mb-4 p-2 sm:p-3 bg-black bg-opacity-40 rounded-2xl">
-          <h4 className="text-sm sm:text-base font-medium text-white mb-2 sm:mb-3">
+        <div className="general-filter-section mb-4 p-3 bg-black bg-opacity-40 rounded-2xl">
+          <h4 className="text-base font-medium text-white mb-3">
             General Filter
           </h4>
           <GeneralFilter
@@ -295,7 +329,7 @@ function SettingsPanel({ isOpen, onClose }) {
         {!configLoading &&
           (canManageTags || canRescan || canRegenerateThumbnails) && (
             <div className="actions-section mb-6">
-              <h4 className="text-sm sm:text-base font-medium text-white mb-2 sm:mb-3">
+              <h4 className="text-base font-medium text-white mb-3">
                 Actions
               </h4>
               <div className="space-y-2">

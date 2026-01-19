@@ -12,7 +12,10 @@ function SideNavigation() {
   }
 
   return (
-    <div className="fixed right-4 top-1/2 transform -translate-y-1/2 z-30 flex flex-col gap-2 p-2 bg-black-shades-1000 rounded-2xl">
+    <div
+      className="fixed top-1/2 transform -translate-y-1/2 z-30 flex flex-col gap-2 p-2 bg-black-shades-1000 rounded-2xl transition-all duration-300"
+      style={{ right: "calc(var(--settings-drawer-width, 0px) + 1rem)" }}
+    >
       {/* Previous button - up arrow */}
       <button
         onClick={() => navigate(-1)}

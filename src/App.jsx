@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import MediaViewer from "./components/MediaViewer";
 import Navigation from "./components/Navigation";
 import SideNavigation from "./components/SideNavigation";
@@ -13,12 +13,14 @@ import ViewTransition from "./components/ViewTransition";
 import { useKeyboardNavigation } from "./hooks/useKeyboardNavigation";
 import { useFavorite } from "./hooks/useFavorite";
 import { useMedia } from "./context/MediaContext";
+import { isMobile } from "./utils/helpers";
 
 function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [showTagInput, setShowTagInput] = useState(false);
   const [tagUpdateTrigger, setTagUpdateTrigger] = useState(0);
   const [galleryScrollPosition, setGalleryScrollPosition] = useState(0);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
   const {
     mediaFiles,
@@ -64,11 +66,55 @@ function App() {
     currentMediaFile?.file_path,
   );
 
+  // Track window resize to make isMobile() reactive
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Manage CSS variable for settings drawer width
+  useEffect(() => {
+    const isDesktop = !isMobile();
+    const root = document.documentElement;
+
+    if (isSettingsOpen && isDesktop) {
+      // Determine drawer width based on screen size
+      const updateDrawerWidth = () => {
+        const isLargeScreen = window.matchMedia("(min-width: 1024px)").matches;
+        const drawerWidth = isLargeScreen ? "450px" : "420px";
+        root.style.setProperty("--settings-drawer-width", drawerWidth);
+      };
+
+      updateDrawerWidth();
+
+      // Update on resize
+      window.addEventListener("resize", updateDrawerWidth);
+      return () => window.removeEventListener("resize", updateDrawerWidth);
+    } else {
+      // Mobile or settings closed
+      root.style.setProperty("--settings-drawer-width", "0px");
+    }
+  }, [isSettingsOpen, windowWidth]);
+
+  const isDesktop = !isMobile();
+
   return (
     <div className="container flex flex-col h-screen w-full max-w-full shadow-2xl overflow-hidden bg-black text-gray-200">
       <DebugInfo show={debugMode} />
 
-      <div className="media-container flex-1 relative overflow-hidden bg-black pb-16">
+      <div
+        className="media-container flex-1 relative overflow-hidden bg-black pb-16"
+        style={{
+          width:
+            isSettingsOpen && isDesktop
+              ? "calc(100% - var(--settings-drawer-width, 0px))"
+              : "100%",
+        }}
+      >
         {loading && <LoadingMessage message={loading} />}
         {error && <ErrorMessage message={error} />}
 
@@ -98,7 +144,9 @@ function App() {
           </div>
         )}
 
-        {!isSettingsOpen && !isGalleryView && <SideNavigation />}
+        {(!isSettingsOpen || !isMobile()) && !isGalleryView && (
+          <SideNavigation />
+        )}
 
         <ViewTransition isSettingsOpen={isSettingsOpen}>
           <SettingsPanel
@@ -117,7 +165,7 @@ function App() {
         />
       )}
 
-      {!isSettingsOpen && (
+      {(!isSettingsOpen || !isMobile()) && (
         <Navigation
           onToggleSettings={() => setIsSettingsOpen(!isSettingsOpen)}
           onToggleTagInput={handleToggleTagInput}
