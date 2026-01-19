@@ -328,17 +328,6 @@ textarea {
   }
 }
 
-/* Tablet portrait - still use full width */
-@media (orientation: portrait) and (min-width: 769px) and (max-width: 1024px) {
-  .media-item img,
-  .media-item video {
-    width: 100% !important;
-    height: auto !important;
-    max-height: 100% !important;
-    max-width: none !important;
-  }
-}
-
 /* Mobile-specific fixes */
 @media screen and (max-width: 768px) {
   /* Ensure proper height on mobile */

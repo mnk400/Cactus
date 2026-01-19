@@ -124,6 +124,7 @@ function App() {
               scrollPosition={galleryScrollPosition}
               setScrollPosition={setGalleryScrollPosition}
               isVisible={isGalleryView}
+              preload={true}
             />
             <MediaViewer
               showTagInput={showTagInput}

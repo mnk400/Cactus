@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import { useMedia } from "../context/MediaContext";
 
-function GalleryView({ scrollPosition, setScrollPosition, style, isVisible: isVisibleProp }) {
+function GalleryView({ scrollPosition, setScrollPosition, style, isVisible: isVisibleProp, preload = false }) {
   const { mediaFiles, currentIndex, selectMedia } = useMedia();
   const containerRef = useRef(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
@@ -46,6 +46,8 @@ function GalleryView({ scrollPosition, setScrollPosition, style, isVisible: isVi
   } = getMasonryConfig();
 
   const [imageDimensions, setImageDimensions] = useState(new Map());
+  const [mediaTypeCache, setMediaTypeCache] = useState(new Map());
+  const [loadStatusCache, setLoadStatusCache] = useState(new Map());
 
   const calculateItemHeight = useCallback(
     (file, width) => {
@@ -204,6 +206,22 @@ function GalleryView({ scrollPosition, setScrollPosition, style, isVisible: isVi
     });
   }, []);
 
+  const handleMediaTypeChecked = useCallback((fileHash, isVideo) => {
+    setMediaTypeCache((prev) => {
+      const newMap = new Map(prev);
+      newMap.set(fileHash, { isVideo, checked: true });
+      return newMap;
+    });
+  }, []);
+
+  const handleLoadStatusChange = useCallback((fileHash, status) => {
+    setLoadStatusCache((prev) => {
+      const newMap = new Map(prev);
+      newMap.set(fileHash, status);
+      return newMap;
+    });
+  }, []);
+
   return (
     <div
       ref={containerRef}
@@ -223,6 +241,11 @@ function GalleryView({ scrollPosition, setScrollPosition, style, isVisible: isVi
             isSelected={item.isSelected}
             onSelect={selectMedia}
             onDimensionsLoad={handleDimensionsLoad}
+            mediaTypeInfo={mediaTypeCache.get(item.file.file_hash)}
+            loadStatus={loadStatusCache.get(item.file.file_hash)}
+            onMediaTypeChecked={handleMediaTypeChecked}
+            onLoadStatusChange={handleLoadStatusChange}
+            preload={preload}
           />
         ))}
       </div>
@@ -242,14 +265,21 @@ const GalleryItem = React.memo(
     isSelected,
     onSelect,
     onDimensionsLoad,
+    mediaTypeInfo,
+    loadStatus,
+    onMediaTypeChecked,
+    onLoadStatusChange,
+    preload,
   }) => {
-    const [mediaLoaded, setMediaLoaded] = useState(false);
-    const [mediaError, setMediaError] = useState(false);
-    const [isVideo, setIsVideo] = useState(false);
-    const [mediaTypeChecked, setMediaTypeChecked] = useState(false);
     const [inView, setInView] = useState(false);
     const mediaRef = useRef(null);
     const containerRef = useRef(null);
+
+    // Use cached values if available, otherwise use local state
+    const cachedMediaLoaded = loadStatus?.loaded || false;
+    const cachedMediaError = loadStatus?.error || false;
+    const cachedIsVideo = mediaTypeInfo?.isVideo || false;
+    const cachedMediaTypeChecked = mediaTypeInfo?.checked || false;
 
     const handleClick = useCallback(
       (e) => {
@@ -261,7 +291,9 @@ const GalleryItem = React.memo(
     );
 
     const handleMediaLoad = useCallback(() => {
-      setMediaLoaded(true);
+      if (onLoadStatusChange) {
+        onLoadStatusChange(file.file_hash, { loaded: true, error: false });
+      }
 
       if (mediaRef.current && onDimensionsLoad) {
         const element = mediaRef.current;
@@ -277,11 +309,13 @@ const GalleryItem = React.memo(
           });
         }
       }
-    }, [file.file_hash, onDimensionsLoad]);
+    }, [file.file_hash, onDimensionsLoad, onLoadStatusChange]);
 
     const handleMediaError = useCallback(() => {
-      setMediaError(true);
-    }, []);
+      if (onLoadStatusChange) {
+        onLoadStatusChange(file.file_hash, { loaded: false, error: true });
+      }
+    }, [file.file_hash, onLoadStatusChange]);
 
     useEffect(() => {
       const observer = new IntersectionObserver(
@@ -304,14 +338,23 @@ const GalleryItem = React.memo(
       return () => observer.disconnect();
     }, []);
 
+    // When preload is enabled, automatically trigger loading after a brief delay
+    useEffect(() => {
+      if (preload && !inView) {
+        const timer = setTimeout(() => {
+          setInView(true);
+        }, 100); // Small delay to stagger loads
+        return () => clearTimeout(timer);
+      }
+    }, [preload, inView]);
+
     useEffect(() => {
       if (!inView) return;
 
-      const checkMediaType = async () => {
-        setMediaTypeChecked(false);
-        setMediaLoaded(false);
-        setMediaError(false);
+      // If media type is already cached, no need to check again
+      if (cachedMediaTypeChecked) return;
 
+      const checkMediaType = async () => {
         try {
           const response = await fetch(`/thumbnails?hash=${file.file_hash}`, {
             method: "HEAD",
@@ -321,21 +364,19 @@ const GalleryItem = React.memo(
           const isVideoContent =
             contentType && contentType.startsWith("video/");
 
-          setIsVideo(isVideoContent);
-          setMediaTypeChecked(true);
+          if (onMediaTypeChecked) {
+            onMediaTypeChecked(file.file_hash, isVideoContent);
+          }
         } catch (error) {
-          setIsVideo(false);
-          setMediaTypeChecked(true);
+          if (onMediaTypeChecked) {
+            onMediaTypeChecked(file.file_hash, false);
+          }
         }
       };
 
       checkMediaType();
-    }, [file.file_hash, inView]);
+    }, [file.file_hash, inView, cachedMediaTypeChecked, onMediaTypeChecked]);
 
-    useEffect(() => {
-      setMediaLoaded(false);
-      setMediaError(false);
-    }, [file.file_hash]);
 
     return (
       <div
@@ -369,23 +410,23 @@ const GalleryItem = React.memo(
               </svg>
             </div>
           </div>
-        ) : !mediaTypeChecked ? (
+        ) : !cachedMediaTypeChecked ? (
           <div className="absolute inset-0 bg-black-shades-800 animate-pulse flex items-center justify-center">
             <div className="w-6 h-6 border-2 border-gray-600 border-t-gray-400 rounded-full animate-spin" />
           </div>
-        ) : !mediaError ? (
+        ) : !cachedMediaError ? (
           <>
-            {!mediaLoaded && (
+            {!cachedMediaLoaded && (
               <div className="absolute inset-0 bg-black-shades-800 animate-pulse flex items-center justify-center">
                 <div className="w-6 h-6 border-2 border-gray-600 border-t-gray-400 rounded-full animate-spin" />
               </div>
             )}
-            {isVideo ? (
+            {cachedIsVideo ? (
               <video
                 ref={mediaRef}
                 src={`/thumbnails?hash=${file.file_hash}`}
                 className={`w-full h-full object-cover transition-opacity duration-300 ${
-                  mediaLoaded ? "opacity-100" : "opacity-0"
+                  cachedMediaLoaded ? "opacity-100" : "opacity-0"
                 }`}
                 onLoadedData={handleMediaLoad}
                 onError={handleMediaError}
@@ -401,7 +442,7 @@ const GalleryItem = React.memo(
                 src={`/thumbnails?hash=${file.file_hash}`}
                 alt={`media-${index}`}
                 className={`w-full h-full object-cover transition-opacity duration-300 ${
-                  mediaLoaded ? "opacity-100" : "opacity-0"
+                  cachedMediaLoaded ? "opacity-100" : "opacity-0"
                 }`}
                 onLoad={handleMediaLoad}
                 onError={handleMediaError}
@@ -418,7 +459,7 @@ const GalleryItem = React.memo(
         )}
 
         {/* Video indicator - only show for actual video media types */}
-        {mediaLoaded && !mediaError && file.media_type === "video" && (
+        {cachedMediaLoaded && !cachedMediaError && file.media_type === "video" && (
           <div className="absolute bottom-1 right-1 bg-black/60 rounded-full p-1 pointer-events-none">
             <svg
               className="w-3 h-3 text-white"
