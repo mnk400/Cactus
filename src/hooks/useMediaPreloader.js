@@ -9,83 +9,8 @@ export function useMediaPreloader(mediaFiles, currentIndex) {
     new PriorityQueue((a, b) => b.priority - a.priority),
   );
   const isProcessing = useRef(false);
+  const processPreloadQueueRef = useRef(null);
   const MAX_CONCURRENT_LOADS = 3;
-  const preloadMedia = useCallback(
-    (indices, priority = 1) => {
-      indices.forEach((index) => {
-        if (
-          index < 0 ||
-          index >= mediaFiles.length ||
-          preloadedMedia.current.has(index) ||
-          loadingPromises.current.has(index)
-        ) {
-          return;
-        }
-
-        preloadQueue.current.enq({ index, priority });
-      });
-      processPreloadQueue();
-    },
-    [mediaFiles],
-  );
-
-  const processPreloadQueue = useCallback(async () => {
-    if (
-      isProcessing.current ||
-      loadingPromises.current.size >= MAX_CONCURRENT_LOADS
-    ) {
-      return;
-    }
-
-    if (preloadQueue.current.isEmpty()) {
-      return;
-    }
-
-    isProcessing.current = true;
-
-    while (
-      !preloadQueue.current.isEmpty() &&
-      loadingPromises.current.size < MAX_CONCURRENT_LOADS
-    ) {
-      const { index, priority } = preloadQueue.current.deq();
-
-      if (
-        preloadedMedia.current.has(index) ||
-        loadingPromises.current.has(index)
-      ) {
-        continue;
-      }
-
-      const mediaFile = mediaFiles[index];
-      if (!mediaFile) continue;
-
-      const abortController = new AbortController();
-      abortControllers.current.set(index, abortController);
-
-      const loadPromise = loadMediaItem(
-        index,
-        mediaFile,
-        abortController,
-        priority,
-      );
-      loadingPromises.current.set(index, loadPromise);
-
-      loadPromise
-        .then(() => {
-          loadingPromises.current.delete(index);
-          abortControllers.current.delete(index);
-        })
-        .catch(() => {
-          loadingPromises.current.delete(index);
-          abortControllers.current.delete(index);
-        })
-        .finally(() => {
-          setTimeout(() => processPreloadQueue(), 0);
-        });
-    }
-
-    isProcessing.current = false;
-  }, [mediaFiles]);
 
   const loadMediaItem = useCallback(
     async (index, mediaFile, abortController, priority) => {
@@ -168,6 +93,90 @@ export function useMediaPreloader(mediaFiles, currentIndex) {
       }
     },
     [],
+  );
+
+  // Define processPreloadQueue second (depends on loadMediaItem)
+  const processPreloadQueue = useCallback(async () => {
+    if (
+      isProcessing.current ||
+      loadingPromises.current.size >= MAX_CONCURRENT_LOADS
+    ) {
+      return;
+    }
+
+    if (preloadQueue.current.isEmpty()) {
+      return;
+    }
+
+    isProcessing.current = true;
+
+    while (
+      !preloadQueue.current.isEmpty() &&
+      loadingPromises.current.size < MAX_CONCURRENT_LOADS
+    ) {
+      const { index, priority } = preloadQueue.current.deq();
+
+      if (
+        preloadedMedia.current.has(index) ||
+        loadingPromises.current.has(index)
+      ) {
+        continue;
+      }
+
+      const mediaFile = mediaFiles[index];
+      if (!mediaFile) continue;
+
+      const abortController = new AbortController();
+      abortControllers.current.set(index, abortController);
+
+      const loadPromise = loadMediaItem(
+        index,
+        mediaFile,
+        abortController,
+        priority,
+      );
+      loadingPromises.current.set(index, loadPromise);
+
+      loadPromise
+        .then(() => {
+          loadingPromises.current.delete(index);
+          abortControllers.current.delete(index);
+        })
+        .catch(() => {
+          loadingPromises.current.delete(index);
+          abortControllers.current.delete(index);
+        })
+        .finally(() => {
+          setTimeout(() => processPreloadQueueRef.current?.(), 0);
+        });
+    }
+
+    isProcessing.current = false;
+  }, [mediaFiles, loadMediaItem]);
+
+  // Update ref after callback is defined to enable recursive calls
+  useEffect(() => {
+    processPreloadQueueRef.current = processPreloadQueue;
+  }, [processPreloadQueue]);
+
+  // Define preloadMedia third (depends on processPreloadQueue)
+  const preloadMedia = useCallback(
+    (indices, priority = 1) => {
+      indices.forEach((index) => {
+        if (
+          index < 0 ||
+          index >= mediaFiles.length ||
+          preloadedMedia.current.has(index) ||
+          loadingPromises.current.has(index)
+        ) {
+          return;
+        }
+
+        preloadQueue.current.enq({ index, priority });
+      });
+      processPreloadQueue();
+    },
+    [mediaFiles, processPreloadQueue],
   );
 
   const cleanupPreloadedMedia = useCallback(() => {

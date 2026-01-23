@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 
 const TagInput = ({
   availableTags = [],
@@ -8,31 +8,33 @@ const TagInput = ({
   className = "",
 }) => {
   const [inputValue, setInputValue] = useState("");
-  const [filteredTags, setFilteredTags] = useState([]);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [prevInputValue, setPrevInputValue] = useState("");
   const inputRef = useRef(null);
+
+  // Compute filtered tags from inputValue (no effect needed)
+  const filteredTags = useMemo(() => {
+    if (inputValue.trim()) {
+      return availableTags.filter((tag) =>
+        tag.name.toLowerCase().includes(inputValue.toLowerCase()),
+      );
+    }
+    return [];
+  }, [inputValue, availableTags]);
+
+  // Update showSuggestions and selectedIndex when inputValue changes (during render, not in effect)
+  if (inputValue !== prevInputValue) {
+    setPrevInputValue(inputValue);
+    setSelectedIndex(-1);
+    setShowSuggestions(inputValue.trim().length > 0);
+  }
 
   useEffect(() => {
     if (inputRef.current) {
       inputRef.current.focus();
     }
   }, []);
-
-  useEffect(() => {
-    if (inputValue.trim()) {
-      const filtered = availableTags.filter((tag) =>
-        tag.name.toLowerCase().includes(inputValue.toLowerCase()),
-      );
-      setFilteredTags(filtered);
-      setShowSuggestions(true);
-      setSelectedIndex(-1);
-    } else {
-      setFilteredTags([]);
-      setShowSuggestions(false);
-      setSelectedIndex(-1);
-    }
-  }, [inputValue, availableTags]);
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {

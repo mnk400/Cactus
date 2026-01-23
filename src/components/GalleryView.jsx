@@ -7,11 +7,17 @@ import React, {
 } from "react";
 import { useMedia } from "../context/MediaContext";
 
-function GalleryView({ scrollPosition, setScrollPosition, style, isVisible: isVisibleProp, preload = false }) {
+function GalleryView({
+  scrollPosition,
+  setScrollPosition,
+  style,
+  isVisible: isVisibleProp,
+  preload = false,
+}) {
   const { mediaFiles, currentIndex, selectMedia } = useMedia();
   const containerRef = useRef(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
-  const isVisible = isVisibleProp ?? (style?.display !== "none");
+  const isVisible = isVisibleProp ?? style?.display !== "none";
 
   const [actualScrollTop, setActualScrollTop] = useState(0);
 
@@ -377,7 +383,6 @@ const GalleryItem = React.memo(
       checkMediaType();
     }, [file.file_hash, inView, cachedMediaTypeChecked, onMediaTypeChecked]);
 
-
     return (
       <div
         ref={containerRef}
@@ -459,17 +464,19 @@ const GalleryItem = React.memo(
         )}
 
         {/* Video indicator - only show for actual video media types */}
-        {cachedMediaLoaded && !cachedMediaError && file.media_type === "video" && (
-          <div className="absolute bottom-1 right-1 bg-black/60 rounded-full p-1 pointer-events-none">
-            <svg
-              className="w-3 h-3 text-white"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-            >
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          </div>
-        )}
+        {cachedMediaLoaded &&
+          !cachedMediaError &&
+          file.media_type === "video" && (
+            <div className="absolute bottom-1 right-1 bg-black/60 rounded-full p-1 pointer-events-none">
+              <svg
+                className="w-3 h-3 text-white"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </div>
+          )}
       </div>
     );
   },

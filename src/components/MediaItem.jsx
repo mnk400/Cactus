@@ -12,16 +12,18 @@ const MediaItem = memo(function MediaItem({
   const videoRef = useRef(null);
   const imgRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [trackedFilePath, setTrackedFilePath] = useState(mediaFile?.file_path);
+
+  // Reset loading state when media file changes (during render, not in effect)
+  if (mediaFile?.file_path !== trackedFilePath) {
+    setTrackedFilePath(mediaFile?.file_path);
+    setIsLoading(true);
+  }
 
   // Memoized loading state handler
   const handleLoadingChange = useCallback((loading) => {
     setIsLoading(loading);
   }, []);
-
-  // Reset loading state when media file changes
-  useEffect(() => {
-    setIsLoading(true);
-  }, [mediaFile?.file_path]);
 
   // Check if media is already preloaded when component becomes active
   useEffect(() => {
@@ -36,7 +38,7 @@ const MediaItem = memo(function MediaItem({
       ) {
         if (preloadedMedia.readyState >= 3) {
           // HAVE_FUTURE_DATA or higher
-          setIsLoading(false);
+          queueMicrotask(() => setIsLoading(false));
         } else {
           // Wait for the video to buffer more
           const handleCanPlay = () => {
@@ -52,7 +54,7 @@ const MediaItem = memo(function MediaItem({
           }, 1000);
         }
       } else {
-        setIsLoading(false);
+        queueMicrotask(() => setIsLoading(false));
       }
     }
   }, [isActive, index, getPreloadedMedia, mediaFile]);

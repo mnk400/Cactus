@@ -26,6 +26,8 @@ export const MediaProvider = ({ children }) => {
   // Track filters used in the last fetch to prevent duplicate fetches
   // and enable refetching when URL changes via browser navigation
   const lastFetchedFilters = useRef(null);
+  // AbortController to cancel stale API requests when filters change rapidly
+  const fetchAbortController = useRef(null);
 
   // Audio state
   const [isMuted, setIsMuted] = useState(() => {
@@ -161,6 +163,12 @@ export const MediaProvider = ({ children }) => {
       // For initial load, use mediaId from overrides. Don't use state mediaId to avoid loops.
       const targetMediaId = overrides.mediaId;
 
+      // Cancel any in-flight request to prevent stale responses from overwriting fresh data
+      fetchAbortController.current?.abort();
+      const controller = new AbortController();
+      fetchAbortController.current = controller;
+      const signal = controller.signal;
+
       try {
         setLoading(`Loading ${params.type} media...`);
         setError(null);
@@ -172,7 +180,7 @@ export const MediaProvider = ({ children }) => {
         if (params.pathSubstring)
           url += `&pathSubstring=${encodeURIComponent(params.pathSubstring)}`;
 
-        const response = await fetch(url);
+        const response = await fetch(url, { signal });
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.error || "Failed to get media files");
@@ -196,10 +204,16 @@ export const MediaProvider = ({ children }) => {
           setCurrentIndex(0);
         }
       } catch (err) {
+        // Ignore aborted requests - they're intentionally cancelled
+        if (err.name === "AbortError") return;
         setError(err.message);
         setMediaFiles([]);
       } finally {
-        setLoading(null);
+        // Only clear loading if this request wasn't aborted (otherwise we'd clear
+        // the loading state of the newer request that replaced us)
+        if (!signal.aborted) {
+          setLoading(null);
+        }
       }
     },
     [mediaType, sortBy, selectedTags, excludedTags, pathFilter],

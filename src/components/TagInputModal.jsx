@@ -15,6 +15,15 @@ const TagInputModal = ({
   const [stagedTags, setStagedTags] = useState([]);
   const [predictEnabled, setPredictEnabled] = useState(false);
   const [predictApiUrl, setPredictApiUrl] = useState("");
+  const [wasOpen, setWasOpen] = useState(isOpen);
+
+  // Clear staged tags when modal closes (during render, not in effect)
+  if (wasOpen && !isOpen) {
+    setStagedTags([]);
+  }
+  if (wasOpen !== isOpen) {
+    setWasOpen(isOpen);
+  }
 
   const handleAddStagedTag = (tagNames) => {
     // Prevent adding duplicate tags
@@ -33,12 +42,6 @@ const TagInputModal = ({
     currentMediaFile,
     handleAddStagedTag,
   );
-
-  useEffect(() => {
-    if (!isOpen) {
-      setStagedTags([]); // Clear staged tags when modal closes
-    }
-  }, [isOpen]);
 
   // Check if prediction is enabled
   useEffect(() => {

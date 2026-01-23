@@ -124,12 +124,12 @@ function SettingsPanel({ isOpen, onClose }) {
   useEffect(() => {
     if (isDesktop && isOpen) {
       // Start off-screen, then animate in after a frame
-      setShouldAnimate(false);
+      queueMicrotask(() => setShouldAnimate(false));
       requestAnimationFrame(() => {
         setShouldAnimate(true);
       });
     } else if (isDesktop && !isOpen) {
-      setShouldAnimate(false);
+      queueMicrotask(() => setShouldAnimate(false));
     }
   }, [isOpen, isDesktop]);
 
@@ -140,9 +140,7 @@ function SettingsPanel({ isOpen, onClose }) {
   return (
     <div
       className={`fixed bg-black-shades-900 p-6 text-gray-200 z-50 overflow-y-auto ${
-        isDesktop
-          ? "top-0 right-0 bottom-0 w-[420px] lg:w-[450px]"
-          : "inset-0"
+        isDesktop ? "top-0 right-0 bottom-0 w-[420px] lg:w-[450px]" : "inset-0"
       }`}
       style={
         isDesktop
@@ -205,9 +203,7 @@ function SettingsPanel({ isOpen, onClose }) {
 
           <div className="grid grid-cols-3 gap-2 text-center mb-3">
             <div className="stat-item p-2 bg-black-shades-700 rounded-lg">
-              <div className="text-base font-bold text-white">
-                {totalFiles}
-              </div>
+              <div className="text-base font-bold text-white">{totalFiles}</div>
               <div className="text-xs text-gray-400 uppercase tracking-wide">
                 Total
               </div>
@@ -252,9 +248,7 @@ function SettingsPanel({ isOpen, onClose }) {
         </div>
 
         <div className="filter-section mb-4">
-          <h4 className="text-base font-medium text-white mb-3">
-            Media Type
-          </h4>
+          <h4 className="text-base font-medium text-white mb-3">Media Type</h4>
           <div className="media-type-selector flex gap-2">
             <button
               onClick={() => setFilters({ mediaType: "all" })}
@@ -278,9 +272,7 @@ function SettingsPanel({ isOpen, onClose }) {
         </div>
 
         <div className="filter-section mb-4">
-          <h4 className="text-base font-medium text-white mb-3">
-            Sort By
-          </h4>
+          <h4 className="text-base font-medium text-white mb-3">Sort By</h4>
           <div className="media-type-selector flex gap-2">
             <button
               onClick={() => setFilters({ sortBy: "random" })}
@@ -304,9 +296,7 @@ function SettingsPanel({ isOpen, onClose }) {
         </div>
 
         <div className="tag-filter-section mb-4 p-3 bg-black bg-opacity-40 rounded-2xl">
-          <h4 className="text-base font-medium text-white mb-3">
-            Tag Filters
-          </h4>
+          <h4 className="text-base font-medium text-white mb-3">Tag Filters</h4>
           <TagFilter
             tags={tags}
             selectedTags={selectedTags}
@@ -329,9 +319,7 @@ function SettingsPanel({ isOpen, onClose }) {
         {!configLoading &&
           (canManageTags || canRescan || canRegenerateThumbnails) && (
             <div className="actions-section mb-6">
-              <h4 className="text-base font-medium text-white mb-3">
-                Actions
-              </h4>
+              <h4 className="text-base font-medium text-white mb-3">Actions</h4>
               <div className="space-y-2">
                 {canManageTags && (
                   <button

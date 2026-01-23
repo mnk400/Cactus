@@ -30,8 +30,12 @@ const validateAndSanitizeSettings = (settings) => {
  * Custom hook for managing settings through URL parameters
  */
 export const useURLSettings = (availableTags = []) => {
-  const [urlSettings, setUrlSettings] = useState(() => decodeSettingsFromURL());
-  const [isInitialized, setIsInitialized] = useState(false);
+  // Initialize with validated settings from URL (no effect needed)
+  const [urlSettings, setUrlSettings] = useState(() => {
+    const initialSettings = decodeSettingsFromURL();
+    return validateAndSanitizeSettings(initialSettings);
+  });
+  const [isInitialized] = useState(true);
 
   // Listen for browser back/forward navigation
   useEffect(() => {
@@ -44,15 +48,6 @@ export const useURLSettings = (availableTags = []) => {
 
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
-
-  // Initialize settings from URL on mount
-  useEffect(() => {
-    const initialSettings = decodeSettingsFromURL();
-    // Validate and sanitize settings
-    const sanitizedSettings = validateAndSanitizeSettings(initialSettings);
-    setUrlSettings(sanitizedSettings);
-    setIsInitialized(true);
   }, []);
 
   // Resolve tag names to tag objects when available tags change

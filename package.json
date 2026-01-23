@@ -1,6 +1,7 @@
 {
   "name": "cactus-media-viewer",
   "version": "2.0.0",
+  "type": "module",
   "description": "Extremely minimal randomized order media reviewer built with React",
   "main": "src/server.js",
   "scripts": {
@@ -10,7 +11,9 @@
     "start": "bun run build && bun src/server.js $@",
     "start:dev": "./dev-server.sh",
     "test": "echo \"No tests specified\" && exit 0",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "bin": {
     "cactus": "./src/server.js"
@@ -39,11 +42,16 @@
     "sharp": "^0.33.4"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.21",
     "concurrently": "^8.2.2",
+    "eslint": "^9.39.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "globals": "^17.1.0",
     "postcss": "^8.5.4",
     "prettier": "^3.6.2",
     "tailwindcss": "^3.4.17",

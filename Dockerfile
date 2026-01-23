@@ -14,7 +14,7 @@ RUN bun install
 # Copy config files
 COPY vite.config.js ./
 COPY tailwind.config.js ./
-COPY postcss.config.js ./
+COPY postcss.config.cjs ./
 
 # Copy source code
 COPY src/ ./src/

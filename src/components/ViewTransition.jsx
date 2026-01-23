@@ -69,6 +69,15 @@ const springTransition = {
 };
 
 function ViewTransition({ isGalleryView, isSettingsOpen, children }) {
+  // Define hooks unconditionally at the top (React hooks rules)
+  const getTransition = React.useCallback(
+    (isEntering) => ({
+      ...springTransition,
+      delay: isEntering ? 0.02 : 0, // Tiny delay for entering view
+    }),
+    [],
+  );
+
   // Handle settings mode (single child)
   if (isSettingsOpen !== undefined) {
     const isDesktop = !isMobile();
@@ -99,15 +108,6 @@ function ViewTransition({ isGalleryView, isSettingsOpen, children }) {
 
   // Handle gallery/media mode (two children)
   const [galleryView, mediaViewer] = React.Children.toArray(children);
-
-  // Add slight delay for more natural feel when switching views
-  const getTransition = React.useCallback(
-    (isEntering) => ({
-      ...springTransition,
-      delay: isEntering ? 0.02 : 0, // Tiny delay for entering view
-    }),
-    [],
-  );
 
   return (
     <div className="view-transition-container relative w-full h-full overflow-hidden">

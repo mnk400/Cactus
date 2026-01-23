@@ -67,14 +67,15 @@ const Navigation = memo(function Navigation({
   useEffect(() => {
     if (currentMediaFile?.media_type === "video") {
       const timeouts = [];
-      findActiveVideo();
+      // Use setTimeout to avoid synchronous setState in effect
+      timeouts.push(setTimeout(findActiveVideo, 0));
       timeouts.push(setTimeout(findActiveVideo, 50));
       timeouts.push(setTimeout(findActiveVideo, 200));
       return () => {
         timeouts.forEach(clearTimeout);
       };
     } else {
-      setVideoElement(null);
+      queueMicrotask(() => setVideoElement(null));
     }
   }, [currentMediaFile, findActiveVideo]);
 

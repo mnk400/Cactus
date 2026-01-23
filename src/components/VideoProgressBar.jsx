@@ -23,7 +23,8 @@ function VideoProgressBar({ videoElement }) {
   };
 
   const updateProgress = useCallback(() => {
-    if (!videoRef.current || !progressBarRef.current || isDraggingRef.current) return;
+    if (!videoRef.current || !progressBarRef.current || isDraggingRef.current)
+      return;
 
     const progress = videoRef.current.duration
       ? (videoRef.current.currentTime / videoRef.current.duration) * 100
@@ -94,7 +95,7 @@ function VideoProgressBar({ videoElement }) {
     }
 
     if (videoElement) {
-      setIsVisible(true);
+      queueMicrotask(() => setIsVisible(true));
       videoRef.current = videoElement;
 
       const animate = () => {
@@ -117,8 +118,10 @@ function VideoProgressBar({ videoElement }) {
       videoElement.addEventListener("loadstart", handleLoadStart);
 
       if (videoElement.duration) {
-        setDuration(videoElement.duration);
-        setCurrentTime(videoElement.currentTime);
+        queueMicrotask(() => {
+          setDuration(videoElement.duration);
+          setCurrentTime(videoElement.currentTime);
+        });
       }
 
       animationRef.current = requestAnimationFrame(animate);
@@ -136,9 +139,11 @@ function VideoProgressBar({ videoElement }) {
         }
       };
     } else {
-      setIsVisible(false);
-      setCurrentTime(0);
-      setDuration(0);
+      queueMicrotask(() => {
+        setIsVisible(false);
+        setCurrentTime(0);
+        setDuration(0);
+      });
       videoRef.current = null;
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
