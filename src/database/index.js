@@ -68,6 +68,7 @@ class MediaDatabase {
       this.db.exec("PRAGMA temp_store = memory"); // Store temp tables in memory
 
       this.initializeSchema();
+      this.runMigrations();
       this.isInitialized = true;
 
       log.info("Database initialized successfully", {
@@ -96,6 +97,8 @@ class MediaDatabase {
                 file_size INTEGER NOT NULL,
                 media_type TEXT NOT NULL CHECK (media_type IN ('image', 'video')),
                 thumbnail_path TEXT,
+                width INTEGER,
+                height INTEGER,
                 date_added DATETIME DEFAULT CURRENT_TIMESTAMP,
                 date_created DATETIME,
                 date_modified DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -133,11 +136,36 @@ class MediaDatabase {
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
 
-            INSERT OR REPLACE INTO database_metadata (key, value) VALUES ('version', '1.2.0');
+            INSERT OR REPLACE INTO database_metadata (key, value) VALUES ('version', '1.3.0');
             INSERT OR REPLACE INTO database_metadata (key, value) VALUES ('created_at', datetime('now'));
         `;
 
     this.db.exec(schema);
+  }
+
+  /**
+   * Run database migrations for schema updates
+   */
+  runMigrations() {
+    try {
+      // Check if width/height columns exist
+      const tableInfo = this.db.prepare("PRAGMA table_info(media_files)").all();
+      const hasWidth = tableInfo.some((col) => col.name === "width");
+      const hasHeight = tableInfo.some((col) => col.name === "height");
+
+      if (!hasWidth) {
+        this.db.exec("ALTER TABLE media_files ADD COLUMN width INTEGER");
+        log.info("Migration: Added width column to media_files");
+      }
+
+      if (!hasHeight) {
+        this.db.exec("ALTER TABLE media_files ADD COLUMN height INTEGER");
+        log.info("Migration: Added height column to media_files");
+      }
+    } catch (error) {
+      log.error("Migration failed", { error: error.message });
+      // Don't throw - migrations are best-effort for backwards compatibility
+    }
   }
 
   /**
@@ -717,6 +745,37 @@ class MediaDatabase {
       log.error("Failed to update media file thumbnail", {
         fileHash,
         thumbnailPath,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Update thumbnail path and dimensions for a media file
+   */
+  updateMediaFileThumbnailWithDimensions(
+    fileHash,
+    thumbnailPath,
+    width,
+    height,
+  ) {
+    if (!this.isInitialized) {
+      throw new Error("Database not initialized");
+    }
+
+    try {
+      const stmt = this.db.prepare(`
+                UPDATE media_files SET thumbnail_path = ?, width = ?, height = ? WHERE file_hash = ?
+            `);
+      const result = stmt.run(thumbnailPath, width, height, fileHash);
+      return result.changes > 0;
+    } catch (error) {
+      log.error("Failed to update media file thumbnail with dimensions", {
+        fileHash,
+        thumbnailPath,
+        width,
+        height,
         error: error.message,
       });
       throw error;

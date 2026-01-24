@@ -33,13 +33,18 @@ function GalleryView({
     const minColumnWidth = isMobile ? 150 : 200;
     const maxColumnWidth = isMobile ? 250 : 300;
 
+    // Calculate columns based on available width, with minimum constraints only
     let columns = Math.floor(availableWidth / (minColumnWidth + gap));
-    columns = Math.max(2, Math.min(columns, isMobile ? 3 : 6));
+    columns = Math.max(2, columns); // At least 2 columns, no upper limit
 
-    const columnWidth = Math.min(
-      maxColumnWidth,
-      Math.floor((availableWidth - gap * (columns - 1)) / columns),
-    );
+    // Calculate column width to fill available space, respecting max width
+    let columnWidth = Math.floor((availableWidth - gap * (columns - 1)) / columns);
+
+    // If columns would be wider than max, add more columns
+    while (columnWidth > maxColumnWidth && columns < 20) {
+      columns++;
+      columnWidth = Math.floor((availableWidth - gap * (columns - 1)) / columns);
+    }
 
     return { columnWidth, gap, padding, columns };
   }, [containerSize.width]);
@@ -57,6 +62,7 @@ function GalleryView({
 
   const calculateItemHeight = useCallback(
     (file, width) => {
+      // First check cached dimensions from loaded thumbnails
       const dimensions = imageDimensions.get(file.file_hash);
 
       if (dimensions && dimensions.width && dimensions.height) {
@@ -64,6 +70,13 @@ function GalleryView({
         return Math.floor(width / aspectRatio);
       }
 
+      // Then check pre-calculated dimensions from API (e.g., SbMediaProvider)
+      if (file.width && file.height) {
+        const aspectRatio = file.width / file.height;
+        return Math.floor(width / aspectRatio);
+      }
+
+      // Fallback to default aspect ratio
       return Math.floor(width / 1.2);
     },
     [imageDimensions],

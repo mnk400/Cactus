@@ -535,17 +535,23 @@ class LocalMediaProvider extends MediaSourceProvider {
    * Generate thumbnail for an image
    * @param {string} filePath - Path to the image file
    * @param {string} fileHash - Hash of the file
-   * @returns {Promise<string|null>} Path to the generated thumbnail or null if failed
+   * @returns {Promise<{path: string, width: number, height: number}|null>} Thumbnail info or null if failed
    */
   async generateImageThumbnail(filePath, fileHash) {
     const thumbnailPath = path.join(this.THUMBNAIL_DIR, `${fileHash}.webp`);
     try {
-      await sharp(filePath)
+      const result = await sharp(filePath)
         .resize(250, 250, { fit: sharp.fit.inside, withoutEnlargement: true })
         .webp({ quality: 80 })
         .toFile(thumbnailPath);
-      log.info("Generated image thumbnail", { filePath, thumbnailPath });
-      return thumbnailPath;
+
+      log.info("Generated image thumbnail", {
+        filePath,
+        thumbnailPath,
+        width: result.width,
+        height: result.height,
+      });
+      return { path: thumbnailPath, width: result.width, height: result.height };
     } catch (error) {
       log.error("Failed to generate image thumbnail", {
         filePath,
@@ -559,7 +565,7 @@ class LocalMediaProvider extends MediaSourceProvider {
    * Generate thumbnail for a video
    * @param {string} filePath - Path to the video file
    * @param {string} fileHash - Hash of the file
-   * @returns {Promise<string|null>} Path to the generated thumbnail or null if failed
+   * @returns {Promise<{path: string, width: number, height: number}|null>} Thumbnail info or null if failed
    */
   async generateVideoThumbnail(filePath, fileHash) {
     const thumbnailPath = path.join(this.THUMBNAIL_DIR, `${fileHash}.webp`);
@@ -608,7 +614,7 @@ class LocalMediaProvider extends MediaSourceProvider {
               thumbnailPath,
               size: `${newWidth}x${newHeight}`,
             });
-            resolve(thumbnailPath);
+            resolve({ path: thumbnailPath, width: newWidth, height: newHeight });
           })
           .on("error", (err) => {
             log.error("Failed to generate video thumbnail", {
@@ -777,22 +783,24 @@ class LocalMediaProvider extends MediaSourceProvider {
                         null,
                         fileStat.birthtime,
                       );
-                      let thumbnailPath = null;
+                      let thumbnailResult = null;
                       if (mediaType === "image") {
-                        thumbnailPath = await provider.generateImageThumbnail(
+                        thumbnailResult = await provider.generateImageThumbnail(
                           filePath,
                           fileHash,
                         );
                       } else if (mediaType === "video") {
-                        thumbnailPath = await provider.generateVideoThumbnail(
+                        thumbnailResult = await provider.generateVideoThumbnail(
                           filePath,
                           fileHash,
                         );
                       }
-                      if (thumbnailPath) {
-                        provider.mediaDatabase.updateMediaFileThumbnail(
+                      if (thumbnailResult) {
+                        provider.mediaDatabase.updateMediaFileThumbnailWithDimensions(
                           fileHash,
-                          thumbnailPath,
+                          thumbnailResult.path,
+                          thumbnailResult.width,
+                          thumbnailResult.height,
                         );
                       }
                       log.info(
@@ -1002,24 +1010,26 @@ class LocalMediaProvider extends MediaSourceProvider {
           }
 
           const fileHash = this.mediaDatabase.generateFileHash(filePath);
-          let thumbnailPath = null;
+          let thumbnailResult = null;
 
           if (mediaType === "image") {
-            thumbnailPath = await this.generateImageThumbnail(
+            thumbnailResult = await this.generateImageThumbnail(
               filePath,
               fileHash,
             );
           } else if (mediaType === "video") {
-            thumbnailPath = await this.generateVideoThumbnail(
+            thumbnailResult = await this.generateVideoThumbnail(
               filePath,
               fileHash,
             );
           }
 
-          if (thumbnailPath) {
-            this.mediaDatabase.updateMediaFileThumbnail(
+          if (thumbnailResult) {
+            this.mediaDatabase.updateMediaFileThumbnailWithDimensions(
               fileHash,
-              thumbnailPath,
+              thumbnailResult.path,
+              thumbnailResult.width,
+              thumbnailResult.height,
             );
             regeneratedCount++;
             log.info("Successfully regenerated thumbnail", { filePath });
