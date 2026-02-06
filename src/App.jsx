@@ -12,7 +12,7 @@ import GalleryView from "./components/GalleryView";
 import ViewTransition from "./components/ViewTransition";
 import { useKeyboardNavigation } from "./hooks/useKeyboardNavigation";
 import { useFavorite } from "./hooks/useFavorite";
-import { useMedia } from "./context/MediaContext";
+import { useCurrentMedia, useMediaData } from "./context/MediaContext";
 import { isMobile } from "./utils/helpers";
 
 function App() {
@@ -22,15 +22,8 @@ function App() {
   const [galleryScrollPosition, setGalleryScrollPosition] = useState(0);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
-  const {
-    mediaFiles,
-    currentIndex,
-    currentMediaFile,
-    loading,
-    error,
-    settings,
-    navigate,
-  } = useMedia();
+  const { currentIndex, currentMediaFile } = useCurrentMedia();
+  const { mediaFiles, loading, error, settings, navigate } = useMediaData();
 
   const { pathFilter, galleryView: isGalleryView, debug: debugMode } = settings;
 
@@ -54,13 +47,25 @@ function App() {
     ),
   );
 
-  const handleToggleTagInput = (show) => {
-    setShowTagInput(typeof show === "boolean" ? show : !showTagInput);
-  };
+  const handleToggleTagInput = useCallback((show) => {
+    setShowTagInput((prev) => (typeof show === "boolean" ? show : !prev));
+  }, []);
 
-  const handleTagsUpdated = () => {
+  const handleCloseTagInput = useCallback(() => {
+    setShowTagInput(false);
+  }, []);
+
+  const handleTagsUpdated = useCallback(() => {
     setTagUpdateTrigger((prev) => prev + 1);
-  };
+  }, []);
+
+  const handleToggleSettings = useCallback(() => {
+    setIsSettingsOpen((prev) => !prev);
+  }, []);
+
+  const handleCloseSettings = useCallback(() => {
+    setIsSettingsOpen(false);
+  }, []);
 
   const { isFavorited, toggleFavorite } = useFavorite(
     currentMediaFile?.file_path,
@@ -152,7 +157,7 @@ function App() {
         <ViewTransition isSettingsOpen={isSettingsOpen}>
           <SettingsPanel
             isOpen={isSettingsOpen}
-            onClose={() => setIsSettingsOpen(false)}
+            onClose={handleCloseSettings}
           />
         </ViewTransition>
       </div>
@@ -168,7 +173,7 @@ function App() {
 
       {(!isSettingsOpen || !isMobile()) && (
         <Navigation
-          onToggleSettings={() => setIsSettingsOpen(!isSettingsOpen)}
+          onToggleSettings={handleToggleSettings}
           onToggleTagInput={handleToggleTagInput}
           directoryName={directoryPath}
           isFavorited={isFavorited}
@@ -178,7 +183,7 @@ function App() {
 
       <TagInputModal
         isOpen={showTagInput}
-        onClose={() => handleToggleTagInput(false)}
+        onClose={handleCloseTagInput}
         currentMediaFile={currentMediaFile}
         onTagsUpdated={handleTagsUpdated}
       />

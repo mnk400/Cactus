@@ -4,14 +4,18 @@ import React, {
   useMemo,
   useState,
   useCallback,
+  memo,
 } from "react";
 import { motion } from "framer-motion";
 import MediaItem from "./MediaItem";
 import { useMediaPreloader } from "../hooks/useMediaPreloader";
-import { useMedia } from "../context/MediaContext";
+import { useCurrentMedia, useMediaData } from "../context/MediaContext";
 
-function MediaViewer({ showTagInput }) {
-  const { mediaFiles, currentIndex, navigate } = useMedia();
+
+const MediaViewer = memo(function MediaViewer({ showTagInput }) {
+
+  const { currentIndex } = useCurrentMedia();
+  const { mediaFiles, navigate } = useMediaData();
   const containerRef = useRef(null);
   const currentIndexRef = useRef(currentIndex);
   const [containerHeight, setContainerHeight] = useState(0);
@@ -179,6 +183,6 @@ function MediaViewer({ showTagInput }) {
       </motion.div>
     </div>
   );
-}
+});
 
 export default MediaViewer;

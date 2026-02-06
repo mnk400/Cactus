@@ -1,11 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import TagFilter from "./TagFilter";
 import GeneralFilter from "./GeneralFilter";
 import TagManager from "./TagManager";
-import { useMedia } from "../context/MediaContext";
+import { useMediaData } from "../context/MediaContext";
 import { isMobile } from "../utils/helpers";
 
-function SettingsPanel({ isOpen, onClose }) {
+
+const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
+
   const [showTagManager, setShowTagManager] = useState(false);
   const [shouldAnimate, setShouldAnimate] = useState(false);
 
@@ -28,7 +30,7 @@ function SettingsPanel({ isOpen, onClose }) {
     createTag,
     updateTag,
     deleteTag,
-  } = useMedia();
+  } = useMediaData();
 
   const {
     mediaType: currentMediaType,
@@ -365,6 +367,6 @@ function SettingsPanel({ isOpen, onClose }) {
       )}
     </div>
   );
-}
+});
 
 export default SettingsPanel;

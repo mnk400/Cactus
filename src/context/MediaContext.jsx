@@ -9,9 +9,15 @@ import React, {
 } from "react";
 import { useURLSettings } from "../hooks/useURLSettings";
 
-const MediaContext = createContext();
+import { URL_PARAMS, encodeSettingsToURL } from "../utils/urlParams";
+
+// Split contexts for granular re-render control
+const CurrentMediaContext = createContext();
+const AudioContext = createContext();
+const MediaDataContext = createContext();
 
 export const MediaProvider = ({ children }) => {
+
   const [mediaFiles, setMediaFiles] = useState([]);
   const [allMediaFiles, setAllMediaFiles] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -283,22 +289,23 @@ export const MediaProvider = ({ children }) => {
     pathFilter,
   ]);
 
-  // Sync state to URL when index changes
+  // Sync mediaId to URL when index changes.
+  // Updates URL directly (replaceState) instead of going through settings state
+  // to avoid invalidating the memoized settings reference on every navigation.
+  const lastSyncedMediaId = useRef(mediaId);
   useEffect(() => {
     if (currentMediaFile && isUrlInitialized && !isUrlSync) {
-      if (currentMediaFile.file_hash !== mediaId) {
-        updateSetting("mediaId", currentMediaFile.file_hash, { replace: true });
+      const newHash = currentMediaFile.file_hash;
+      if (newHash !== lastSyncedMediaId.current) {
+        lastSyncedMediaId.current = newHash;
+        // Update just the media param in the URL without touching settings state
+        const url = new URL(window.location.href);
+        url.searchParams.set(URL_PARAMS.MEDIA_ID, newHash);
+        window.history.replaceState({}, "", url.pathname + url.search);
       }
     }
     if (isUrlSync) setIsUrlSync(false);
-  }, [
-    currentIndex,
-    currentMediaFile,
-    isUrlInitialized,
-    mediaId,
-    isUrlSync,
-    updateSetting,
-  ]);
+  }, [currentIndex, currentMediaFile, isUrlInitialized, isUrlSync]);
 
   // Handle URL updates (popstate)
   useEffect(() => {
@@ -374,7 +381,7 @@ export const MediaProvider = ({ children }) => {
     setHasUserInteracted(true);
   }, []);
 
-  const setMuted = useCallback((muted) => {
+  const setMutedCb = useCallback((muted) => {
     setIsMuted(muted);
     setHasUserInteracted(true);
   }, []);
@@ -390,52 +397,128 @@ export const MediaProvider = ({ children }) => {
     }
   }, [hasUserInteracted]);
 
-  const value = {
-    mediaFiles,
-    allMediaFiles,
-    currentIndex,
-    currentMediaFile,
-    loading,
-    error,
-    isScanning,
-    isRegeneratingThumbnails,
-    settings,
-    navigate,
-    setFilters,
-    toggleGallery,
-    selectMedia,
-    rescan,
-    regenerateThumbnails,
-    setCurrentIndex,
-    // Server Config
-    config,
-    configLoading,
-    canRescan: config?.provider?.capabilities?.canRescan || false,
-    canRegenerateThumbnails:
-      config?.provider?.capabilities?.canRegenerateThumbnails || false,
-    canManageTags: config?.provider?.capabilities?.canManageTags || false,
-    ui: config?.ui || {},
-    // Tags
-    tags,
-    tagsLoading,
-    fetchTags,
-    createTag,
-    updateTag,
-    deleteTag,
-    // Audio
-    isMuted,
-    hasUserInteracted,
-    toggleMute,
-    setMuted,
-  };
+  // --- Memoized context values ---
+
+  // Changes only on navigation (currentIndex change)
+  const currentMediaValue = useMemo(
+    () => ({
+      currentIndex,
+      currentMediaFile,
+    }),
+    [currentIndex, currentMediaFile],
+  );
+
+  // Changes only on mute/interaction toggle
+  const audioValue = useMemo(
+    () => ({
+      isMuted,
+      hasUserInteracted,
+      toggleMute,
+      setMuted: setMutedCb,
+    }),
+    [isMuted, hasUserInteracted, toggleMute, setMutedCb],
+  );
+
+  // Everything else — changes on filter/sort, media fetch, config load, tag CRUD
+  const mediaDataValue = useMemo(
+    () => ({
+      mediaFiles,
+      allMediaFiles,
+      loading,
+      error,
+      isScanning,
+      isRegeneratingThumbnails,
+      settings,
+      navigate,
+      setFilters,
+      toggleGallery,
+      selectMedia,
+      rescan,
+      regenerateThumbnails,
+      setCurrentIndex,
+      // Server Config
+      config,
+      configLoading,
+      canRescan: config?.provider?.capabilities?.canRescan || false,
+      canRegenerateThumbnails:
+        config?.provider?.capabilities?.canRegenerateThumbnails || false,
+      canManageTags: config?.provider?.capabilities?.canManageTags || false,
+      ui: config?.ui || {},
+      // Tags
+      tags,
+      tagsLoading,
+      fetchTags,
+      createTag,
+      updateTag,
+      deleteTag,
+    }),
+    [
+      mediaFiles,
+      allMediaFiles,
+      loading,
+      error,
+      isScanning,
+      isRegeneratingThumbnails,
+      settings,
+      navigate,
+      setFilters,
+      toggleGallery,
+      selectMedia,
+      rescan,
+      regenerateThumbnails,
+      config,
+      configLoading,
+      tags,
+      tagsLoading,
+      fetchTags,
+      createTag,
+      updateTag,
+      deleteTag,
+    ],
+  );
 
   return (
-    <MediaContext.Provider value={value}>{children}</MediaContext.Provider>
+    <MediaDataContext.Provider value={mediaDataValue}>
+      <CurrentMediaContext.Provider value={currentMediaValue}>
+        <AudioContext.Provider value={audioValue}>
+          {children}
+        </AudioContext.Provider>
+      </CurrentMediaContext.Provider>
+    </MediaDataContext.Provider>
   );
 };
 
-export const useMedia = () => {
-  const context = useContext(MediaContext);
-  if (!context) throw new Error("useMedia must be used within MediaProvider");
+// --- Granular hooks (use these for optimal re-render performance) ---
+
+/** Media list, settings, actions, config, tags — everything except currentIndex and audio */
+export const useMediaData = () => {
+  const context = useContext(MediaDataContext);
+  if (!context)
+    throw new Error("useMediaData must be used within MediaProvider");
   return context;
+};
+
+/** Current index and current media file — changes on every navigation */
+export const useCurrentMedia = () => {
+  const context = useContext(CurrentMediaContext);
+  if (!context)
+    throw new Error("useCurrentMedia must be used within MediaProvider");
+  return context;
+};
+
+/** Audio state — isMuted, hasUserInteracted, toggleMute, setMuted */
+export const useAudio = () => {
+  const context = useContext(AudioContext);
+  if (!context) throw new Error("useAudio must be used within MediaProvider");
+  return context;
+};
+
+/** Backward-compatible hook — subscribes to ALL contexts (prefer granular hooks) */
+export const useMedia = () => {
+  const mediaData = useContext(MediaDataContext);
+  const currentMedia = useContext(CurrentMediaContext);
+  const audio = useContext(AudioContext);
+  if (!mediaData)
+    throw new Error("useMedia must be used within MediaProvider");
+  return { ...mediaData, ...currentMedia, ...audio };
 };

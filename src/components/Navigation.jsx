@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, memo } from "react";
 import FullscreenButton from "./FullscreenButton";
 import VideoProgressBar from "./VideoProgressBar";
 import useDisplayName from "../hooks/useDisplayName";
-import { useMedia } from "../context/MediaContext";
+import { useCurrentMedia, useMediaData } from "../context/MediaContext";
+
 
 const Navigation = memo(function Navigation({
   onToggleSettings,
@@ -11,7 +12,9 @@ const Navigation = memo(function Navigation({
   isFavorited,
   onToggleFavorite,
 }) {
-  const { currentMediaFile, toggleGallery, settings, setFilters } = useMedia();
+
+  const { currentMediaFile } = useCurrentMedia();
+  const { toggleGallery, settings, setFilters } = useMediaData();
 
   const { galleryView: isGalleryView, pathFilter: activeFilter } = settings;
   const [videoElement, setVideoElement] = useState(null);

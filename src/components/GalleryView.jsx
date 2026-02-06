@@ -4,17 +4,21 @@ import React, {
   useState,
   useMemo,
   useCallback,
+  memo,
 } from "react";
-import { useMedia } from "../context/MediaContext";
+import { useCurrentMedia, useMediaData } from "../context/MediaContext";
 
-function GalleryView({
+
+const GalleryView = memo(function GalleryView({
   scrollPosition,
   setScrollPosition,
   style,
   isVisible: isVisibleProp,
   preload = false,
 }) {
-  const { mediaFiles, currentIndex, selectMedia } = useMedia();
+
+  const { currentIndex } = useCurrentMedia();
+  const { mediaFiles, selectMedia } = useMediaData();
   const containerRef = useRef(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const isVisible = isVisibleProp ?? style?.display !== "none";
@@ -270,7 +274,7 @@ function GalleryView({
       </div>
     </div>
   );
-}
+});
 
 // Gallery item with intersection observer lazy loading
 const GalleryItem = React.memo(

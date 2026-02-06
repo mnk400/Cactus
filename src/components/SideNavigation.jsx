@@ -1,9 +1,11 @@
-import React from "react";
+import React, { memo } from "react";
 import { isMobile } from "../utils/helpers";
-import { useMedia } from "../context/MediaContext";
+import { useMediaData } from "../context/MediaContext";
 
-function SideNavigation() {
-  const { navigate, mediaFiles, settings } = useMedia();
+
+const SideNavigation = memo(function SideNavigation() {
+
+  const { navigate, mediaFiles, settings } = useMediaData();
   const { galleryView } = settings;
 
   // Don't render on mobile, in gallery view, or if no media
@@ -35,6 +37,6 @@ function SideNavigation() {
       </button>
     </div>
   );
-}
+});
 
 export default SideNavigation;

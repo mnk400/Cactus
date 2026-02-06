@@ -6,15 +6,17 @@ import React, {
   memo,
   useCallback,
 } from "react";
-import { useMedia } from "../context/MediaContext";
+import { useMediaData } from "../context/MediaContext";
+
 
 const TagDisplay = memo(function TagDisplay({
   currentMediaFile,
   showTagInput,
   isVideoPlaying,
 }) {
+
   const [mediaTags, setMediaTags] = useState([]);
-  const { fetchTags } = useMedia();
+  const { fetchTags } = useMediaData();
 
   const tagRefs = useRef(new Map());
   const prevTagPositions = useRef(new Map());

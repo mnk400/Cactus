@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from "react";
 import VideoControls from "./VideoControls";
-import { useMedia } from "../context/MediaContext";
+import { useAudio } from "../context/MediaContext";
+
 
 const MediaItem = memo(function MediaItem({
   mediaFile,
@@ -8,6 +9,7 @@ const MediaItem = memo(function MediaItem({
   isActive,
   getPreloadedMedia,
 }) {
+
   const mediaRef = useRef(null);
   const videoRef = useRef(null);
   const imgRef = useRef(null);
@@ -173,9 +175,10 @@ const VideoPlayer = memo(function VideoPlayer({
   isLoading,
   videoRef,
 }) {
+
   const [isPaused, setIsPaused] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
-  const { isMuted, hasUserInteracted, toggleMute, setMuted } = useMedia();
+  const { isMuted, hasUserInteracted, toggleMute, setMuted } = useAudio();
   const [autoplayFailed, setAutoplayFailed] = useState(false);
 
   // Memoized event handlers

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   decodeSettingsFromURL,
   updateURL,
@@ -51,11 +51,14 @@ export const useURLSettings = (availableTags = []) => {
   }, []);
 
   // Resolve tag names to tag objects when available tags change
-  const resolvedSettings = {
-    ...urlSettings,
-    selectedTags: resolveTagNames(urlSettings.selectedTags, availableTags),
-    excludedTags: resolveTagNames(urlSettings.excludedTags, availableTags),
-  };
+  const resolvedSettings = useMemo(
+    () => ({
+      ...urlSettings,
+      selectedTags: resolveTagNames(urlSettings.selectedTags, availableTags),
+      excludedTags: resolveTagNames(urlSettings.excludedTags, availableTags),
+    }),
+    [urlSettings, availableTags],
+  );
 
   // Update URL and state
   const updateSettings = useCallback((newSettings, options = {}) => {
