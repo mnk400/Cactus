@@ -7,38 +7,23 @@
 
 const MediaSourceProvider = require("./MediaSourceProvider");
 
-// Import fetch for Node.js (if not available globally)
 const fetch = globalThis.fetch || require("node-fetch");
 
-// Simple structured logging
+const mkLog =
+  (level, fn) =>
+  (message, meta = {}) =>
+    fn(
+      JSON.stringify({
+        level,
+        message,
+        ...meta,
+        timestamp: new Date().toISOString(),
+      }),
+    );
 const log = {
-  info: (message, meta = {}) =>
-    console.log(
-      JSON.stringify({
-        level: "info",
-        message,
-        ...meta,
-        timestamp: new Date().toISOString(),
-      }),
-    ),
-  error: (message, meta = {}) =>
-    console.error(
-      JSON.stringify({
-        level: "error",
-        message,
-        ...meta,
-        timestamp: new Date().toISOString(),
-      }),
-    ),
-  warn: (message, meta = {}) =>
-    console.warn(
-      JSON.stringify({
-        level: "warn",
-        message,
-        ...meta,
-        timestamp: new Date().toISOString(),
-      }),
-    ),
+  info: mkLog("info", console.log),
+  error: mkLog("error", console.error),
+  warn: mkLog("warn", console.warn),
 };
 
 class SbMediaProvider extends MediaSourceProvider {
@@ -50,13 +35,12 @@ class SbMediaProvider extends MediaSourceProvider {
     this.isInitialized = false;
     this.mediaCache = [];
     this.lastFetchTime = null;
-    this.cacheTimeout = 5 * 60 * 1000; // 5 minutes cache
+    this.cacheTimeout = 5 * 60 * 1000;
+    this.tagsCache = null;
+    this.tagsCacheTime = null;
+    this.thumbnailMap = new Map();
   }
 
-  /**
-   * Get provider configuration requirements
-   * @returns {Object} Configuration schema
-   */
   static getConfigSchema() {
     return {
       description: "S GraphQL API media provider",
@@ -90,11 +74,6 @@ class SbMediaProvider extends MediaSourceProvider {
     };
   }
 
-  /**
-   * Validate configuration arguments
-   * @param {Object} args - Command line arguments
-   * @returns {Object} Validation result
-   */
   static validateConfig(args) {
     const sbUrl = args["sb-url"] || process.env.SB_URL;
     const sbApiKey = args["sb-api-key"] || process.env.SB_API_KEY || null;
@@ -108,7 +87,6 @@ class SbMediaProvider extends MediaSourceProvider {
       };
     }
 
-    // Simple URL validation
     try {
       new URL(sbUrl);
     } catch (error) {
@@ -125,19 +103,14 @@ class SbMediaProvider extends MediaSourceProvider {
       constructorArgs: [sbUrl, sbApiKey],
       config: {
         sbUrl,
-        sbApiKey: sbApiKey ? "***" : null, // Mask the key in config output
+        sbApiKey: sbApiKey ? "***" : null,
         port: args.p || 3000,
       },
     };
   }
 
-  /**
-   * Initialize the media provider
-   * @returns {Promise<Object>} Result of initialization with success status
-   */
   async initialize() {
     try {
-      // Test connection to sb server
       const connectionTest = await this.testConnection();
       if (!connectionTest.success) {
         return {
@@ -145,13 +118,11 @@ class SbMediaProvider extends MediaSourceProvider {
           error: `Failed to connect to sb server: ${connectionTest.error}`,
         };
       }
-
       this.isInitialized = true;
       log.info("sbMediaProvider initialized successfully", {
         sbUrl: this.sbUrl,
         authEnabled: !!this.apiKey,
       });
-
       return { success: true };
     } catch (error) {
       log.error("Failed to initialize sbMediaProvider", {
@@ -162,28 +133,18 @@ class SbMediaProvider extends MediaSourceProvider {
     }
   }
 
-  /**
-   * Test the connection to the sb server
-   * @returns {Promise<Object>} Connection test result with success status
-   */
   async testConnection() {
     try {
-      const response = await this.makeGraphQLRequest(`
-        query {
-          version {
-            version
-          }
-        }
-      `);
-
-      if (response.data && response.data.version) {
+      const response = await this.makeGraphQLRequest(
+        `query { version { version } }`,
+      );
+      if (response.data?.version) {
         log.info("sb server connection successful", {
           version: response.data.version.version,
         });
         return { success: true, version: response.data.version.version };
-      } else {
-        return { success: false, error: "Invalid response from sb server" };
       }
+      return { success: false, error: "Invalid response from sb server" };
     } catch (error) {
       log.error("sb server connection failed", {
         sbUrl: this.sbUrl,
@@ -192,44 +153,25 @@ class SbMediaProvider extends MediaSourceProvider {
       return { success: false, error: error.message };
     }
   }
-  /**
-   * Make a GraphQL request to the sb server
-   * @param {string} query - GraphQL query string
-   * @param {Object} variables - GraphQL variables
-   * @returns {Promise<Object>} GraphQL response
-   */
+
   async makeGraphQLRequest(query, variables = {}) {
     try {
-      const headers = {
-        "Content-Type": "application/json",
-      };
-
-      // Add API key header if configured
-      if (this.apiKey) {
-        headers["ApiKey"] = this.apiKey;
-      }
+      const headers = { "Content-Type": "application/json" };
+      if (this.apiKey) headers["ApiKey"] = this.apiKey;
 
       const response = await fetch(this.sbUrl, {
         method: "POST",
         headers,
-        body: JSON.stringify({
-          query,
-          variables,
-        }),
+        body: JSON.stringify({ query, variables }),
       });
 
-      if (!response.ok) {
+      if (!response.ok)
         throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
       const data = await response.json();
-
-      if (data.errors) {
+      if (data.errors)
         throw new Error(
           `GraphQL error: ${data.errors.map((e) => e.message).join(", ")}`,
         );
-      }
-
       return data;
     } catch (error) {
       log.error("GraphQL request failed", {
@@ -240,79 +182,27 @@ class SbMediaProvider extends MediaSourceProvider {
     }
   }
 
-  /**
-   * Fetch images from sb server
-   * @param {Object} filter - Filter parameters
-   * @returns {Promise<Array>} Array of image data
-   */
+  // ── Fetch & Transform ──────────────────────────────────────────────
+
   async fetchImages(filter = {}) {
     const query = `
       query FindImages($filter: FindFilterType, $image_filter: ImageFilterType) {
         findImages(filter: $filter, image_filter: $image_filter) {
           count
           images {
-            id
-            title
-            code
-            date
-            rating100
-            organized
-            o_counter
-            created_at
-            updated_at
-            paths {
-              thumbnail
-              preview
-              image
-            }
+            id title code date rating100 organized o_counter created_at updated_at
+            paths { thumbnail preview image }
             visual_files {
-              ... on ImageFile {
-                id
-                path
-                size
-                mod_time
-                width
-                height
-                fingerprints {
-                  type
-                  value
-                }
-              }
-              ... on VideoFile {
-                id
-                path
-                size
-                mod_time
-                duration
-                video_codec
-                audio_codec
-                width
-                height
-                frame_rate
-                bit_rate
-                fingerprints {
-                  type
-                  value
-                }
-              }
+              ... on ImageFile { id path size mod_time width height fingerprints { type value } }
+              ... on VideoFile { id path size mod_time duration video_codec audio_codec width height frame_rate bit_rate fingerprints { type value } }
             }
-            tags {
-              id
-              name
-            }
-            studio {
-              id
-              name
-            }
-            performers {
-              id
-              name
-            }
+            tags { id name }
+            studio { id name }
+            performers { id name }
           }
         }
       }
     `;
-
     const variables = {
       filter: {
         per_page: filter.per_page || 10000,
@@ -321,76 +211,31 @@ class SbMediaProvider extends MediaSourceProvider {
       },
       image_filter: filter.image_filter || {},
     };
-
     const response = await this.makeGraphQLRequest(query, variables);
     return response.data.findImages;
   }
 
-  /**
-   * Fetch scene markers from sb server
-   * @param {Object} filter - Filter parameters
-   * @returns {Promise<Array>} Array of marker data
-   */
   async fetchMarkers(filter = {}) {
     const query = `
       query FindMarkers($filter: FindFilterType, $scene_marker_filter: SceneMarkerFilterType) {
         findSceneMarkers(filter: $filter, scene_marker_filter: $scene_marker_filter) {
           count
           scene_markers {
-            id
-            title
-            seconds
-            end_seconds
-            created_at
-            updated_at
-            
-            # Essential media URLs
-            stream
-            preview
-            screenshot
-            
-            # Enhanced scene info
+            id title seconds end_seconds created_at updated_at
+            stream preview screenshot
             scene {
-              id
-              title
-              date
-              code
-              files {
-                path
-                duration
-                width
-                height
-                size
-              }
-              studio {
-                id
-                name
-              }
-              performers {
-                id
-                name
-              }
-              tags {
-                id
-                name
-              }
+              id title date code
+              files { path duration width height size }
+              studio { id name }
+              performers { id name }
+              tags { id name }
             }
-            
-            # Tags for filtering/categorization
-            primary_tag {
-              id
-              name
-            }
-            
-            tags {
-              id
-              name
-            }
+            primary_tag { id name }
+            tags { id name }
           }
         }
       }
     `;
-
     const variables = {
       filter: {
         per_page: filter.per_page || 10000,
@@ -399,37 +244,55 @@ class SbMediaProvider extends MediaSourceProvider {
       },
       scene_marker_filter: filter.scene_marker_filter || {},
     };
-
     const response = await this.makeGraphQLRequest(query, variables);
     return response.data.findSceneMarkers;
   }
 
   /**
-   * Transform sb image data to local format
-   * @param {Object} sbImage - sb image object
-   * @returns {Object} Transformed media object
+   * Fetch images + markers in parallel, transform, and return combined array.
    */
+  async fetchAndTransformMedia(sortBy, imageFilter = {}, markerFilter = {}) {
+    const [imagesResult, markersResult] = await Promise.all([
+      this.fetchImages({
+        sort: this.mapSortBy(sortBy),
+        per_page: 10000,
+        image_filter: imageFilter,
+      }),
+      this.fetchMarkers({
+        sort: this.mapSortBy(sortBy),
+        per_page: 10000,
+        scene_marker_filter: markerFilter,
+      }),
+    ]);
+
+    const media = [
+      ...imagesResult.images.map((img) => this.transformsbImageToLocal(img)),
+      ...markersResult.scene_markers.map((m) =>
+        this.transformsbMarkerToLocal(m),
+      ),
+    ].filter(Boolean);
+
+    log.info("Media fetched from sb", {
+      totalImages: imagesResult.count,
+      totalMarkers: markersResult.count,
+      transformedCount: media.length,
+    });
+
+    return media;
+  }
+
   transformsbImageToLocal(sbImage) {
-    // Use the first visual file for basic info
     const visualFile = sbImage.visual_files?.[0];
-
-    // Generate a hash-like ID from the sb ID
-    const fileHash = `sb_${sbImage.id}`;
-
-    // Use actual disk path as filename, fallback to title or generic name
     const filename = visualFile?.path || sbImage.title || `Image ${sbImage.id}`;
-
-    // manually avoid GIFs from isVideo because gifs can have "duration"
     const isGif = filename.toLowerCase().includes(".gif");
-
-    const isVideo = !isGif && visualFile && visualFile.duration !== undefined;
+    const isVideo = !isGif && visualFile?.duration !== undefined;
 
     return {
       id: parseInt(sbImage.id),
-      file_hash: fileHash,
+      file_hash: `sb_${sbImage.id}`,
       file_path:
         sbImage.paths?.image || visualFile?.path || `sb://image/${sbImage.id}`,
-      filename: filename,
+      filename,
       file_size: visualFile?.size || 0,
       media_type: isVideo ? "video" : "image",
       thumbnail_path: sbImage.paths?.thumbnail,
@@ -437,7 +300,6 @@ class SbMediaProvider extends MediaSourceProvider {
       date_created: sbImage.date || sbImage.created_at,
       date_modified: sbImage.updated_at,
       last_seen: new Date().toISOString(),
-      // Additional sb-specific fields
       sb_id: sbImage.id,
       sb_paths: sbImage.paths,
       sb_code: sbImage.code,
@@ -454,38 +316,22 @@ class SbMediaProvider extends MediaSourceProvider {
     };
   }
 
-  /**
-   * Transform sb scene marker data to local format
-   * @param {Object} sbMarker - sb scene marker object
-   * @returns {Object} Transformed media object
-   */
   transformsbMarkerToLocal(sbMarker) {
-    // Generate a hash-like ID from the sb marker ID
-    const fileHash = `sb_marker_${sbMarker.id}`;
-
-    // Calculate duration from seconds and end_seconds
-    const duration = sbMarker.end_seconds
-      ? sbMarker.end_seconds - sbMarker.seconds
-      : null;
-
-    // Use scene file info if available
     const sceneFile = sbMarker.scene?.files?.[0];
-
     return {
       id: parseInt(sbMarker.id),
-      file_hash: fileHash,
-      file_path: sbMarker.stream, // Direct stream URL
+      file_hash: `sb_marker_${sbMarker.id}`,
+      file_path: sbMarker.stream,
       filename: sbMarker.title || `Marker ${sbMarker.id}`,
       file_size: sceneFile?.size || 0,
-      media_type: "video", // Markers are always video clips
+      media_type: "video",
       thumbnail_path: sbMarker.screenshot,
       date_added: sbMarker.created_at,
       date_created: sbMarker.scene?.date || sbMarker.created_at,
       date_modified: sbMarker.updated_at,
       last_seen: new Date().toISOString(),
-      // Additional sb-specific fields
       sb_id: sbMarker.id,
-      sb_type: "marker", // Distinguish from regular images/videos
+      sb_type: "marker",
       sb_marker_start: sbMarker.seconds,
       sb_marker_end: sbMarker.end_seconds,
       sb_scene_id: sbMarker.scene?.id,
@@ -499,23 +345,18 @@ class SbMediaProvider extends MediaSourceProvider {
       sb_tags: sbMarker.tags,
       width: sceneFile?.width,
       height: sceneFile?.height,
-      duration: duration,
+      duration: sbMarker.end_seconds
+        ? sbMarker.end_seconds - sbMarker.seconds
+        : null,
     };
   }
 
-  /**
-   * Get all media from sb
-   * @param {string} mediaType - Type of media to retrieve ('image', 'video', or 'all')
-   * @param {string} sortBy - Sorting parameters
-   * @returns {Promise<Array>} Array of media items
-   */
+  // ── Media Retrieval ────────────────────────────────────────────────
+
   async getAllMedia(mediaType = "all", sortBy = "random") {
-    if (!this.isInitialized) {
-      throw new Error("Provider not initialized");
-    }
+    if (!this.isInitialized) throw new Error("Provider not initialized");
 
     try {
-      // Check cache first
       const now = Date.now();
       if (
         this.mediaCache.length > 0 &&
@@ -526,50 +367,13 @@ class SbMediaProvider extends MediaSourceProvider {
       }
 
       log.info("Fetching media from sb server", { mediaType, sortBy });
+      const media = await this.fetchAndTransformMedia(sortBy);
 
-      // Fetch both images and markers in parallel
-      const [imagesResult, markersResult] = await Promise.all([
-        this.fetchImages({
-          sort: this.mapSortBy(sortBy),
-          per_page: 10000,
-        }),
-        this.fetchMarkers({
-          sort: this.mapSortBy(sortBy),
-          per_page: 10000,
-        }),
-      ]);
-
-      // Transform sb data to local format
-      const transformedMedia = [];
-
-      // Transform regular images/videos
-      for (const sbImage of imagesResult.images) {
-        const transformed = this.transformsbImageToLocal(sbImage);
-        if (transformed) {
-          transformedMedia.push(transformed);
-        }
-      }
-
-      // Transform scene markers
-      for (const sbMarker of markersResult.scene_markers) {
-        const transformed = this.transformsbMarkerToLocal(sbMarker);
-        if (transformed) {
-          transformedMedia.push(transformed);
-        }
-      }
-
-      // Update cache
-      this.mediaCache = transformedMedia;
+      this.mediaCache = media;
       this.lastFetchTime = now;
+      this.rebuildThumbnailMap();
 
-      log.info("Media fetched from sb", {
-        totalImages: imagesResult.count,
-        totalMarkers: markersResult.count,
-        transformedCount: transformedMedia.length,
-        mediaType,
-      });
-
-      return this.filterAndSortMedia(transformedMedia, mediaType, sortBy);
+      return this.filterAndSortMedia(media, mediaType, sortBy);
     } catch (error) {
       log.error("Failed to get media from sb", {
         mediaType,
@@ -580,17 +384,137 @@ class SbMediaProvider extends MediaSourceProvider {
     }
   }
 
+  async getMediaByTags(includeTags, excludeTags, mediaType, sortBy) {
+    if (!this.isInitialized) throw new Error("Provider not initialized");
+
+    if (
+      (!includeTags || includeTags.length === 0) &&
+      (!excludeTags || excludeTags.length === 0)
+    ) {
+      return this.getAllMedia(mediaType, sortBy);
+    }
+
+    try {
+      log.info("Filtering media by tags in sb", {
+        includeTags,
+        excludeTags,
+        mediaType,
+      });
+
+      const allTags = await this.getAllTags();
+      const includeIds = this.resolveTagNamesToIds(includeTags, allTags);
+      const excludeIds = this.resolveTagNamesToIds(excludeTags, allTags);
+
+      const buildTagFilter = () => {
+        const filter = {};
+        if (includeIds.length > 0)
+          filter.tags = { value: includeIds, modifier: "INCLUDES_ALL" };
+        if (excludeIds.length > 0)
+          filter.tags = { ...filter.tags, excludes: excludeIds };
+        return filter;
+      };
+
+      const imageFilter = buildTagFilter();
+      const markerFilter = buildTagFilter();
+
+      const media = await this.fetchAndTransformMedia(
+        sortBy,
+        imageFilter,
+        markerFilter,
+      );
+
+      log.info("Tag filtering completed for sb", {
+        includeTags,
+        excludeTags,
+        resultCount: media.length,
+      });
+      return this.filterAndSortMedia(media, mediaType, sortBy);
+    } catch (error) {
+      log.error("Failed to filter media by tags in sb", {
+        includeTags,
+        excludeTags,
+        mediaType,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
+
+  async getMediaByGeneralFilter(substring, mediaType, sortBy) {
+    const allMedia = await this.getAllMedia(mediaType, sortBy);
+    const term = substring.toLowerCase();
+
+    const filteredMedia = allMedia.filter((item) => {
+      const searchText = this.buildSearchText(item);
+      return searchText.includes(term);
+    });
+
+    log.info("Path substring filtering completed", {
+      substring,
+      totalMedia: allMedia.length,
+      filteredCount: filteredMedia.length,
+    });
+    return filteredMedia;
+  }
+
   /**
-   * Filter and sort media based on parameters
-   * @param {Array} media - Media array
-   * @param {string} mediaType - Type filter
-   * @param {string} sortBy - Sort parameter
-   * @returns {Array} Filtered and sorted media
+   * Build a single lowercase search string from all searchable fields of a media item.
    */
+  buildSearchText(item) {
+    const parts = [
+      item.file_path,
+      item.filename,
+      item.sb_code,
+      item.sb_id?.toString(),
+      item.id?.toString(),
+      item.sb_studio?.name,
+      item.sb_scene_title,
+      item.sb_scene_code,
+      item.sb_scene_id?.toString(),
+      item.sb_scene_studio?.name,
+      item.sb_primary_tag?.name,
+      item.sb_paths?.image,
+      item.sb_paths?.thumbnail,
+      item.sb_paths?.preview,
+    ];
+
+    const arrayFields = [
+      [item.sb_performers, "name"],
+      [item.sb_tags, "name"],
+      [item.sb_visual_files, "path"],
+      [item.sb_scene_performers, "name"],
+      [item.sb_scene_tags, "name"],
+      [item.sb_scene_files, "path"],
+    ];
+
+    for (const [arr, key] of arrayFields) {
+      if (Array.isArray(arr)) {
+        for (const entry of arr) {
+          if (entry[key]) parts.push(entry[key]);
+        }
+      }
+    }
+
+    return parts.filter(Boolean).join("\n").toLowerCase();
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────
+
+  resolveTagNamesToIds(tagNames, allTags) {
+    if (!tagNames || tagNames.length === 0) return [];
+    return tagNames
+      .map((name) => {
+        const tag = allTags.find(
+          (t) => t.name.toLowerCase() === name.toLowerCase(),
+        );
+        return tag?.id.toString();
+      })
+      .filter(Boolean);
+  }
+
   filterAndSortMedia(media, mediaType, sortBy) {
     let filtered = media;
 
-    // Filter by media type
     if (mediaType !== "all") {
       const targetType =
         mediaType === "photos"
@@ -601,7 +525,6 @@ class SbMediaProvider extends MediaSourceProvider {
       filtered = media.filter((item) => item.media_type === targetType);
     }
 
-    // Sort (sb handles most sorting, but we can do local sorting for cached data)
     if (sortBy === "random") {
       filtered = [...filtered].sort(() => Math.random() - 0.5);
     } else if (sortBy === "date_added") {
@@ -617,424 +540,90 @@ class SbMediaProvider extends MediaSourceProvider {
     return filtered;
   }
 
-  /**
-   * Map local sort parameters to sb sort parameters
-   * @param {string} sortBy - Local sort parameter
-   * @returns {string} sb sort parameter
-   */
   mapSortBy(sortBy) {
-    switch (sortBy) {
-      case "date_added":
-        return "created_at";
-      case "date_created":
-        return "date";
-      case "random":
-      default:
-        return "random";
-    }
+    const map = { date_added: "created_at", date_created: "date" };
+    return map[sortBy] || "random";
   }
-  /**
-   * Get media filtered by tags
-   * @param {Array} includeTags - Tag names that must be present
-   * @param {Array} excludeTags - Tag names that must not be present
-   * @param {string} mediaType - Type of media to retrieve
-   * @param {string} sortBy - Sorting parameters
-   * @returns {Promise<Array>} Array of filtered media items
-   */
-  async getMediaByTags(includeTags, excludeTags, mediaType, sortBy) {
-    if (!this.isInitialized) {
-      throw new Error("Provider not initialized");
-    }
 
-    try {
-      // If no tag filters, return all media
-      if (
-        (!includeTags || includeTags.length === 0) &&
-        (!excludeTags || excludeTags.length === 0)
-      ) {
-        return this.getAllMedia(mediaType, sortBy);
+  rebuildThumbnailMap() {
+    this.thumbnailMap.clear();
+    for (const item of this.mediaCache) {
+      if (item.thumbnail_path) {
+        this.thumbnailMap.set(item.file_hash, item.thumbnail_path);
       }
-
-      log.info("Filtering media by tags in sb", {
-        includeTags,
-        excludeTags,
-        mediaType,
-      });
-
-      // Build image filter for tags
-      const imageFilter = {};
-
-      if (includeTags && includeTags.length > 0) {
-        // Get tag IDs for include tags
-        const allTags = await this.getAllTags();
-        const includeTagIds = [];
-
-        for (const tagName of includeTags) {
-          const tag = allTags.find(
-            (t) => t.name.toLowerCase() === tagName.toLowerCase(),
-          );
-          if (tag) {
-            includeTagIds.push(tag.id.toString());
-          }
-        }
-
-        if (includeTagIds.length > 0) {
-          imageFilter.tags = {
-            value: includeTagIds,
-            modifier: "INCLUDES_ALL", // All specified tags must be present
-          };
-        }
-      }
-
-      if (excludeTags && excludeTags.length > 0) {
-        // Get tag IDs for exclude tags
-        const allTags = await this.getAllTags();
-        const excludeTagIds = [];
-
-        for (const tagName of excludeTags) {
-          const tag = allTags.find(
-            (t) => t.name.toLowerCase() === tagName.toLowerCase(),
-          );
-          if (tag) {
-            excludeTagIds.push(tag.id.toString());
-          }
-        }
-
-        if (excludeTagIds.length > 0) {
-          imageFilter.tags = {
-            ...imageFilter.tags,
-            excludes: excludeTagIds,
-          };
-        }
-      }
-
-      // Build marker filter for tags (similar structure)
-      const markerFilter = {};
-      if (includeTags && includeTags.length > 0) {
-        const allTags = await this.getAllTags();
-        const includeTagIds = [];
-
-        for (const tagName of includeTags) {
-          const tag = allTags.find(
-            (t) => t.name.toLowerCase() === tagName.toLowerCase(),
-          );
-          if (tag) {
-            includeTagIds.push(tag.id.toString());
-          }
-        }
-
-        if (includeTagIds.length > 0) {
-          markerFilter.tags = {
-            value: includeTagIds,
-            modifier: "INCLUDES_ALL",
-          };
-        }
-      }
-
-      if (excludeTags && excludeTags.length > 0) {
-        // Get tag IDs for exclude tags
-        const allTags = await this.getAllTags();
-        const excludeTagIds = [];
-
-        for (const tagName of excludeTags) {
-          const tag = allTags.find(
-            (t) => t.name.toLowerCase() === tagName.toLowerCase(),
-          );
-          if (tag) {
-            excludeTagIds.push(tag.id.toString());
-          }
-        }
-
-        if (excludeTagIds.length > 0) {
-          markerFilter.tags = {
-            ...markerFilter.tags,
-            excludes: excludeTagIds,
-          };
-        }
-      }
-
-      // Fetch filtered images and markers in parallel
-      const [imagesResult, markersResult] = await Promise.all([
-        this.fetchImages({
-          sort: this.mapSortBy(sortBy),
-          per_page: 10000,
-          image_filter: imageFilter,
-        }),
-        this.fetchMarkers({
-          sort: this.mapSortBy(sortBy),
-          per_page: 10000,
-          scene_marker_filter: markerFilter,
-        }),
-      ]);
-
-      // Transform sb data to local format
-      const transformedMedia = [];
-
-      // Transform regular images/videos
-      for (const sbImage of imagesResult.images) {
-        const transformed = this.transformsbImageToLocal(sbImage);
-        if (transformed) {
-          transformedMedia.push(transformed);
-        }
-      }
-
-      // Transform scene markers
-      for (const sbMarker of markersResult.scene_markers) {
-        const transformed = this.transformsbMarkerToLocal(sbMarker);
-        if (transformed) {
-          transformedMedia.push(transformed);
-        }
-      }
-
-      log.info("Tag filtering completed for sb", {
-        includeTags,
-        excludeTags,
-        totalImages: imagesResult.count,
-        totalMarkers: markersResult.count,
-        resultCount: transformedMedia.length,
-      });
-
-      return this.filterAndSortMedia(transformedMedia, mediaType, sortBy);
-    } catch (error) {
-      log.error("Failed to filter media by tags in sb", {
-        includeTags,
-        excludeTags,
-        mediaType,
-        error: error.message,
-      });
-      throw error;
     }
   }
 
-  /**
-   * Get media filtered by general filter substring - searches across all available fields
-   * @param {string} substring - Substring to match in file paths and related fields
-   * @param {string} mediaType - Type of media to retrieve
-   * @param {string} sortBy - Sorting parameters
-   * @returns {Promise<Array>} Array of filtered media items
-   */
-  async getMediaByGeneralFilter(substring, mediaType, sortBy) {
-    const allMedia = await this.getAllMedia(mediaType, sortBy);
-    const searchTerm = substring.toLowerCase();
-
-    log.info("Filtering media by general filter", {
-      substring,
-      mediaType,
-      totalMedia: allMedia.length,
-      searchFields: [
-        "file_path",
-        "filename",
-        "sb_paths",
-        "sb_visual_files.path",
-        "sb_code",
-        "sb_studio.name",
-        "sb_performers.name",
-        "sb_tags.name",
-        "sb_scene_title",
-        "sb_scene_code",
-        "sb_scene_studio.name",
-        "sb_scene_performers.name",
-        "sb_scene_tags.name",
-        "sb_scene_files.path",
-        "sb_primary_tag.name",
-        "sb_id",
-        "id",
-      ],
-    });
-
-    const filteredMedia = allMedia.filter((item) => {
-      // Search in basic fields
-      if (item.file_path?.toLowerCase().includes(searchTerm)) return true;
-      if (item.filename?.toLowerCase().includes(searchTerm)) return true;
-
-      // Search in sb-specific paths
-      if (item.sb_paths) {
-        if (item.sb_paths.image?.toLowerCase().includes(searchTerm))
-          return true;
-        if (item.sb_paths.thumbnail?.toLowerCase().includes(searchTerm))
-          return true;
-        if (item.sb_paths.preview?.toLowerCase().includes(searchTerm))
-          return true;
-      }
-
-      // Search in visual files paths (for images/videos)
-      if (item.sb_visual_files && Array.isArray(item.sb_visual_files)) {
-        for (const file of item.sb_visual_files) {
-          if (file.path?.toLowerCase().includes(searchTerm)) return true;
-        }
-      }
-
-      // Search in code field
-      if (item.sb_code?.toLowerCase().includes(searchTerm)) return true;
-
-      // Search in studio
-      if (item.sb_studio?.name?.toLowerCase().includes(searchTerm)) return true;
-
-      // Search in performers
-      if (item.sb_performers && Array.isArray(item.sb_performers)) {
-        for (const performer of item.sb_performers) {
-          if (performer.name?.toLowerCase().includes(searchTerm)) return true;
-        }
-      }
-
-      // Search in tags (for images/videos)
-      if (item.sb_tags && Array.isArray(item.sb_tags)) {
-        for (const tag of item.sb_tags) {
-          if (tag.name?.toLowerCase().includes(searchTerm)) return true;
-        }
-      }
-
-      // For markers, search in scene-related fields
-      if (item.sb_type === "marker") {
-        if (item.sb_scene_title?.toLowerCase().includes(searchTerm))
-          return true;
-        if (item.sb_scene_id?.toString().includes(searchTerm)) return true;
-        if (item.sb_scene_code?.toLowerCase().includes(searchTerm)) return true;
-
-        // Search in scene studio
-        if (item.sb_scene_studio?.name?.toLowerCase().includes(searchTerm))
-          return true;
-
-        // Search in scene performers
-        if (
-          item.sb_scene_performers &&
-          Array.isArray(item.sb_scene_performers)
-        ) {
-          for (const performer of item.sb_scene_performers) {
-            if (performer.name?.toLowerCase().includes(searchTerm)) return true;
-          }
-        }
-
-        // Search in scene tags
-        if (item.sb_scene_tags && Array.isArray(item.sb_scene_tags)) {
-          for (const tag of item.sb_scene_tags) {
-            if (tag.name?.toLowerCase().includes(searchTerm)) return true;
-          }
-        }
-
-        // Search in scene files paths
-        if (item.sb_scene_files && Array.isArray(item.sb_scene_files)) {
-          for (const file of item.sb_scene_files) {
-            if (file.path?.toLowerCase().includes(searchTerm)) return true;
-          }
-        }
-
-        // Search in primary tag
-        if (item.sb_primary_tag?.name?.toLowerCase().includes(searchTerm))
-          return true;
-
-        // Search in marker tags
-        if (item.sb_tags && Array.isArray(item.sb_tags)) {
-          for (const tag of item.sb_tags) {
-            if (tag.name?.toLowerCase().includes(searchTerm)) return true;
-          }
-        }
-      }
-
-      // Search in IDs (useful for finding specific items)
-      if (item.sb_id?.toString().includes(searchTerm)) return true;
-      if (item.id?.toString().includes(searchTerm)) return true;
-
-      return false;
-    });
-
-    log.info("Path substring filtering completed", {
-      substring,
-      totalMedia: allMedia.length,
-      filteredCount: filteredMedia.length,
-    });
-
-    return filteredMedia;
+  invalidateCache() {
+    this.mediaCache = [];
+    this.lastFetchTime = null;
+    this.tagsCache = null;
+    this.tagsCacheTime = null;
+    this.thumbnailMap.clear();
   }
 
-  /**
-   * Get all tags from sb
-   * @returns {Promise<Array>} Array of tags
-   */
+  // ── Tags ───────────────────────────────────────────────────────────
+
   async getAllTags() {
-    if (!this.isInitialized) {
-      throw new Error("Provider not initialized");
+    if (!this.isInitialized) throw new Error("Provider not initialized");
+
+    const now = Date.now();
+    if (
+      this.tagsCache &&
+      this.tagsCacheTime &&
+      now - this.tagsCacheTime < this.cacheTimeout
+    ) {
+      return this.tagsCache;
     }
 
     try {
       const query = `
         query FindTags($filter: FindFilterType) {
-          findTags(filter: $filter) {
-            count
-            tags {
-              id
-              name
-              image_count
-            }
-          }
+          findTags(filter: $filter) { count tags { id name image_count } }
         }
       `;
-
       const variables = {
-        filter: {
-          per_page: 10000,
-          sort: "name",
-          direction: "ASC",
-        },
+        filter: { per_page: 10000, sort: "name", direction: "ASC" },
       };
-
       const response = await this.makeGraphQLRequest(query, variables);
-      const sbTags = response.data.findTags.tags;
 
-      // Transform to local format
-      return sbTags.map((tag) => ({
+      this.tagsCache = response.data.findTags.tags.map((tag) => ({
         id: parseInt(tag.id),
         name: tag.name,
-        color: "#3B82F6", // Default color since sb doesn't have tag colors
+        color: "#3B82F6",
         created_at: new Date().toISOString(),
         image_count: tag.image_count || 0,
       }));
+      this.tagsCacheTime = now;
+      return this.tagsCache;
     } catch (error) {
       log.error("Failed to get tags from sb", { error: error.message });
       throw error;
     }
   }
 
-  /**
-   * Create a new tag in sb
-   * @param {string} name - Tag name
-   * @param {string} color - Tag color (ignored for sb)
-   * @returns {Promise<Object>} Created tag
-   */
   async createTag(name, color = "#3B82F6") {
-    if (!this.isInitialized) {
-      throw new Error("Provider not initialized");
-    }
+    if (!this.isInitialized) throw new Error("Provider not initialized");
 
     try {
       const query = `
         mutation TagCreate($input: TagCreateInput!) {
-          tagCreate(input: $input) {
-            id
-            name
-            image_count
-          }
+          tagCreate(input: $input) { id name image_count }
         }
       `;
-
-      const variables = {
-        input: {
-          name: name.trim(),
-        },
-      };
-
-      const response = await this.makeGraphQLRequest(query, variables);
+      const response = await this.makeGraphQLRequest(query, {
+        input: { name: name.trim() },
+      });
       const sbTag = response.data.tagCreate;
-
-      // Transform to local format
       const tag = {
         id: parseInt(sbTag.id),
         name: sbTag.name,
-        color: color, // Store the color locally even though sb doesn't use it
+        color,
         created_at: new Date().toISOString(),
         image_count: sbTag.image_count || 0,
       };
-
+      this.tagsCache = null;
+      this.tagsCacheTime = null;
       log.info("Tag created in sb", { tagId: tag.id, name: tag.name });
       return tag;
     } catch (error) {
@@ -1049,42 +638,22 @@ class SbMediaProvider extends MediaSourceProvider {
     }
   }
 
-  /**
-   * Update an existing tag (not supported for sb)
-   * @param {string|number} id - Tag ID
-   * @param {string} name - New tag name
-   * @param {string} color - New tag color
-   * @returns {Promise<Object>} Updated tag
-   */
   async updateTag(id, name, color) {
     throw new Error(
       "Tag updates not supported by sbMediaProvider - use sb interface to manage tags",
     );
   }
 
-  /**
-   * Delete a tag (not supported for sb)
-   * @param {string|number} id - Tag ID
-   * @returns {Promise<boolean>} Success status
-   */
   async deleteTag(id) {
     throw new Error(
       "Tag deletion not supported by sbMediaProvider - use sb interface to manage tags",
     );
   }
 
-  /**
-   * Get all tags associated with a media item
-   * @param {string|number} mediaId - Media item ID (file_hash for sb)
-   * @returns {Promise<Array>} Array of tags
-   */
   async getMediaTags(mediaId) {
-    if (!this.isInitialized) {
-      throw new Error("Provider not initialized");
-    }
+    if (!this.isInitialized) throw new Error("Provider not initialized");
 
     try {
-      // Extract sb ID and type from file hash
       const sbInfo = this.extractsbIdFromHash(mediaId);
       if (!sbInfo) {
         log.warn(
@@ -1094,72 +663,42 @@ class SbMediaProvider extends MediaSourceProvider {
         return [];
       }
 
-      let query, variables, responseData;
+      let sbTags;
 
       if (sbInfo.type === "marker") {
-        query = `
+        const query = `
           query FindSceneMarker($id: ID!) {
             findSceneMarkers(ids: [$id]) {
-              scene_markers {
-                id
-                primary_tag {
-                  id
-                  name
-                }
-                tags {
-                  id
-                  name
-                }
-              }
+              scene_markers { id primary_tag { id name } tags { id name } }
             }
           }
         `;
-        variables = { id: sbInfo.id };
-        const response = await this.makeGraphQLRequest(query, variables);
+        const response = await this.makeGraphQLRequest(query, {
+          id: sbInfo.id,
+        });
         const marker = response.data.findSceneMarkers?.scene_markers?.[0];
-
-        if (!marker) {
-          return [];
-        }
-
-        // Combine primary tag and additional tags
-        const allTags = [];
-        if (marker.primary_tag) {
-          allTags.push(marker.primary_tag);
-        }
-        if (marker.tags) {
-          allTags.push(...marker.tags);
-        }
-        responseData = allTags;
+        if (!marker) return [];
+        sbTags = [
+          ...(marker.primary_tag ? [marker.primary_tag] : []),
+          ...(marker.tags || []),
+        ];
       } else {
-        query = `
+        const query = `
           query FindImage($id: ID!) {
-            findImage(id: $id) {
-              id
-              tags {
-                id
-                name
-              }
-            }
+            findImage(id: $id) { id tags { id name } }
           }
         `;
-        variables = { id: sbInfo.id };
-        const response = await this.makeGraphQLRequest(query, variables);
-
-        if (!response.data.findImage) {
-          return [];
-        }
-
-        responseData = response.data.findImage.tags || [];
+        const response = await this.makeGraphQLRequest(query, {
+          id: sbInfo.id,
+        });
+        if (!response.data.findImage) return [];
+        sbTags = response.data.findImage.tags || [];
       }
 
-      const sbTags = responseData;
-
-      // Transform to local format
       return sbTags.map((tag) => ({
         id: parseInt(tag.id),
         name: tag.name,
-        color: "#3B82F6", // Default color
+        color: "#3B82F6",
         created_at: new Date().toISOString(),
       }));
     } catch (error) {
@@ -1171,19 +710,10 @@ class SbMediaProvider extends MediaSourceProvider {
     }
   }
 
-  /**
-   * Add a tag to a media item
-   * @param {string|number} mediaId - Media item ID (file_hash for sb)
-   * @param {string|number} tagId - Tag ID
-   * @returns {Promise<boolean>} Success status
-   */
   async addTagToMedia(mediaId, tagId) {
-    if (!this.isInitialized) {
-      throw new Error("Provider not initialized");
-    }
+    if (!this.isInitialized) throw new Error("Provider not initialized");
 
     try {
-      // Extract sb ID and type from file hash
       const sbInfo = this.extractsbIdFromHash(mediaId);
       if (!sbInfo) {
         log.warn(
@@ -1193,102 +723,24 @@ class SbMediaProvider extends MediaSourceProvider {
         return false;
       }
 
-      // First get current tags
       const currentTags = await this.getMediaTags(mediaId);
-      const currentTagIds = currentTags.map((tag) => tag.id.toString());
-
-      // Check if tag is already added
-      if (currentTagIds.includes(tagId.toString())) {
-        return false; // Tag already exists
-      }
+      const currentTagIds = currentTags.map((t) => t.id.toString());
+      if (currentTagIds.includes(tagId.toString())) return false;
 
       if (sbInfo.type === "marker") {
-        // For markers, we can only add to the additional tags (not primary_tag)
-        // Get current marker data to preserve primary_tag
-        const markerQuery = `
-          query FindSceneMarker($id: ID!) {
-            findSceneMarkers(ids: [$id]) {
-              scene_markers {
-                id
-                primary_tag {
-                  id
-                }
-                tags {
-                  id
-                }
-              }
-            }
-          }
-        `;
-
-        const markerResponse = await this.makeGraphQLRequest(markerQuery, {
-          id: sbInfo.id,
-        });
-        const marker = markerResponse.data.findSceneMarkers?.scene_markers?.[0];
-
-        if (!marker) {
-          throw new Error("Marker not found");
-        }
-
-        // Get current additional tag IDs (excluding primary tag)
-        const currentAdditionalTagIds =
-          marker.tags?.map((tag) => tag.id.toString()) || [];
-        const updatedTagIds = [...currentAdditionalTagIds, tagId.toString()];
-
-        const updateQuery = `
-          mutation SceneMarkerUpdate($input: SceneMarkerUpdateInput!) {
-            sceneMarkerUpdate(input: $input) {
-              id
-              primary_tag {
-                id
-                name
-              }
-              tags {
-                id
-                name
-              }
-            }
-          }
-        `;
-
-        const variables = {
-          input: {
-            id: sbInfo.id,
-            tag_ids: updatedTagIds,
-          },
-        };
-
-        await this.makeGraphQLRequest(updateQuery, variables);
+        const markerTags = await this.getMarkerAdditionalTagIds(sbInfo.id);
+        await this.updateMarkerTags(sbInfo.id, [
+          ...markerTags,
+          tagId.toString(),
+        ]);
       } else {
-        // For regular images, add to tag_ids
-        const updatedTagIds = [...currentTagIds, tagId.toString()];
-
-        const query = `
-          mutation ImageUpdate($input: ImageUpdateInput!) {
-            imageUpdate(input: $input) {
-              id
-              tags {
-                id
-                name
-              }
-            }
-          }
-        `;
-
-        const variables = {
-          input: {
-            id: sbInfo.id,
-            tag_ids: updatedTagIds,
-          },
-        };
-
-        await this.makeGraphQLRequest(query, variables);
+        await this.updateImageTags(sbInfo.id, [
+          ...currentTagIds,
+          tagId.toString(),
+        ]);
       }
 
-      // Clear cache to force refresh
-      this.mediaCache = [];
-      this.lastFetchTime = null;
-
+      this.invalidateCache();
       log.info("Tag added to media in sb", {
         mediaId,
         tagId,
@@ -1306,19 +758,10 @@ class SbMediaProvider extends MediaSourceProvider {
     }
   }
 
-  /**
-   * Remove a tag from a media item
-   * @param {string|number} mediaId - Media item ID (file_hash for sb)
-   * @param {string|number} tagId - Tag ID
-   * @returns {Promise<boolean>} Success status
-   */
   async removeTagFromMedia(mediaId, tagId) {
-    if (!this.isInitialized) {
-      throw new Error("Provider not initialized");
-    }
+    if (!this.isInitialized) throw new Error("Provider not initialized");
 
     try {
-      // Extract sb ID and type from file hash
       const sbInfo = this.extractsbIdFromHash(mediaId);
       if (!sbInfo) {
         log.warn(
@@ -1328,113 +771,31 @@ class SbMediaProvider extends MediaSourceProvider {
         return false;
       }
 
-      // First get current tags
       const currentTags = await this.getMediaTags(mediaId);
-      const currentTagIds = currentTags.map((tag) => tag.id.toString());
-
-      // Check if tag exists
-      if (!currentTagIds.includes(tagId.toString())) {
-        return false; // Tag doesn't exist
-      }
+      const currentTagIds = currentTags.map((t) => t.id.toString());
+      if (!currentTagIds.includes(tagId.toString())) return false;
 
       if (sbInfo.type === "marker") {
-        // For markers, we can only remove from additional tags (not primary_tag)
-        const markerQuery = `
-          query FindSceneMarker($id: ID!) {
-            findSceneMarkers(ids: [$id]) {
-              scene_markers {
-                id
-                primary_tag {
-                  id
-                }
-                tags {
-                  id
-                }
-              }
-            }
-          }
-        `;
-
-        const markerResponse = await this.makeGraphQLRequest(markerQuery, {
-          id: sbInfo.id,
-        });
-        const marker = markerResponse.data.findSceneMarkers?.scene_markers?.[0];
-
-        if (!marker) {
-          throw new Error("Marker not found");
-        }
-
-        // Check if trying to remove primary tag
-        if (
-          marker.primary_tag &&
-          marker.primary_tag.id.toString() === tagId.toString()
-        ) {
+        const markerData = await this.getMarkerData(sbInfo.id);
+        if (!markerData) throw new Error("Marker not found");
+        if (markerData.primary_tag?.id.toString() === tagId.toString()) {
           throw new Error("Cannot remove primary tag from marker");
         }
-
-        // Remove from additional tags only
-        const currentAdditionalTagIds =
-          marker.tags?.map((tag) => tag.id.toString()) || [];
-        const updatedTagIds = currentAdditionalTagIds.filter(
-          (id) => id !== tagId.toString(),
+        const additionalTagIds = (markerData.tags || []).map((t) =>
+          t.id.toString(),
         );
-
-        const updateQuery = `
-          mutation SceneMarkerUpdate($input: SceneMarkerUpdateInput!) {
-            sceneMarkerUpdate(input: $input) {
-              id
-              primary_tag {
-                id
-                name
-              }
-              tags {
-                id
-                name
-              }
-            }
-          }
-        `;
-
-        const variables = {
-          input: {
-            id: sbInfo.id,
-            tag_ids: updatedTagIds,
-          },
-        };
-
-        await this.makeGraphQLRequest(updateQuery, variables);
+        await this.updateMarkerTags(
+          sbInfo.id,
+          additionalTagIds.filter((id) => id !== tagId.toString()),
+        );
       } else {
-        // For regular images, remove from tag_ids
-        const updatedTagIds = currentTagIds.filter(
-          (id) => id !== tagId.toString(),
+        await this.updateImageTags(
+          sbInfo.id,
+          currentTagIds.filter((id) => id !== tagId.toString()),
         );
-
-        const query = `
-          mutation ImageUpdate($input: ImageUpdateInput!) {
-            imageUpdate(input: $input) {
-              id
-              tags {
-                id
-                name
-              }
-            }
-          }
-        `;
-
-        const variables = {
-          input: {
-            id: sbInfo.id,
-            tag_ids: updatedTagIds,
-          },
-        };
-
-        await this.makeGraphQLRequest(query, variables);
       }
 
-      // Clear cache to force refresh
-      this.mediaCache = [];
-      this.lastFetchTime = null;
-
+      this.invalidateCache();
       log.info("Tag removed from media in sb", {
         mediaId,
         tagId,
@@ -1452,20 +813,56 @@ class SbMediaProvider extends MediaSourceProvider {
     }
   }
 
-  /**
-   * Get statistics about the media collection
-   * @returns {Promise<Object>} Statistics object
-   */
-  async getStats() {
-    if (!this.isInitialized) {
-      throw new Error("Provider not initialized");
-    }
+  // ── Tag mutation helpers ───────────────────────────────────────────
 
+  async getMarkerData(markerId) {
+    const query = `
+      query FindSceneMarker($id: ID!) {
+        findSceneMarkers(ids: [$id]) {
+          scene_markers { id primary_tag { id } tags { id } }
+        }
+      }
+    `;
+    const response = await this.makeGraphQLRequest(query, { id: markerId });
+    return response.data.findSceneMarkers?.scene_markers?.[0] || null;
+  }
+
+  async getMarkerAdditionalTagIds(markerId) {
+    const marker = await this.getMarkerData(markerId);
+    if (!marker) throw new Error("Marker not found");
+    return (marker.tags || []).map((t) => t.id.toString());
+  }
+
+  async updateMarkerTags(markerId, tagIds) {
+    const query = `
+      mutation SceneMarkerUpdate($input: SceneMarkerUpdateInput!) {
+        sceneMarkerUpdate(input: $input) { id primary_tag { id name } tags { id name } }
+      }
+    `;
+    await this.makeGraphQLRequest(query, {
+      input: { id: markerId, tag_ids: tagIds },
+    });
+  }
+
+  async updateImageTags(imageId, tagIds) {
+    const query = `
+      mutation ImageUpdate($input: ImageUpdateInput!) {
+        imageUpdate(input: $input) { id tags { id name } }
+      }
+    `;
+    await this.makeGraphQLRequest(query, {
+      input: { id: imageId, tag_ids: tagIds },
+    });
+  }
+
+  // ── Stats & IDs ────────────────────────────────────────────────────
+
+  async getStats() {
+    if (!this.isInitialized) throw new Error("Provider not initialized");
     try {
       const allMedia = await this.getAllMedia("all");
       const images = allMedia.filter((item) => item.media_type === "image");
       const videos = allMedia.filter((item) => item.media_type === "video");
-
       return {
         totalFiles: allMedia.length,
         totalImages: images.length,
@@ -1486,101 +883,110 @@ class SbMediaProvider extends MediaSourceProvider {
     }
   }
 
-  /**
-   * Get file hash for a given path
-   * @param {string} filePath - File path
-   * @returns {string} File hash
-   */
   getFileHashForPath(filePath) {
-    // For sb, we'll try to extract the ID from the path
-
-    // Check for marker stream URLs - correct pattern based on logs
     const markerMatch = filePath.match(
       /scene\/(\d+)\/scene_marker\/(\d+)\/stream/,
     );
-    if (markerMatch) {
-      return `sb_marker_${markerMatch[2]}`;
-    }
-
-    // Check for regular image URLs
+    if (markerMatch) return `sb_marker_${markerMatch[2]}`;
     const imageMatch = filePath.match(/image\/(\d+)/);
-    if (imageMatch) {
-      return `sb_${imageMatch[1]}`;
-    }
-
-    // Fallback: create hash from path
+    if (imageMatch) return `sb_${imageMatch[1]}`;
     return `sb_path_${Buffer.from(filePath).toString("base64").slice(0, 16)}`;
   }
 
-  /**
-   * Extract sb ID from file hash
-   * @param {string} fileHash - File hash (e.g., "sb_123" or "sb_marker_456")
-   * @returns {Object|null} Object with id and type, or null if invalid
-   */
   extractsbIdFromHash(fileHash) {
-    if (typeof fileHash === "string") {
-      if (fileHash.startsWith("sb_marker_")) {
-        return {
-          id: fileHash.replace("sb_marker_", ""),
-          type: "marker",
-        };
-      } else if (fileHash.startsWith("sb_scene_")) {
-        return {
-          id: fileHash.replace("sb_scene_", ""),
-          type: "scene",
-        };
-      } else if (fileHash.startsWith("sb_path_")) {
-        // This is a fallback hash, we can't extract a valid ID
-        return null;
-      } else if (fileHash.startsWith("sb_")) {
-        return {
-          id: fileHash.replace("sb_", ""),
-          type: "image",
-        };
-      }
-    }
+    if (typeof fileHash !== "string") return null;
+    if (fileHash.startsWith("sb_marker_"))
+      return { id: fileHash.replace("sb_marker_", ""), type: "marker" };
+    if (fileHash.startsWith("sb_scene_"))
+      return { id: fileHash.replace("sb_scene_", ""), type: "scene" };
+    if (fileHash.startsWith("sb_path_")) return null;
+    if (fileHash.startsWith("sb_"))
+      return { id: fileHash.replace("sb_", ""), type: "image" };
     return null;
   }
 
-  /**
-   * Rescan directory (not applicable for sb)
-   * @returns {Promise<Array>} Array of media items
-   */
+  // ── Serving (proxy) ────────────────────────────────────────────────
+
+  async proxyFetch(url, res, errorLabel = "media") {
+    const headers = this.apiKey ? { ApiKey: this.apiKey } : {};
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      log.error(`Server returned error for ${errorLabel}`, {
+        url,
+        status: response.status,
+      });
+      return res.status(404).send(`${errorLabel} not found on server`);
+    }
+    const contentType = response.headers.get("content-type");
+    if (contentType) res.set("Content-Type", contentType);
+    const buffer = await response.arrayBuffer();
+    res.send(Buffer.from(buffer));
+  }
+
+  async serveMedia(filePath, res) {
+    try {
+      if (!filePath.startsWith("http"))
+        return res.status(400).send("Invalid media path for provider");
+      await this.proxyFetch(filePath, res, "Media");
+    } catch (error) {
+      log.error("Failed to serve media file", {
+        filePath,
+        error: error.message,
+      });
+      res.status(500).send("Failed to serve media file");
+    }
+  }
+
+  async serveThumbnail(fileHash, res) {
+    try {
+      const thumbnailPath = this.thumbnailMap.get(fileHash);
+      if (!thumbnailPath) {
+        // Fallback: try refreshing cache if map is empty
+        if (this.thumbnailMap.size === 0 && this.mediaCache.length === 0) {
+          await this.getAllMedia("all");
+          const retryPath = this.thumbnailMap.get(fileHash);
+          if (!retryPath) return res.status(404).send("Thumbnail not found");
+          return this.proxyFetch(retryPath, res, "Thumbnail");
+        }
+        return res.status(404).send("Thumbnail not found");
+      }
+      await this.proxyFetch(thumbnailPath, res, "Thumbnail");
+    } catch (error) {
+      log.error("Failed to serve thumbnail file", {
+        fileHash,
+        error: error.message,
+      });
+      res.status(500).send("Failed to serve thumbnail file");
+    }
+  }
+
+  // ── Unsupported operations ─────────────────────────────────────────
+
   async rescanDirectory() {
     throw new Error(
       "Directory rescan not supported by sbMediaProvider. Use getAllMedia() to refresh data from sb server.",
     );
   }
 
-  /**
-   * Regenerate thumbnails (not applicable for sb)
-   * @returns {Promise<number>} Number of regenerated thumbnails
-   */
   async regenerateThumbnails() {
     throw new Error(
       "Thumbnail regeneration not supported by sbMediaProvider. Thumbnails are managed by sb server.",
     );
   }
 
-  /**
-   * Get provider capabilities for UI configuration
-   * @returns {Object} Provider capabilities object
-   */
+  // ── UI Config ──────────────────────────────────────────────────────
+
   getCapabilities() {
     return {
       canRescan: false,
       canRegenerateThumbnails: false,
-      canManageTags: false, // SB has limited tag management (can't update/delete)
+      canManageTags: false,
       canGetFileHashForPath: false,
       supportsLocalFiles: false,
       supportsRemoteFiles: true,
     };
   }
 
-  /**
-   * Get UI configuration for this provider
-   * @returns {Object} UI configuration object
-   */
   getUIConfig() {
     const capabilities = this.getCapabilities();
     return {
@@ -1600,18 +1006,10 @@ class SbMediaProvider extends MediaSourceProvider {
     };
   }
 
-  /**
-   * Compute display name for SB media files
-   * @param {Object} mediaFile - Media file object
-   * @param {string} directoryPath - Directory path context (unused for SB)
-   * @returns {string} Display name
-   */
   computeDisplayName(mediaFile, directoryPath) {
     if (!mediaFile) return "";
 
-    // For markers, prioritize scene info and performers
     if (mediaFile.sb_type === "marker") {
-      // Try performer names first
       if (mediaFile.sb_scene_performers?.length > 0) {
         const performers = mediaFile.sb_scene_performers
           .map((p) => p.name)
@@ -1620,18 +1018,14 @@ class SbMediaProvider extends MediaSourceProvider {
           ? performers.substring(0, 27) + "..."
           : performers;
       }
-      // Fall back to scene title
       if (mediaFile.sb_scene_title) {
         return mediaFile.sb_scene_title.length > 30
           ? mediaFile.sb_scene_title.substring(0, 27) + "..."
           : mediaFile.sb_scene_title;
       }
-      // Fall back to studio name
-      if (mediaFile.sb_scene_studio?.name) {
+      if (mediaFile.sb_scene_studio?.name)
         return mediaFile.sb_scene_studio.name;
-      }
     } else {
-      // For regular images/videos, try performers first
       if (mediaFile.sb_performers?.length > 0) {
         const performers = mediaFile.sb_performers
           .map((p) => p.name)
@@ -1640,173 +1034,74 @@ class SbMediaProvider extends MediaSourceProvider {
           ? performers.substring(0, 27) + "..."
           : performers;
       }
-      // Extract directory name from filename path
       if (mediaFile.filename) {
         const pathParts = mediaFile.filename.split("/");
-        // Get the deepest directory (second to last part, since last part is the file)
-        if (pathParts.length >= 2) {
-          const directoryName = pathParts[pathParts.length - 2];
-          return directoryName;
-        }
+        if (pathParts.length >= 2) return pathParts[pathParts.length - 2];
       }
-      // Fall back to showing the image ID in a more user-friendly way
-      if (mediaFile.sb_id) {
-        return `Image #${mediaFile.sb_id}`;
-      }
+      if (mediaFile.sb_id) return `Image #${mediaFile.sb_id}`;
     }
 
-    // Final fallback for SB: show "S Server"
     return "S Server";
   }
 
-  /**
-   * Serve media file (proxy from server)
-   * @param {string} filePath - URL or path to the media file
-   * @param {Object} res - Express response object
-   */
-  async serveMedia(filePath, res) {
-    try {
-      if (filePath.startsWith("http")) {
-        try {
-          const fetchOptions = {};
+  // ── Media Info ─────────────────────────────────────────────────────
 
-          // Add API key header if configured
-          if (this.apiKey) {
-            fetchOptions.headers = {
-              ApiKey: this.apiKey,
-            };
-          }
-
-          const response = await fetch(filePath, fetchOptions);
-          if (!response.ok) {
-            log.error("Server returned error", {
-              filePath,
-              status: response.status,
-              statusText: response.statusText,
-            });
-            return res.status(404).send("Media not found on server");
-          }
-
-          const contentType = response.headers.get("content-type");
-          if (contentType) {
-            res.set("Content-Type", contentType);
-          }
-
-          // Get the response as a buffer and send it
-          const buffer = await response.arrayBuffer();
-          res.send(Buffer.from(buffer));
-        } catch (fetchError) {
-          log.error("Failed to fetch media from Server", {
-            filePath,
-            error: fetchError.message,
-          });
-          return res.status(500).send("Failed to fetch media from server");
-        }
-      } else {
-        return res.status(400).send("Invalid media path for provider");
-      }
-    } catch (error) {
-      log.error("Failed to serve media file", {
-        filePath,
-        error: error.message,
-      });
-      res.status(500).send("Failed to serve media file");
-    }
-  }
-
-  /**
-   * Serve thumbnail file (proxy from server)
-   * @param {string} fileHash - File hash identifier
-   * @param {Object} res - Express response object
-   */
-  async serveThumbnail(fileHash, res) {
-    try {
-      // Get the thumbnail URL from the media data
-      const allMedia = await this.getAllMedia("all");
-      const mediaItem = allMedia.find((item) => item.file_hash === fileHash);
-
-      if (!mediaItem || !mediaItem.thumbnail_path) {
-        return res.status(404).send("Thumbnail not found");
-      }
-
-      // Proxy the thumbnail from source
-      const fetchOptions = {};
-
-      // Add API key header if configured
-      if (this.apiKey) {
-        fetchOptions.headers = {
-          ApiKey: this.apiKey,
-        };
-      }
-
-      const response = await fetch(mediaItem.thumbnail_path, fetchOptions);
-      if (!response.ok) {
-        log.error("Server returned error for thumbnail", {
-          thumbnailPath: mediaItem.thumbnail_path,
-          status: response.status,
-          statusText: response.statusText,
-        });
-        return res.status(404).send("Thumbnail not found on server");
-      }
-
-      const contentType = response.headers.get("content-type");
-      if (contentType) {
-        res.set("Content-Type", contentType);
-      }
-
-      // Get the response as a buffer and send it
-      const buffer = await response.arrayBuffer();
-      res.send(Buffer.from(buffer));
-    } catch (error) {
-      log.error("Failed to serve thumbnail file", {
-        fileHash,
-        error: error.message,
-      });
-      res.status(500).send("Failed to serve thumbnail file");
-    }
-  }
-
-  /**
-   * Get detailed media info with sb-specific metadata
-   * @param {Object} mediaFile - The full media file object
-   * @returns {Object} { sections: [{ title, fields }] }
-   */
   getMediaInfo(mediaFile) {
     const result = super.getMediaInfo(mediaFile);
-
     if (!mediaFile) return result;
 
-    // Source info section
+    // Source info
     const sourceFields = [];
-    if (mediaFile.sb_studio?.name) {
-      sourceFields.push({ label: "Studio", value: mediaFile.sb_studio.name, type: "text" });
-    }
-    if (mediaFile.sb_code) {
-      sourceFields.push({ label: "Code", value: mediaFile.sb_code, type: "text" });
-    }
-    if (mediaFile.rating != null && mediaFile.rating > 0) {
-      sourceFields.push({ label: "Rating", value: mediaFile.rating, type: "rating" });
-    }
-    if (sourceFields.length > 0) {
+    if (mediaFile.sb_studio?.name)
+      sourceFields.push({
+        label: "Studio",
+        value: mediaFile.sb_studio.name,
+        type: "text",
+      });
+    if (mediaFile.sb_code)
+      sourceFields.push({
+        label: "Code",
+        value: mediaFile.sb_code,
+        type: "text",
+      });
+    if (mediaFile.rating != null && mediaFile.rating > 0)
+      sourceFields.push({
+        label: "Rating",
+        value: mediaFile.rating,
+        type: "rating",
+      });
+    if (sourceFields.length > 0)
       result.sections.push({ title: "Source", fields: sourceFields });
-    }
 
-    const performers = mediaFile.sb_type === "marker"
-      ? mediaFile.sb_scene_performers
-      : mediaFile.sb_performers;
+    // Performers
+    const performers =
+      mediaFile.sb_type === "marker"
+        ? mediaFile.sb_scene_performers
+        : mediaFile.sb_performers;
     if (performers?.length > 0) {
       result.sections.push({
         title: "People",
-        fields: [{ label: "People", value: performers.map((p) => p.name), type: "tags" }],
+        fields: [
+          {
+            label: "People",
+            value: performers.map((p) => p.name),
+            type: "tags",
+          },
+        ],
       });
     }
 
-    // Tags section
-    const tags = mediaFile.sb_tags;
-    if (tags?.length > 0) {
+    // Tags
+    if (mediaFile.sb_tags?.length > 0) {
       result.sections.push({
         title: "Tags",
-        fields: [{ label: "Tags", value: tags.map((t) => t.name), type: "tags" }],
+        fields: [
+          {
+            label: "Tags",
+            value: mediaFile.sb_tags.map((t) => t.name),
+            type: "tags",
+          },
+        ],
       });
     }
 
@@ -1814,71 +1109,114 @@ class SbMediaProvider extends MediaSourceProvider {
     const visualFile = mediaFile.sb_visual_files?.[0];
     if (visualFile) {
       const fileFields = [];
-      if (visualFile.video_codec) {
-        fileFields.push({ label: "Video Codec", value: visualFile.video_codec, type: "text" });
-      }
-      if (visualFile.audio_codec) {
-        fileFields.push({ label: "Audio Codec", value: visualFile.audio_codec, type: "text" });
-      }
-      if (visualFile.frame_rate) {
-        fileFields.push({ label: "Frame Rate", value: `${visualFile.frame_rate} fps`, type: "text" });
-      }
-      if (visualFile.bit_rate) {
-        fileFields.push({ label: "Bit Rate", value: `${(visualFile.bit_rate / 1000000).toFixed(1)} Mbps`, type: "text" });
-      }
-      if (visualFile.path) {
-        fileFields.push({ label: "File Path", value: visualFile.path, type: "text" });
-      }
+      if (visualFile.video_codec)
+        fileFields.push({
+          label: "Video Codec",
+          value: visualFile.video_codec,
+          type: "text",
+        });
+      if (visualFile.audio_codec)
+        fileFields.push({
+          label: "Audio Codec",
+          value: visualFile.audio_codec,
+          type: "text",
+        });
+      if (visualFile.frame_rate)
+        fileFields.push({
+          label: "Frame Rate",
+          value: `${visualFile.frame_rate} fps`,
+          type: "text",
+        });
+      if (visualFile.bit_rate)
+        fileFields.push({
+          label: "Bit Rate",
+          value: `${(visualFile.bit_rate / 1000000).toFixed(1)} Mbps`,
+          type: "text",
+        });
+      if (visualFile.path)
+        fileFields.push({
+          label: "File Path",
+          value: visualFile.path,
+          type: "text",
+        });
       if (visualFile.fingerprints?.length > 0) {
         for (const fp of visualFile.fingerprints) {
-          fileFields.push({ label: fp.type.toUpperCase(), value: fp.value, type: "text" });
+          fileFields.push({
+            label: fp.type.toUpperCase(),
+            value: fp.value,
+            type: "text",
+          });
         }
       }
-      if (fileFields.length > 0) {
+      if (fileFields.length > 0)
         result.sections.push({ title: "File Details", fields: fileFields });
-      }
     }
 
     // Scene info for markers
     if (mediaFile.sb_type === "marker") {
       const sceneFields = [];
-      if (mediaFile.sb_scene_title) {
-        sceneFields.push({ label: "Scene Title", value: mediaFile.sb_scene_title, type: "text" });
-      }
-      if (mediaFile.sb_scene_code) {
-        sceneFields.push({ label: "Scene Code", value: mediaFile.sb_scene_code, type: "text" });
-      }
-      if (mediaFile.sb_scene_studio?.name) {
-        sceneFields.push({ label: "Scene Studio", value: mediaFile.sb_scene_studio.name, type: "text" });
-      }
-      if (mediaFile.sb_marker_start != null) {
-        sceneFields.push({ label: "Marker Start", value: this.formatDuration(mediaFile.sb_marker_start), type: "text" });
-      }
-      if (mediaFile.sb_marker_end != null) {
-        sceneFields.push({ label: "Marker End", value: this.formatDuration(mediaFile.sb_marker_end), type: "text" });
-      }
-      if (mediaFile.sb_primary_tag?.name) {
-        sceneFields.push({ label: "Primary Tag", value: mediaFile.sb_primary_tag.name, type: "text" });
-      }
-      // Scene file info
+      if (mediaFile.sb_scene_title)
+        sceneFields.push({
+          label: "Scene Title",
+          value: mediaFile.sb_scene_title,
+          type: "text",
+        });
+      if (mediaFile.sb_scene_code)
+        sceneFields.push({
+          label: "Scene Code",
+          value: mediaFile.sb_scene_code,
+          type: "text",
+        });
+      if (mediaFile.sb_scene_studio?.name)
+        sceneFields.push({
+          label: "Scene Studio",
+          value: mediaFile.sb_scene_studio.name,
+          type: "text",
+        });
+      if (mediaFile.sb_marker_start != null)
+        sceneFields.push({
+          label: "Marker Start",
+          value: this.formatDuration(mediaFile.sb_marker_start),
+          type: "text",
+        });
+      if (mediaFile.sb_marker_end != null)
+        sceneFields.push({
+          label: "Marker End",
+          value: this.formatDuration(mediaFile.sb_marker_end),
+          type: "text",
+        });
+      if (mediaFile.sb_primary_tag?.name)
+        sceneFields.push({
+          label: "Primary Tag",
+          value: mediaFile.sb_primary_tag.name,
+          type: "text",
+        });
       const sceneFile = mediaFile.sb_scene_files?.[0];
-      if (sceneFile) {
-        if (sceneFile.duration) {
-          sceneFields.push({ label: "Scene Duration", value: this.formatDuration(sceneFile.duration), type: "text" });
-        }
-        if (sceneFile.path) {
-          sceneFields.push({ label: "Scene File", value: sceneFile.path, type: "text" });
-        }
-      }
-      if (sceneFields.length > 0) {
+      if (sceneFile?.duration)
+        sceneFields.push({
+          label: "Scene Duration",
+          value: this.formatDuration(sceneFile.duration),
+          type: "text",
+        });
+      if (sceneFile?.path)
+        sceneFields.push({
+          label: "Scene File",
+          value: sceneFile.path,
+          type: "text",
+        });
+      if (sceneFields.length > 0)
         result.sections.push({ title: "Scene Info", fields: sceneFields });
-      }
 
-      // Scene tags
       if (mediaFile.sb_scene_tags?.length > 0) {
         result.sections.push({
           title: "Scene Tags",
-          fields: [{ label: "Tags", value: mediaFile.sb_scene_tags.map((t) => t.name), type: "tags" }],
+          fields: [
+            {
+              label: "Tags",
+              value: mediaFile.sb_scene_tags.map((t) => t.name),
+              type: "tags",
+            },
+          ],
         });
       }
     }
@@ -1886,14 +1224,13 @@ class SbMediaProvider extends MediaSourceProvider {
     return result;
   }
 
-  /**
-   * Close the provider (cleanup)
-   * @returns {Promise<void>}
-   */
   async close() {
     this.isInitialized = false;
     this.mediaCache = [];
     this.lastFetchTime = null;
+    this.tagsCache = null;
+    this.tagsCacheTime = null;
+    this.thumbnailMap.clear();
     await super.close();
     log.info("sbMediaProvider closed");
   }
