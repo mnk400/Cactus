@@ -250,18 +250,19 @@ export const MediaProvider = ({ children }) => {
   // Initial fetch when URL is ready
   useEffect(() => {
     const init = async () => {
-      await Promise.all([fetchConfig(), fetchTags()]);
-
-      // Fetch all media for statistics
-      try {
-        const response = await fetch("/api/media?type=all");
-        if (response.ok) {
-          const data = await response.json();
-          setAllMediaFiles(data.files || []);
+      const fetchAllMedia = async () => {
+        try {
+          const response = await fetch("/api/media?type=all");
+          if (response.ok) {
+            const data = await response.json();
+            setAllMediaFiles(data.files || []);
+          }
+        } catch (err) {
+          console.warn("Failed to fetch all media for stats:", err);
         }
-      } catch (err) {
-        console.warn("Failed to fetch all media for stats:", err);
-      }
+      };
+
+      await Promise.all([fetchConfig(), fetchTags(), fetchAllMedia()]);
     };
     init();
   }, [fetchConfig, fetchTags]);

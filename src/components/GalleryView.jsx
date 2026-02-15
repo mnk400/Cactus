@@ -88,8 +88,10 @@ const GalleryView = memo(function GalleryView({
     [imageDimensions],
   );
 
+  const containerHeight = containerSize.height;
+
   const masonryLayout = useMemo(() => {
-    if (!containerSize.width || !mediaFiles.length || !columns) {
+    if (!columnWidth || !mediaFiles.length || !columns) {
       return {
         items: [],
         totalHeight: 0,
@@ -124,9 +126,9 @@ const GalleryView = memo(function GalleryView({
 
     const totalHeight = Math.max(...columnHeights) + PADDING;
 
-    const buffer = Math.min(300, containerSize.height * 0.5);
+    const buffer = Math.min(300, containerHeight * 0.5);
     const visibleStart = Math.max(0, actualScrollTop - buffer);
-    const visibleEnd = actualScrollTop + containerSize.height + buffer;
+    const visibleEnd = actualScrollTop + containerHeight + buffer;
 
     const visibleItems = [];
     for (let i = 0; i < items.length; i++) {
@@ -152,10 +154,10 @@ const GalleryView = memo(function GalleryView({
       totalCount: mediaFiles.length,
     };
   }, [
-    containerSize,
     mediaFiles,
     currentIndex,
     actualScrollTop,
+    containerHeight,
     columns,
     columnWidth,
     GAP,

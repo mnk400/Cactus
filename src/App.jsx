@@ -1,15 +1,16 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef, lazy, Suspense } from "react";
 import MediaViewer from "./components/MediaViewer";
 import Navigation from "./components/Navigation";
 import SideNavigation from "./components/SideNavigation";
-import SettingsPanel from "./components/SettingsPanel";
 import TagDisplay from "./components/TagDisplay";
-import TagInputModal from "./components/TagInputModal";
 import LoadingMessage from "./components/LoadingMessage";
 import ErrorMessage from "./components/ErrorMessage";
-import DebugInfo from "./components/DebugInfo";
-import GalleryView from "./components/GalleryView";
 import ViewTransition from "./components/ViewTransition";
+
+const SettingsPanel = lazy(() => import("./components/SettingsPanel"));
+const GalleryView = lazy(() => import("./components/GalleryView"));
+const TagInputModal = lazy(() => import("./components/TagInputModal"));
+const DebugInfo = lazy(() => import("./components/DebugInfo"));
 import { useKeyboardNavigation } from "./hooks/useKeyboardNavigation";
 import { useFavorite } from "./hooks/useFavorite";
 import {
@@ -24,7 +25,8 @@ function App() {
   const [showTagInput, setShowTagInput] = useState(false);
   const [tagUpdateTrigger, setTagUpdateTrigger] = useState(0);
   const [galleryScrollPosition, setGalleryScrollPosition] = useState(0);
-  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [isMobileView, setIsMobileView] = useState(isMobile());
+  const settingsDrawerRef = useRef(null);
 
   const { currentIndex, currentMediaFile } = useCurrentMedia();
   const { mediaFiles, loading, error, settings, navigate } = useMediaData();
@@ -77,45 +79,50 @@ function App() {
     currentMediaFile?.file_path,
   );
 
-  // Track window resize to make isMobile() reactive
+  // Track window resize — only re-render when mobile/desktop threshold changes
   useEffect(() => {
     const handleResize = () => {
-      setWindowWidth(window.innerWidth);
+      const mobile = isMobile();
+      setIsMobileView(mobile);
+
+      // Update CSS variable for settings drawer width
+      const root = document.documentElement;
+      if (settingsDrawerRef.current && !mobile) {
+        const isLargeScreen = window.matchMedia("(min-width: 1024px)").matches;
+        root.style.setProperty(
+          "--settings-drawer-width",
+          isLargeScreen ? "450px" : "420px",
+        );
+      }
     };
 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Manage CSS variable for settings drawer width
+  // Manage CSS variable for settings drawer width on open/close
   useEffect(() => {
-    const isDesktop = !isMobile();
     const root = document.documentElement;
-
-    if (isSettingsOpen && isDesktop) {
-      // Determine drawer width based on screen size
-      const updateDrawerWidth = () => {
-        const isLargeScreen = window.matchMedia("(min-width: 1024px)").matches;
-        const drawerWidth = isLargeScreen ? "450px" : "420px";
-        root.style.setProperty("--settings-drawer-width", drawerWidth);
-      };
-
-      updateDrawerWidth();
-
-      // Update on resize
-      window.addEventListener("resize", updateDrawerWidth);
-      return () => window.removeEventListener("resize", updateDrawerWidth);
+    if (isSettingsOpen && !isMobileView) {
+      settingsDrawerRef.current = true;
+      const isLargeScreen = window.matchMedia("(min-width: 1024px)").matches;
+      root.style.setProperty(
+        "--settings-drawer-width",
+        isLargeScreen ? "450px" : "420px",
+      );
     } else {
-      // Mobile or settings closed
+      settingsDrawerRef.current = false;
       root.style.setProperty("--settings-drawer-width", "0px");
     }
-  }, [isSettingsOpen, windowWidth]);
+  }, [isSettingsOpen, isMobileView]);
 
-  const isDesktop = !isMobile();
+  const isDesktop = !isMobileView;
 
   return (
     <div className="container flex flex-col h-screen w-full max-w-full shadow-2xl overflow-hidden bg-black text-gray-200">
-      <DebugInfo show={debugMode} />
+      <Suspense fallback={null}>
+        <DebugInfo show={debugMode} />
+      </Suspense>
 
       <div
         className={`media-container flex-1 relative overflow-hidden bg-black ${slideshowActive ? "" : "pb-16"}`}
@@ -131,12 +138,14 @@ function App() {
 
         {!loading && !error && mediaFiles.length > 0 && (
           <ViewTransition isGalleryView={isGalleryView}>
-            <GalleryView
-              scrollPosition={galleryScrollPosition}
-              setScrollPosition={setGalleryScrollPosition}
-              isVisible={isGalleryView}
-              preload={true}
-            />
+            <Suspense fallback={<LoadingMessage message="Loading gallery..." />}>
+              <GalleryView
+                scrollPosition={galleryScrollPosition}
+                setScrollPosition={setGalleryScrollPosition}
+                isVisible={isGalleryView}
+                preload={true}
+              />
+            </Suspense>
             <MediaViewer
               showTagInput={showTagInput}
               onToggleTagInput={handleToggleTagInput}
@@ -156,15 +165,17 @@ function App() {
           </div>
         )}
 
-        {(!isSettingsOpen || !isMobile()) &&
+        {(!isSettingsOpen || !isMobileView) &&
           !isGalleryView &&
           !slideshowActive && <SideNavigation />}
 
         <ViewTransition isSettingsOpen={isSettingsOpen}>
-          <SettingsPanel
-            isOpen={isSettingsOpen}
-            onClose={handleCloseSettings}
-          />
+          <Suspense fallback={null}>
+            <SettingsPanel
+              isOpen={isSettingsOpen}
+              onClose={handleCloseSettings}
+            />
+          </Suspense>
         </ViewTransition>
       </div>
 
@@ -177,7 +188,7 @@ function App() {
         />
       )}
 
-      {(!isSettingsOpen || !isMobile()) && !slideshowActive && (
+      {(!isSettingsOpen || !isMobileView) && !slideshowActive && (
         <Navigation
           onToggleSettings={handleToggleSettings}
           onToggleTagInput={handleToggleTagInput}
@@ -187,12 +198,14 @@ function App() {
         />
       )}
 
-      <TagInputModal
-        isOpen={showTagInput}
-        onClose={handleCloseTagInput}
-        currentMediaFile={currentMediaFile}
-        onTagsUpdated={handleTagsUpdated}
-      />
+      <Suspense fallback={null}>
+        <TagInputModal
+          isOpen={showTagInput}
+          onClose={handleCloseTagInput}
+          currentMediaFile={currentMediaFile}
+          onTagsUpdated={handleTagsUpdated}
+        />
+      </Suspense>
     </div>
   );
 }

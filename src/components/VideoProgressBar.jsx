@@ -48,6 +48,7 @@ function VideoProgressBar({ videoElement }) {
 
   const handleStart = useCallback(
     (e) => {
+      isDraggingRef.current = true;
       setIsDragging(true);
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
       seekTo(clientX);
@@ -57,37 +58,30 @@ function VideoProgressBar({ videoElement }) {
 
   const handleMove = useCallback(
     (e) => {
-      if (isDragging) {
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        seekTo(clientX);
-      }
+      if (!isDraggingRef.current) return;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      seekTo(clientX);
     },
-    [isDragging, seekTo],
+    [seekTo],
   );
 
   const handleEnd = useCallback(() => {
+    isDraggingRef.current = false;
     setIsDragging(false);
   }, []);
 
-  // Keep the ref in sync with state
   useEffect(() => {
-    isDraggingRef.current = isDragging;
-  }, [isDragging]);
-
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener("mousemove", handleMove);
-      document.addEventListener("mouseup", handleEnd);
-      document.addEventListener("touchmove", handleMove);
-      document.addEventListener("touchend", handleEnd);
-      return () => {
-        document.removeEventListener("mousemove", handleMove);
-        document.removeEventListener("mouseup", handleEnd);
-        document.removeEventListener("touchmove", handleMove);
-        document.removeEventListener("touchend", handleEnd);
-      };
-    }
-  }, [isDragging, handleMove, handleEnd]);
+    document.addEventListener("mousemove", handleMove);
+    document.addEventListener("mouseup", handleEnd);
+    document.addEventListener("touchmove", handleMove);
+    document.addEventListener("touchend", handleEnd);
+    return () => {
+      document.removeEventListener("mousemove", handleMove);
+      document.removeEventListener("mouseup", handleEnd);
+      document.removeEventListener("touchmove", handleMove);
+      document.removeEventListener("touchend", handleEnd);
+    };
+  }, [handleMove, handleEnd]);
 
   useEffect(() => {
     if (videoRef.current && videoRef.current !== videoElement) {

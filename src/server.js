@@ -553,13 +553,16 @@ app.post("/api/media/:fileHash/tags", async (req, res) => {
 
     // Handle tag names (create if they don't exist)
     if (tagNames && Array.isArray(tagNames)) {
+      const allTags = await mediaProvider.getAllTags();
+      const tagsByName = new Map(allTags.map((t) => [t.name, t]));
+
       for (const tagName of tagNames) {
-        // Get all tags to find by name
-        const allTags = await mediaProvider.getAllTags();
-        let tag = allTags.find((t) => t.name === tagName);
+        let tag = tagsByName.get(tagName);
+        const created = !tag;
 
         if (!tag) {
           tag = await mediaProvider.createTag(tagName);
+          tagsByName.set(tagName, tag);
         }
 
         const added = await mediaProvider.addTagToMedia(fileHash, tag.id);
@@ -567,7 +570,7 @@ app.post("/api/media/:fileHash/tags", async (req, res) => {
           tagId: tag.id,
           tagName: tag.name,
           added,
-          created: !allTags.find((t) => t.name === tagName),
+          created,
         });
       }
     }
@@ -683,16 +686,18 @@ app.post("/api/media-path/tags", async (req, res) => {
 
     // Handle tag names (create if they don't exist)
     if (tagNames && Array.isArray(tagNames)) {
-      for (const tagName of tagNames) {
-        const trimmedTagName = String(tagName).trim(); // Ensure it's a string and trim it
-        if (!trimmedTagName) continue; // Skip empty tag names after trimming
+      const allTags = await mediaProvider.getAllTags();
+      const tagsByName = new Map(allTags.map((t) => [t.name, t]));
 
-        // Get all tags to find by name
-        const allTags = await mediaProvider.getAllTags();
-        let tag = allTags.find((t) => t.name === trimmedTagName);
+      for (const tagName of tagNames) {
+        const trimmedTagName = String(tagName).trim();
+        if (!trimmedTagName) continue;
+
+        let tag = tagsByName.get(trimmedTagName);
 
         if (!tag) {
           tag = await mediaProvider.createTag(trimmedTagName);
+          tagsByName.set(trimmedTagName, tag);
         }
 
         const added = await mediaProvider.addTagToMedia(fileHash, tag.id);

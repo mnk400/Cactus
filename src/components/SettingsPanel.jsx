@@ -1,4 +1,4 @@
-import { useState, useEffect, memo } from "react";
+import { useState, useEffect, useCallback, memo } from "react";
 import TagFilter from "./TagFilter";
 import GeneralFilter from "./GeneralFilter";
 import TagManager from "./TagManager";
@@ -116,6 +116,38 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
       console.error("Failed to delete tag:", error);
     }
   };
+
+  const handleTagsChange = useCallback(
+    (tags) => setFilters({ selectedTags: tags }),
+    [setFilters],
+  );
+
+  const handleExcludedTagsChange = useCallback(
+    (tags) => setFilters({ excludedTags: tags }),
+    [setFilters],
+  );
+
+  const handleFilterChange = useCallback(
+    (path) =>
+      setFilters({ pathFilter: path, selectedTags: [], excludedTags: [] }),
+    [setFilters],
+  );
+
+  const handleToggleFavorites = useCallback(() => {
+    const favTag = tags.find((t) => t.name === "favorites");
+    if (!favTag) return;
+    const isActive = selectedTags.some((t) => t.name === "favorites");
+    if (isActive) {
+      setFilters({
+        selectedTags: selectedTags.filter((t) => t.name !== "favorites"),
+      });
+    } else {
+      setFilters({
+        selectedTags: [...selectedTags, favTag],
+        pathFilter: "",
+      });
+    }
+  }, [tags, selectedTags, setFilters]);
 
   const directoryName =
     config?.provider?.config?.directoryPath ||
@@ -252,21 +284,7 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
         </div>
 
         <button
-          onClick={() => {
-            const favTag = tags.find((t) => t.name === "favorites");
-            if (!favTag) return;
-            const isActive = selectedTags.some((t) => t.name === "favorites");
-            if (isActive) {
-              setFilters({
-                selectedTags: selectedTags.filter((t) => t.name !== "favorites"),
-              });
-            } else {
-              setFilters({
-                selectedTags: [...selectedTags, favTag],
-                pathFilter: "",
-              });
-            }
-          }}
+          onClick={handleToggleFavorites}
           className={`w-full mb-4 py-2.5 rounded-2xl font-medium transition-all duration-200 active:scale-95 ${
             selectedTags.some((t) => t.name === "favorites")
               ? "bg-pink-500 bg-opacity-30 text-pink-200 border border-pink-500 border-opacity-40"
@@ -334,8 +352,8 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
             tags={tags}
             selectedTags={selectedTags}
             excludedTags={excludedTags}
-            onTagsChange={(tags) => setFilters({ selectedTags: tags })}
-            onExcludedTagsChange={(tags) => setFilters({ excludedTags: tags })}
+            onTagsChange={handleTagsChange}
+            onExcludedTagsChange={handleExcludedTagsChange}
           />
         </div>
 
@@ -344,13 +362,7 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
             General Filter
           </h4>
           <GeneralFilter
-            onFilterChange={(path) =>
-              setFilters({
-                pathFilter: path,
-                selectedTags: [],
-                excludedTags: [],
-              })
-            }
+            onFilterChange={handleFilterChange}
             initialValue={pathFilter || ""}
           />
         </div>

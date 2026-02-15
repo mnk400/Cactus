@@ -94,13 +94,12 @@ const TagDisplay = memo(function TagDisplay({
             if (!removeResponse.ok) {
               throw new Error("Failed to remove tag");
             }
-            // Reload tags for current media
-            const updatedTags = await fetchMediaTags(
-              currentMediaFile.file_path,
-            );
+            // Reload media tags and global tags in parallel
+            const [updatedTags] = await Promise.all([
+              fetchMediaTags(currentMediaFile.file_path),
+              fetchTags(),
+            ]);
             setMediaTags(updatedTags);
-            // Refresh global tags to update usage counts
-            fetchTags();
             window.dispatchEvent(new CustomEvent("tags-updated"));
           }
         } catch (error) {
