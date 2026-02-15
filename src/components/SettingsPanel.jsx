@@ -2,6 +2,7 @@ import { useState, useEffect, memo } from "react";
 import TagFilter from "./TagFilter";
 import GeneralFilter from "./GeneralFilter";
 import TagManager from "./TagManager";
+import MediaInfo from "./MediaInfo";
 import { useMediaData, useSlideshowState } from "../context/MediaContext";
 import { isMobile } from "../utils/helpers";
 
@@ -249,6 +250,32 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
             </div>
           )}
         </div>
+
+        <button
+          onClick={() => {
+            const favTag = tags.find((t) => t.name === "favorites");
+            if (!favTag) return;
+            const isActive = selectedTags.some((t) => t.name === "favorites");
+            if (isActive) {
+              setFilters({
+                selectedTags: selectedTags.filter((t) => t.name !== "favorites"),
+              });
+            } else {
+              setFilters({ selectedTags: [...selectedTags, favTag] });
+            }
+          }}
+          className={`w-full mb-4 py-2.5 rounded-2xl font-medium transition-all duration-200 active:scale-95 ${
+            selectedTags.some((t) => t.name === "favorites")
+              ? "bg-pink-500 bg-opacity-30 text-pink-200 border border-pink-500 border-opacity-40"
+              : "bg-black bg-opacity-40 text-gray-300 hover:bg-white hover:bg-opacity-10"
+          }`}
+        >
+          {selectedTags.some((t) => t.name === "favorites")
+            ? "♥ Showing Favorites"
+            : "♥ Show Favorites"}
+        </button>
+
+        <MediaInfo />
 
         <div className="filter-section mb-4">
           <h4 className="text-base font-medium text-white mb-3">Media Type</h4>

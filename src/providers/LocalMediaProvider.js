@@ -1193,6 +1193,30 @@ class LocalMediaProvider extends MediaSourceProvider {
   }
 
   /**
+   * Get detailed media info with local file-specific metadata
+   * @param {Object} mediaFile - The full media file object
+   * @returns {Object} { sections: [{ title, fields }] }
+   */
+  getMediaInfo(mediaFile) {
+    const result = super.getMediaInfo(mediaFile);
+
+    if (!mediaFile) return result;
+
+    const fileFields = [];
+    if (mediaFile.file_path) {
+      fileFields.push({ label: "Path", value: mediaFile.file_path, type: "text" });
+    }
+    if (mediaFile.file_hash) {
+      fileFields.push({ label: "Hash", value: mediaFile.file_hash, type: "text" });
+    }
+    if (fileFields.length > 0) {
+      result.sections.push({ title: "File Info", fields: fileFields });
+    }
+
+    return result;
+  }
+
+  /**
    * Close the provider and release resources
    */
   async close() {

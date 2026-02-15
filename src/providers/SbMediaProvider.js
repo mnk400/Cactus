@@ -1767,6 +1767,126 @@ class SbMediaProvider extends MediaSourceProvider {
   }
 
   /**
+   * Get detailed media info with sb-specific metadata
+   * @param {Object} mediaFile - The full media file object
+   * @returns {Object} { sections: [{ title, fields }] }
+   */
+  getMediaInfo(mediaFile) {
+    const result = super.getMediaInfo(mediaFile);
+
+    if (!mediaFile) return result;
+
+    // Source info section
+    const sourceFields = [];
+    if (mediaFile.sb_studio?.name) {
+      sourceFields.push({ label: "Studio", value: mediaFile.sb_studio.name, type: "text" });
+    }
+    if (mediaFile.sb_code) {
+      sourceFields.push({ label: "Code", value: mediaFile.sb_code, type: "text" });
+    }
+    if (mediaFile.rating != null && mediaFile.rating > 0) {
+      sourceFields.push({ label: "Rating", value: mediaFile.rating, type: "rating" });
+    }
+    if (sourceFields.length > 0) {
+      result.sections.push({ title: "Source", fields: sourceFields });
+    }
+
+    const performers = mediaFile.sb_type === "marker"
+      ? mediaFile.sb_scene_performers
+      : mediaFile.sb_performers;
+    if (performers?.length > 0) {
+      result.sections.push({
+        title: "People",
+        fields: [{ label: "People", value: performers.map((p) => p.name), type: "tags" }],
+      });
+    }
+
+    // Tags section
+    const tags = mediaFile.sb_tags;
+    if (tags?.length > 0) {
+      result.sections.push({
+        title: "Tags",
+        fields: [{ label: "Tags", value: tags.map((t) => t.name), type: "tags" }],
+      });
+    }
+
+    // File details from visual_files
+    const visualFile = mediaFile.sb_visual_files?.[0];
+    if (visualFile) {
+      const fileFields = [];
+      if (visualFile.video_codec) {
+        fileFields.push({ label: "Video Codec", value: visualFile.video_codec, type: "text" });
+      }
+      if (visualFile.audio_codec) {
+        fileFields.push({ label: "Audio Codec", value: visualFile.audio_codec, type: "text" });
+      }
+      if (visualFile.frame_rate) {
+        fileFields.push({ label: "Frame Rate", value: `${visualFile.frame_rate} fps`, type: "text" });
+      }
+      if (visualFile.bit_rate) {
+        fileFields.push({ label: "Bit Rate", value: `${(visualFile.bit_rate / 1000000).toFixed(1)} Mbps`, type: "text" });
+      }
+      if (visualFile.path) {
+        fileFields.push({ label: "File Path", value: visualFile.path, type: "text" });
+      }
+      if (visualFile.fingerprints?.length > 0) {
+        for (const fp of visualFile.fingerprints) {
+          fileFields.push({ label: fp.type.toUpperCase(), value: fp.value, type: "text" });
+        }
+      }
+      if (fileFields.length > 0) {
+        result.sections.push({ title: "File Details", fields: fileFields });
+      }
+    }
+
+    // Scene info for markers
+    if (mediaFile.sb_type === "marker") {
+      const sceneFields = [];
+      if (mediaFile.sb_scene_title) {
+        sceneFields.push({ label: "Scene Title", value: mediaFile.sb_scene_title, type: "text" });
+      }
+      if (mediaFile.sb_scene_code) {
+        sceneFields.push({ label: "Scene Code", value: mediaFile.sb_scene_code, type: "text" });
+      }
+      if (mediaFile.sb_scene_studio?.name) {
+        sceneFields.push({ label: "Scene Studio", value: mediaFile.sb_scene_studio.name, type: "text" });
+      }
+      if (mediaFile.sb_marker_start != null) {
+        sceneFields.push({ label: "Marker Start", value: this.formatDuration(mediaFile.sb_marker_start), type: "text" });
+      }
+      if (mediaFile.sb_marker_end != null) {
+        sceneFields.push({ label: "Marker End", value: this.formatDuration(mediaFile.sb_marker_end), type: "text" });
+      }
+      if (mediaFile.sb_primary_tag?.name) {
+        sceneFields.push({ label: "Primary Tag", value: mediaFile.sb_primary_tag.name, type: "text" });
+      }
+      // Scene file info
+      const sceneFile = mediaFile.sb_scene_files?.[0];
+      if (sceneFile) {
+        if (sceneFile.duration) {
+          sceneFields.push({ label: "Scene Duration", value: this.formatDuration(sceneFile.duration), type: "text" });
+        }
+        if (sceneFile.path) {
+          sceneFields.push({ label: "Scene File", value: sceneFile.path, type: "text" });
+        }
+      }
+      if (sceneFields.length > 0) {
+        result.sections.push({ title: "Scene Info", fields: sceneFields });
+      }
+
+      // Scene tags
+      if (mediaFile.sb_scene_tags?.length > 0) {
+        result.sections.push({
+          title: "Scene Tags",
+          fields: [{ label: "Tags", value: mediaFile.sb_scene_tags.map((t) => t.name), type: "tags" }],
+        });
+      }
+    }
+
+    return result;
+  }
+
+  /**
    * Close the provider (cleanup)
    * @returns {Promise<void>}
    */

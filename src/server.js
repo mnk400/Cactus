@@ -606,6 +606,30 @@ app.delete("/api/media/:fileHash/tags/:tagId", async (req, res) => {
   }
 });
 
+// Get detailed media info for a specific media item
+app.get("/api/media/:fileHash/info", async (req, res) => {
+  const { fileHash } = req.params;
+
+  try {
+    // Find the media item from the provider's data
+    const allMedia = await mediaProvider.getAllMedia("all", "random");
+    const mediaFile = allMedia.find((item) => item.file_hash === fileHash);
+
+    if (!mediaFile) {
+      return res.status(404).json({ error: "Media not found" });
+    }
+
+    const info = mediaProvider.getMediaInfo(mediaFile);
+    res.json(info);
+  } catch (error) {
+    log.error("Failed to get media info", {
+      fileHash,
+      error: error.message,
+    });
+    res.status(500).json({ error: "Failed to get media info" });
+  }
+});
+
 // Convenience endpoint: Get tags for media by file path
 app.get("/api/media-path/tags", async (req, res) => {
   const { path: filePath } = req.query;

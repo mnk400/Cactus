@@ -273,6 +273,71 @@ class MediaSourceProvider {
   }
 
   /**
+   * Get detailed media info for display, structured as self-describing sections.
+   * Providers should override this to add provider-specific metadata.
+   * @param {Object} mediaFile - The full media file object from getAllMedia()
+   * @returns {Object} { sections: [{ title, fields: [{ label, value, type }] }] }
+   */
+  getMediaInfo(mediaFile) {
+    if (!mediaFile) return { sections: [] };
+
+    const fields = [];
+
+    if (mediaFile.filename) {
+      fields.push({ label: "Filename", value: mediaFile.filename, type: "text" });
+    }
+    if (mediaFile.media_type) {
+      fields.push({ label: "Type", value: mediaFile.media_type === "image" ? "Image" : "Video", type: "text" });
+    }
+    if (mediaFile.width && mediaFile.height) {
+      fields.push({ label: "Resolution", value: `${mediaFile.width} × ${mediaFile.height}`, type: "text" });
+    }
+    if (mediaFile.file_size) {
+      fields.push({ label: "File Size", value: this.formatFileSize(mediaFile.file_size), type: "text" });
+    }
+    if (mediaFile.duration) {
+      fields.push({ label: "Duration", value: this.formatDuration(mediaFile.duration), type: "text" });
+    }
+    if (mediaFile.date_created) {
+      fields.push({ label: "Date Created", value: new Date(mediaFile.date_created).toLocaleDateString(), type: "text" });
+    }
+    if (mediaFile.date_added) {
+      fields.push({ label: "Date Added", value: new Date(mediaFile.date_added).toLocaleDateString(), type: "text" });
+    }
+
+    return {
+      sections: fields.length > 0 ? [{ title: "General", fields }] : [],
+    };
+  }
+
+  /**
+   * Format file size in human-readable form
+   * @param {number} bytes - File size in bytes
+   * @returns {string} Formatted size
+   */
+  formatFileSize(bytes) {
+    if (!bytes || bytes === 0) return "0 B";
+    const units = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return `${(bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0)} ${units[i]}`;
+  }
+
+  /**
+   * Format duration in seconds to human-readable form
+   * @param {number} seconds - Duration in seconds
+   * @returns {string} Formatted duration
+   */
+  formatDuration(seconds) {
+    if (!seconds) return "0s";
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    if (h > 0) return `${h}h ${m}m ${s}s`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
+  }
+
+  /**
    * Close the provider and release resources
    * @returns {Promise<void>}
    */
