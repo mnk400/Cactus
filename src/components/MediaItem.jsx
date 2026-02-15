@@ -2,14 +2,14 @@ import React, { useState, useEffect, useRef, useCallback, memo } from "react";
 import VideoControls from "./VideoControls";
 import { useAudio } from "../context/MediaContext";
 
-
 const MediaItem = memo(function MediaItem({
   mediaFile,
   index,
   isActive,
   getPreloadedMedia,
+  slideshowStartTime = 0,
+  isSlideshow = false,
 }) {
-
   const mediaRef = useRef(null);
   const videoRef = useRef(null);
   const imgRef = useRef(null);
@@ -147,6 +147,8 @@ const MediaItem = memo(function MediaItem({
           onLoadingChange={handleLoadingChange}
           isLoading={isLoading}
           videoRef={videoRef}
+          slideshowStartTime={slideshowStartTime}
+          isSlideshow={isSlideshow}
         />
       </div>
     );
@@ -174,8 +176,9 @@ const VideoPlayer = memo(function VideoPlayer({
   onLoadingChange,
   isLoading,
   videoRef,
+  slideshowStartTime = 0,
+  isSlideshow = false,
 }) {
-
   const [isPaused, setIsPaused] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
   const { isMuted, hasUserInteracted, toggleMute, setMuted } = useAudio();
@@ -320,6 +323,26 @@ const VideoPlayer = memo(function VideoPlayer({
     }
   }, [isActive, videoRef, isMuted, hasUserInteracted]);
 
+  // Seek to slideshow start time when entering a new item in slideshow mode
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !isActive || !isSlideshow || !slideshowStartTime) return;
+
+    const seekToStart = () => {
+      if (video.duration && slideshowStartTime < video.duration) {
+        video.currentTime = slideshowStartTime;
+      }
+    };
+
+    // If metadata is already loaded, seek immediately
+    if (video.readyState >= 1) {
+      seekToStart();
+    } else {
+      video.addEventListener("loadedmetadata", seekToStart, { once: true });
+      return () => video.removeEventListener("loadedmetadata", seekToStart);
+    }
+  }, [isActive, isSlideshow, slideshowStartTime, videoRef]);
+
   // Sync mute state when user toggles it or when component starts
   useEffect(() => {
     const video = videoRef.current;
@@ -348,16 +371,16 @@ const VideoPlayer = memo(function VideoPlayer({
         src={src}
         controls={false}
         autoPlay={false} // We handle autoplay manually for better control
-        loop
+        loop={!isSlideshow}
         muted={isMuted}
         playsInline
         preload="auto"
-        className={`max-h-full max-w-full object-cover cursor-pointer ${isPaused ? "filter brightness-50" : ""} ${isLoading ? "opacity-0" : "opacity-100"} transition-opacity duration-300`}
-        onClick={togglePlayPause}
+        className={`max-h-full max-w-full object-cover ${isSlideshow ? "" : "cursor-pointer"} ${isPaused && !isSlideshow ? "filter brightness-50" : ""} ${isLoading ? "opacity-0" : "opacity-100"} transition-opacity duration-300`}
+        onClick={isSlideshow ? undefined : togglePlayPause}
         onError={() => console.error("Video load error:", mediaFile.file_path)}
       />
 
-      {showOverlay && !isLoading && (
+      {showOverlay && !isLoading && !isSlideshow && (
         <div
           className="video-overlay absolute top-0 left-0 w-full h-full bg-black bg-opacity-30 flex justify-center items-center z-10 cursor-pointer"
           onClick={togglePlayPause}
@@ -369,7 +392,7 @@ const VideoPlayer = memo(function VideoPlayer({
       )}
 
       {/* Audio controls - small button in top-left */}
-      {!isLoading && (
+      {!isLoading && !isSlideshow && (
         <div className="absolute top-4 left-4 z-20">
           <VideoControls
             isMuted={isMuted || autoplayFailed}

@@ -8,7 +8,6 @@ import React, {
 } from "react";
 import { useCurrentMedia, useMediaData } from "../context/MediaContext";
 
-
 const GalleryView = memo(function GalleryView({
   scrollPosition,
   setScrollPosition,
@@ -16,7 +15,6 @@ const GalleryView = memo(function GalleryView({
   isVisible: isVisibleProp,
   preload = false,
 }) {
-
   const { currentIndex } = useCurrentMedia();
   const { mediaFiles, selectMedia } = useMediaData();
   const containerRef = useRef(null);
@@ -42,12 +40,16 @@ const GalleryView = memo(function GalleryView({
     columns = Math.max(2, columns); // At least 2 columns, no upper limit
 
     // Calculate column width to fill available space, respecting max width
-    let columnWidth = Math.floor((availableWidth - gap * (columns - 1)) / columns);
+    let columnWidth = Math.floor(
+      (availableWidth - gap * (columns - 1)) / columns,
+    );
 
     // If columns would be wider than max, add more columns
     while (columnWidth > maxColumnWidth && columns < 20) {
       columns++;
-      columnWidth = Math.floor((availableWidth - gap * (columns - 1)) / columns);
+      columnWidth = Math.floor(
+        (availableWidth - gap * (columns - 1)) / columns,
+      );
     }
 
     return { columnWidth, gap, padding, columns };

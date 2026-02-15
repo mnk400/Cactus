@@ -2,14 +2,15 @@ import { useState, useEffect, memo } from "react";
 import TagFilter from "./TagFilter";
 import GeneralFilter from "./GeneralFilter";
 import TagManager from "./TagManager";
-import { useMediaData } from "../context/MediaContext";
+import { useMediaData, useSlideshowState } from "../context/MediaContext";
 import { isMobile } from "../utils/helpers";
 
-
 const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
-
   const [showTagManager, setShowTagManager] = useState(false);
   const [shouldAnimate, setShouldAnimate] = useState(false);
+
+  const { slideshowSpeed, startSlideshow, setSlideshowSpeed } =
+    useSlideshowState();
 
   const {
     settings,
@@ -316,6 +317,45 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
             onFilterChange={(path) => setFilters({ pathFilter: path })}
             initialValue={pathFilter || ""}
           />
+        </div>
+
+        <div className="slideshow-section mb-4 p-3 bg-black bg-opacity-40 rounded-2xl">
+          <h4 className="text-base font-medium text-white mb-3">Slideshow</h4>
+          <div className="space-y-3">
+            <div>
+              <div className="text-xs text-gray-400 uppercase tracking-wide mb-2">
+                Speed
+              </div>
+              <div className="media-type-selector flex gap-2">
+                {["slow", "normal", "fast"].map((speed) => (
+                  <button
+                    key={speed}
+                    onClick={() => setSlideshowSpeed(speed)}
+                    className={`media-type-btn flex-1 border-none py-2 px-3 rounded-xl cursor-pointer text-sm font-medium transition-all duration-200 ease-in-out active:scale-95 ${
+                      slideshowSpeed === speed
+                        ? "bg-white bg-opacity-20 text-white shadow-lg"
+                        : "bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-gray-300"
+                    }`}
+                  >
+                    {speed.charAt(0).toUpperCase() + speed.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                onClose();
+                // Small delay to let the settings panel close before entering fullscreen
+                setTimeout(() => startSlideshow(), 300);
+              }}
+              className="w-full py-2.5 rounded-xl bg-white bg-opacity-15 text-white hover:bg-opacity-25 transition-all font-medium"
+            >
+              Start Slideshow
+            </button>
+            <div className="text-xs text-gray-500 text-center">
+              Press S to toggle slideshow
+            </div>
+          </div>
         </div>
 
         {!configLoading &&

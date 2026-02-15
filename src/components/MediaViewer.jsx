@@ -8,14 +8,20 @@ import React, {
 } from "react";
 import { motion } from "framer-motion";
 import MediaItem from "./MediaItem";
+import SlideshowOverlay from "./SlideshowOverlay";
 import { useMediaPreloader } from "../hooks/useMediaPreloader";
-import { useCurrentMedia, useMediaData } from "../context/MediaContext";
-
+import { useSlideshow } from "../hooks/useSlideshow";
+import {
+  useCurrentMedia,
+  useMediaData,
+  useSlideshowState,
+} from "../context/MediaContext";
 
 const MediaViewer = memo(function MediaViewer({ showTagInput }) {
-
-  const { currentIndex } = useCurrentMedia();
+  const { currentIndex, currentMediaFile } = useCurrentMedia();
   const { mediaFiles, navigate } = useMediaData();
+  const { slideshowActive, slideshowSpeed, stopSlideshow } =
+    useSlideshowState();
   const containerRef = useRef(null);
   const currentIndexRef = useRef(currentIndex);
   const [containerHeight, setContainerHeight] = useState(0);
@@ -28,25 +34,36 @@ const MediaViewer = memo(function MediaViewer({ showTagInput }) {
 
   const { getPreloadedMedia } = useMediaPreloader(mediaFiles, currentIndex);
 
-  // Track container height
-  useEffect(() => {
-    const updateHeight = () => {
-      if (containerRef.current) {
-        const height = containerRef.current.clientHeight;
-        setContainerHeight(height);
+  // Slideshow auto-advancement
+  const { startTime: slideshowStartTime } = useSlideshow({
+    isActive: slideshowActive,
+    speed: slideshowSpeed,
+    currentMediaFile,
+    navigate,
+  });
 
-        // Set drag constraints based on content
-        const totalHeight = mediaFiles.length * height;
-        setDragConstraints({
-          top: -(totalHeight - height),
-          bottom: 0,
-        });
-      }
+  // Track container height via ResizeObserver so it reacts to any size change
+  // (window resize, nav bar show/hide, slideshow toggle, etc.)
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const updateHeight = () => {
+      const height = container.clientHeight;
+      setContainerHeight(height);
+
+      const totalHeight = mediaFiles.length * height;
+      setDragConstraints({
+        top: -(totalHeight - height),
+        bottom: 0,
+      });
     };
 
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(container);
     updateHeight();
-    window.addEventListener("resize", updateHeight);
-    return () => window.removeEventListener("resize", updateHeight);
+
+    return () => observer.disconnect();
   }, [mediaFiles.length]);
 
   // Virtual scrolling - minimal buffer for performance
@@ -176,11 +193,17 @@ const MediaViewer = memo(function MediaViewer({ showTagInput }) {
                   index={actualIndex}
                   isActive={actualIndex === currentIndex}
                   getPreloadedMedia={getPreloadedMedia}
+                  slideshowStartTime={
+                    actualIndex === currentIndex ? slideshowStartTime : 0
+                  }
+                  isSlideshow={slideshowActive}
                 />
               </motion.div>
             );
           })}
       </motion.div>
+
+      {slideshowActive && <SlideshowOverlay onExit={stopSlideshow} />}
     </div>
   );
 });

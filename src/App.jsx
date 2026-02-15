@@ -12,7 +12,11 @@ import GalleryView from "./components/GalleryView";
 import ViewTransition from "./components/ViewTransition";
 import { useKeyboardNavigation } from "./hooks/useKeyboardNavigation";
 import { useFavorite } from "./hooks/useFavorite";
-import { useCurrentMedia, useMediaData } from "./context/MediaContext";
+import {
+  useCurrentMedia,
+  useMediaData,
+  useSlideshowState,
+} from "./context/MediaContext";
 import { isMobile } from "./utils/helpers";
 
 function App() {
@@ -24,6 +28,7 @@ function App() {
 
   const { currentIndex, currentMediaFile } = useCurrentMedia();
   const { mediaFiles, loading, error, settings, navigate } = useMediaData();
+  const { slideshowActive, toggleSlideshow } = useSlideshowState();
 
   const { pathFilter, galleryView: isGalleryView, debug: debugMode } = settings;
 
@@ -45,6 +50,7 @@ function App() {
       },
       [mediaFiles.length, showTagInput, navigate],
     ),
+    { onToggleSlideshow: toggleSlideshow },
   );
 
   const handleToggleTagInput = useCallback((show) => {
@@ -112,7 +118,7 @@ function App() {
       <DebugInfo show={debugMode} />
 
       <div
-        className="media-container flex-1 relative overflow-hidden bg-black pb-16"
+        className={`media-container flex-1 relative overflow-hidden bg-black ${slideshowActive ? "" : "pb-16"}`}
         style={{
           width:
             isSettingsOpen && isDesktop
@@ -150,9 +156,9 @@ function App() {
           </div>
         )}
 
-        {(!isSettingsOpen || !isMobile()) && !isGalleryView && (
-          <SideNavigation />
-        )}
+        {(!isSettingsOpen || !isMobile()) &&
+          !isGalleryView &&
+          !slideshowActive && <SideNavigation />}
 
         <ViewTransition isSettingsOpen={isSettingsOpen}>
           <SettingsPanel
@@ -162,7 +168,7 @@ function App() {
         </ViewTransition>
       </div>
 
-      {!isGalleryView && (
+      {!isGalleryView && !slideshowActive && (
         <TagDisplay
           currentMediaFile={currentMediaFile}
           showTagInput={showTagInput}
@@ -171,7 +177,7 @@ function App() {
         />
       )}
 
-      {(!isSettingsOpen || !isMobile()) && (
+      {(!isSettingsOpen || !isMobile()) && !slideshowActive && (
         <Navigation
           onToggleSettings={handleToggleSettings}
           onToggleTagInput={handleToggleTagInput}

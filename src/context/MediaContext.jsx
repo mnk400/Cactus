@@ -15,6 +15,7 @@ import { URL_PARAMS, encodeSettingsToURL } from "../utils/urlParams";
 const CurrentMediaContext = createContext();
 const AudioContext = createContext();
 const MediaDataContext = createContext();
+const SlideshowContext = createContext();
 
 export const MediaProvider = ({ children }) => {
 
@@ -47,6 +48,12 @@ export const MediaProvider = ({ children }) => {
   // Tags state
   const [tags, setTags] = useState([]);
   const [tagsLoading, setTagsLoading] = useState(false);
+
+  // Slideshow state
+  const [slideshowActive, setSlideshowActive] = useState(false);
+  const [slideshowSpeed, setSlideshowSpeed] = useState(() => {
+    return localStorage.getItem("cactus-slideshow-speed") || "normal";
+  });
 
   const {
     settings,
@@ -376,6 +383,23 @@ export const MediaProvider = ({ children }) => {
     }
   }, [isRegeneratingThumbnails, fetchMedia]);
 
+  const toggleSlideshow = useCallback(() => {
+    setSlideshowActive((prev) => !prev);
+  }, []);
+
+  const startSlideshow = useCallback(() => {
+    setSlideshowActive(true);
+  }, []);
+
+  const stopSlideshow = useCallback(() => {
+    setSlideshowActive(false);
+  }, []);
+
+  const setSlideshowSpeedCb = useCallback((speed) => {
+    setSlideshowSpeed(speed);
+    localStorage.setItem("cactus-slideshow-speed", speed);
+  }, []);
+
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => !prev);
     setHasUserInteracted(true);
@@ -417,6 +441,26 @@ export const MediaProvider = ({ children }) => {
       setMuted: setMutedCb,
     }),
     [isMuted, hasUserInteracted, toggleMute, setMutedCb],
+  );
+
+  // Slideshow state — changes only when slideshow is toggled or speed changes
+  const slideshowValue = useMemo(
+    () => ({
+      slideshowActive,
+      slideshowSpeed,
+      toggleSlideshow,
+      startSlideshow,
+      stopSlideshow,
+      setSlideshowSpeed: setSlideshowSpeedCb,
+    }),
+    [
+      slideshowActive,
+      slideshowSpeed,
+      toggleSlideshow,
+      startSlideshow,
+      stopSlideshow,
+      setSlideshowSpeedCb,
+    ],
   );
 
   // Everything else — changes on filter/sort, media fetch, config load, tag CRUD
@@ -481,7 +525,9 @@ export const MediaProvider = ({ children }) => {
     <MediaDataContext.Provider value={mediaDataValue}>
       <CurrentMediaContext.Provider value={currentMediaValue}>
         <AudioContext.Provider value={audioValue}>
-          {children}
+          <SlideshowContext.Provider value={slideshowValue}>
+            {children}
+          </SlideshowContext.Provider>
         </AudioContext.Provider>
       </CurrentMediaContext.Provider>
     </MediaDataContext.Provider>
@@ -513,12 +559,19 @@ export const useAudio = () => {
   return context;
 };
 
+/** Slideshow state — slideshowActive, slideshowSpeed, toggleSlideshow, etc. */
+export const useSlideshowState = () => {
+  const context = useContext(SlideshowContext);
+  if (!context)
+    throw new Error("useSlideshowState must be used within MediaProvider");
+  return context;
+};
+
 /** Backward-compatible hook — subscribes to ALL contexts (prefer granular hooks) */
 export const useMedia = () => {
   const mediaData = useContext(MediaDataContext);
   const currentMedia = useContext(CurrentMediaContext);
   const audio = useContext(AudioContext);
-  if (!mediaData)
-    throw new Error("useMedia must be used within MediaProvider");
+  if (!mediaData) throw new Error("useMedia must be used within MediaProvider");
   return { ...mediaData, ...currentMedia, ...audio };
 };
