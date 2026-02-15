@@ -261,7 +261,10 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
                 selectedTags: selectedTags.filter((t) => t.name !== "favorites"),
               });
             } else {
-              setFilters({ selectedTags: [...selectedTags, favTag] });
+              setFilters({
+                selectedTags: [...selectedTags, favTag],
+                pathFilter: "",
+              });
             }
           }}
           className={`w-full mb-4 py-2.5 rounded-2xl font-medium transition-all duration-200 active:scale-95 ${
@@ -341,7 +344,13 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
             General Filter
           </h4>
           <GeneralFilter
-            onFilterChange={(path) => setFilters({ pathFilter: path })}
+            onFilterChange={(path) =>
+              setFilters({
+                pathFilter: path,
+                selectedTags: [],
+                excludedTags: [],
+              })
+            }
             initialValue={pathFilter || ""}
           />
         </div>
