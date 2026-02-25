@@ -18,7 +18,6 @@ const MediaDataContext = createContext();
 const SlideshowContext = createContext();
 
 export const MediaProvider = ({ children }) => {
-
   const [mediaFiles, setMediaFiles] = useState([]);
   const [allMediaFiles, setAllMediaFiles] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);

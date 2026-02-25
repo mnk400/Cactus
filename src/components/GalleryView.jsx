@@ -252,7 +252,7 @@ const GalleryView = memo(function GalleryView({
   return (
     <div
       ref={containerRef}
-      className="gallery-view overflow-auto h-full bg-black"
+      className="gallery-view overflow-auto h-full bg-black safe-area-top"
       style={style}
     >
       <div className="relative" style={{ height: masonryLayout.totalHeight }}>

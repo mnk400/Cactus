@@ -61,6 +61,14 @@ const MediaItem = memo(function MediaItem({
     }
   }, [isActive, index, getPreloadedMedia, mediaFile]);
 
+  // Record view when media becomes active
+  useEffect(() => {
+    if (!isActive || !mediaFile?.file_hash) return;
+    fetch(`/api/media/${encodeURIComponent(mediaFile.file_hash)}/view`, {
+      method: "POST",
+    }).catch(() => {});
+  }, [isActive, mediaFile?.file_hash]);
+
   // Handle video play/pause based on visibility
   useEffect(() => {
     if (!mediaFile || mediaFile.media_type !== "video" || !videoRef.current)
@@ -391,9 +399,12 @@ const VideoPlayer = memo(function VideoPlayer({
         </div>
       )}
 
-      {/* Audio controls - small button in top-left */}
+      {/* Audio controls - small button in top-left, offset for notch */}
       {!isLoading && !isSlideshow && (
-        <div className="absolute top-4 left-4 z-20">
+        <div
+          className="absolute left-4 z-20"
+          style={{ top: "calc(env(safe-area-inset-top, 0px) + 1rem)" }}
+        >
           <VideoControls
             isMuted={isMuted || autoplayFailed}
             onToggleMute={handleToggleMute}

@@ -128,7 +128,11 @@ const MediaInfo = memo(function MediaInfo() {
           strokeWidth={2}
           viewBox="0 0 24 24"
         >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M19 9l-7 7-7-7"
+          />
         </svg>
       </button>
 
@@ -141,9 +145,7 @@ const MediaInfo = memo(function MediaInfo() {
           )}
 
           {error && (
-            <div className="text-center py-4 text-red-400 text-sm">
-              {error}
-            </div>
+            <div className="text-center py-4 text-red-400 text-sm">{error}</div>
           )}
 
           {!loading && !error && !currentMediaFile && (

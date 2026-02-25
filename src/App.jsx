@@ -1,4 +1,12 @@
-import { useState, useCallback, useMemo, useEffect, useRef, lazy, Suspense } from "react";
+import {
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef,
+  lazy,
+  Suspense,
+} from "react";
 import MediaViewer from "./components/MediaViewer";
 import Navigation from "./components/Navigation";
 import SideNavigation from "./components/SideNavigation";
@@ -125,8 +133,11 @@ function App() {
       </Suspense>
 
       <div
-        className={`media-container flex-1 relative overflow-hidden bg-black ${slideshowActive ? "" : "pb-16"}`}
+        className={`media-container flex-1 relative overflow-hidden bg-black`}
         style={{
+          paddingBottom: slideshowActive
+            ? undefined
+            : "calc(4rem + env(safe-area-inset-bottom, 0px))",
           width:
             isSettingsOpen && isDesktop
               ? "calc(100% - var(--settings-drawer-width, 0px))"
@@ -138,7 +149,9 @@ function App() {
 
         {!loading && !error && mediaFiles.length > 0 && (
           <ViewTransition isGalleryView={isGalleryView}>
-            <Suspense fallback={<LoadingMessage message="Loading gallery..." />}>
+            <Suspense
+              fallback={<LoadingMessage message="Loading gallery..." />}
+            >
               <GalleryView
                 scrollPosition={galleryScrollPosition}
                 setScrollPosition={setGalleryScrollPosition}

@@ -2,9 +2,7 @@ import React, { memo } from "react";
 import { isMobile } from "../utils/helpers";
 import { useMediaData } from "../context/MediaContext";
 
-
 const SideNavigation = memo(function SideNavigation() {
-
   const { navigate, mediaFiles, settings } = useMediaData();
   const { galleryView } = settings;
 

@@ -175,7 +175,7 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
 
   return (
     <div
-      className={`fixed bg-black-shades-900 p-6 text-gray-200 z-50 overflow-y-auto ${
+      className={`fixed bg-black-shades-900 p-6 text-gray-200 z-50 overflow-y-auto safe-area-top safe-area-bottom ${
         isDesktop ? "top-0 right-0 bottom-0 w-[420px] lg:w-[450px]" : "inset-0"
       }`}
       style={

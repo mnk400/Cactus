@@ -4,7 +4,6 @@ import VideoProgressBar from "./VideoProgressBar";
 import useDisplayName from "../hooks/useDisplayName";
 import { useCurrentMedia, useMediaData } from "../context/MediaContext";
 
-
 const Navigation = memo(function Navigation({
   onToggleSettings,
   onToggleTagInput,
@@ -12,7 +11,6 @@ const Navigation = memo(function Navigation({
   isFavorited,
   onToggleFavorite,
 }) {
-
   const { currentMediaFile } = useCurrentMedia();
   const { toggleGallery, settings, setFilters } = useMediaData();
 
@@ -88,10 +86,11 @@ const Navigation = memo(function Navigation({
 
   return (
     <div
-      className={`navigation fixed bottom-0 left-0 flex flex-col justify-end z-20 bg-black-shades-1000 transition-all duration-300 py-3`}
+      className={`navigation fixed bottom-0 left-0 flex flex-col justify-end z-20 bg-black-shades-1000 transition-all duration-300 pt-3`}
       style={{
         right: "var(--settings-drawer-width, 0px)",
         width: "calc(100% - var(--settings-drawer-width, 0px))",
+        paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))",
       }}
     >
       <div

@@ -50,9 +50,10 @@ const SlideshowOverlay = memo(function SlideshowOverlay({ onExit }) {
     <div className="fixed inset-0 z-40 pointer-events-none">
       <button
         onClick={onExit}
-        className={`absolute top-4 right-4 z-50 pointer-events-auto px-3 py-1 bg-black-shades-500 text-white rounded-lg hover:bg-black-shades-600 transition-all duration-300 ${
+        className={`absolute right-4 z-50 pointer-events-auto px-3 py-1 bg-black-shades-500 text-white rounded-lg hover:bg-black-shades-600 transition-all duration-300 ${
           showControls ? "opacity-100" : "opacity-0"
         }`}
+        style={{ top: "calc(env(safe-area-inset-top, 0px) + 1rem)" }}
         aria-label="Exit slideshow"
       >
         Close

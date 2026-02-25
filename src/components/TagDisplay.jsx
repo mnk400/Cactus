@@ -8,13 +8,11 @@ import React, {
 } from "react";
 import { useMediaData } from "../context/MediaContext";
 
-
 const TagDisplay = memo(function TagDisplay({
   currentMediaFile,
   showTagInput,
   isVideoPlaying,
 }) {
-
   const [mediaTags, setMediaTags] = useState([]);
   const { fetchTags } = useMediaData();
 
@@ -160,9 +158,9 @@ const TagDisplay = memo(function TagDisplay({
 
   return (
     <div
-      className={`fixed pb-1 left-0 z-10 pointer-events-none transition-all duration-300 ${isVideoPlaying ? "bottom-20" : "bottom-16"}`}
+      className={`fixed pb-1 left-0 z-10 pointer-events-none transition-all duration-300`}
       style={{
-        bottom: isVideoPlaying ? "84px" : "60px",
+        bottom: `calc(${isVideoPlaying ? "84px" : "60px"} + max(0px, env(safe-area-inset-bottom, 0px) - 0.75rem))`,
         right: "var(--settings-drawer-width, 0px)",
         width: "calc(100% - var(--settings-drawer-width, 0px))",
       }}
