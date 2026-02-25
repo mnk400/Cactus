@@ -5,6 +5,10 @@
  * This provider fetches media from a sb server via GraphQL.
  */
 
+const path = require("path");
+const fs = require("fs");
+const os = require("os");
+const ffmpeg = require("fluent-ffmpeg");
 const MediaSourceProvider = require("./MediaSourceProvider");
 
 const fetch = globalThis.fetch || require("node-fetch");
@@ -39,6 +43,7 @@ class SbMediaProvider extends MediaSourceProvider {
     this.tagsCache = null;
     this.tagsCacheTime = null;
     this.thumbnailMap = new Map();
+    this.generatedThumbnails = new Map();
   }
 
   static getConfigSchema() {
@@ -939,18 +944,61 @@ class SbMediaProvider extends MediaSourceProvider {
 
   async serveThumbnail(fileHash, res) {
     try {
-      const thumbnailPath = this.thumbnailMap.get(fileHash);
-      if (!thumbnailPath) {
-        // Fallback: try refreshing cache if map is empty
+      // 1. Check in-memory cache for previously generated thumbnails
+      const cached = this.generatedThumbnails.get(fileHash);
+      if (cached) {
+        res.set("Content-Type", "image/jpeg");
+        return res.send(cached);
+      }
+
+      // 2. Resolve upstream thumbnail URL
+      let thumbnailUrl = this.thumbnailMap.get(fileHash);
+      if (!thumbnailUrl) {
         if (this.thumbnailMap.size === 0 && this.mediaCache.length === 0) {
           await this.getAllMedia("all");
-          const retryPath = this.thumbnailMap.get(fileHash);
-          if (!retryPath) return res.status(404).send("Thumbnail not found");
-          return this.proxyFetch(retryPath, res, "Thumbnail");
+          thumbnailUrl = this.thumbnailMap.get(fileHash);
         }
-        return res.status(404).send("Thumbnail not found");
+        if (!thumbnailUrl) return res.status(404).send("Thumbnail not found");
       }
-      await this.proxyFetch(thumbnailPath, res, "Thumbnail");
+
+      // 3. Fetch upstream and inspect content-type
+      const headers = this.apiKey ? { ApiKey: this.apiKey } : {};
+      const response = await fetch(thumbnailUrl, { headers });
+      if (!response.ok) {
+        return res.status(404).send("Thumbnail not found on server");
+      }
+
+      const contentType = response.headers.get("content-type") || "";
+      const buffer = Buffer.from(await response.arrayBuffer());
+
+      // 4. If it's an image, serve directly
+      if (contentType.startsWith("image/")) {
+        res.set("Content-Type", contentType);
+        return res.send(buffer);
+      }
+
+      // 5. If it's a video, generate a proper thumbnail
+      if (contentType.startsWith("video/")) {
+        log.info("Upstream returned video instead of thumbnail, generating locally", {
+          fileHash,
+          contentType,
+          size: buffer.length,
+        });
+
+        const thumbBuffer = await this.generateThumbnailFromVideo(buffer, fileHash);
+        if (thumbBuffer) {
+          this.generatedThumbnails.set(fileHash, thumbBuffer);
+          res.set("Content-Type", "image/jpeg");
+          return res.send(thumbBuffer);
+        }
+        // Fallback: serve original buffer if thumbnail generation fails
+        res.set("Content-Type", contentType);
+        return res.send(buffer);
+      }
+
+      // 6. Unknown content-type, serve as-is
+      if (contentType) res.set("Content-Type", contentType);
+      res.send(buffer);
     } catch (error) {
       log.error("Failed to serve thumbnail file", {
         fileHash,
@@ -958,6 +1006,94 @@ class SbMediaProvider extends MediaSourceProvider {
       });
       res.status(500).send("Failed to serve thumbnail file");
     }
+  }
+
+  /**
+   * Generate a thumbnail from a video buffer using ffmpeg.
+   * Writes to temp files for ffmpeg, reads result back into a Buffer.
+   * @param {Buffer} videoBuffer - The video data
+   * @param {string} fileHash - Used for temp filenames
+   * @returns {Promise<Buffer|null>} JPEG thumbnail buffer, or null on failure
+   */
+  generateThumbnailFromVideo(videoBuffer, fileHash) {
+    const tmpDir = os.tmpdir();
+    const tempVideoPath = path.join(tmpDir, `cactus_${fileHash}_in.mp4`);
+    const tempThumbPath = path.join(tmpDir, `cactus_${fileHash}_out.jpg`);
+
+    fs.writeFileSync(tempVideoPath, videoBuffer);
+
+    return new Promise((resolve) => {
+      const cleanup = () => {
+        try { fs.unlinkSync(tempVideoPath); } catch {}
+        try { fs.unlinkSync(tempThumbPath); } catch {}
+      };
+
+      ffmpeg.ffprobe(tempVideoPath, (err, metadata) => {
+        if (err) {
+          log.error("Failed to probe video for thumbnail generation", {
+            fileHash,
+            error: err.message,
+          });
+          cleanup();
+          return resolve(null);
+        }
+
+        const videoStream = metadata.streams.find(
+          (s) => s.codec_type === "video",
+        );
+        if (!videoStream) {
+          log.error("No video stream found for thumbnail generation", { fileHash });
+          cleanup();
+          return resolve(null);
+        }
+
+        const maxDim = 500;
+        const { width: origW, height: origH } = videoStream;
+        let newWidth, newHeight;
+
+        if (origW > origH) {
+          newWidth = maxDim;
+          newHeight = Math.round((origH / origW) * maxDim);
+        } else {
+          newHeight = maxDim;
+          newWidth = Math.round((origW / origH) * maxDim);
+        }
+
+        ffmpeg(tempVideoPath)
+          .screenshots({
+            timestamps: ["0%"],
+            filename: `cactus_${fileHash}_out.jpg`,
+            folder: tmpDir,
+            size: `${newWidth}x${newHeight}`,
+          })
+          .on("end", () => {
+            log.info("Generated thumbnail from upstream video", {
+              fileHash,
+              size: `${newWidth}x${newHeight}`,
+            });
+            try {
+              const thumbBuffer = fs.readFileSync(tempThumbPath);
+              cleanup();
+              resolve(thumbBuffer);
+            } catch (readErr) {
+              log.error("Failed to read generated thumbnail", {
+                fileHash,
+                error: readErr.message,
+              });
+              cleanup();
+              resolve(null);
+            }
+          })
+          .on("error", (err) => {
+            log.error("Failed to generate thumbnail from video", {
+              fileHash,
+              error: err.message,
+            });
+            cleanup();
+            resolve(null);
+          });
+      });
+    });
   }
 
   // ── Unsupported operations ─────────────────────────────────────────
@@ -1231,6 +1367,7 @@ class SbMediaProvider extends MediaSourceProvider {
     this.tagsCache = null;
     this.tagsCacheTime = null;
     this.thumbnailMap.clear();
+    this.generatedThumbnails.clear();
     await super.close();
     log.info("sbMediaProvider closed");
   }

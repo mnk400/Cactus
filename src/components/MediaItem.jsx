@@ -61,14 +61,6 @@ const MediaItem = memo(function MediaItem({
     }
   }, [isActive, index, getPreloadedMedia, mediaFile]);
 
-  // Record view when media becomes active
-  useEffect(() => {
-    if (!isActive || !mediaFile?.file_hash) return;
-    fetch(`/api/media/${encodeURIComponent(mediaFile.file_hash)}/view`, {
-      method: "POST",
-    }).catch(() => {});
-  }, [isActive, mediaFile?.file_hash]);
-
   // Handle video play/pause based on visibility
   useEffect(() => {
     if (!mediaFile || mediaFile.media_type !== "video" || !videoRef.current)

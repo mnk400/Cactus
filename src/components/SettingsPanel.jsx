@@ -181,6 +181,7 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
       style={
         isDesktop
           ? {
+              paddingTop: "1rem",
               transform: shouldAnimate ? "translateX(0)" : "translateX(100%)",
               transition: "transform 300ms cubic-bezier(0.4, 0, 0.2, 1)",
               pointerEvents: isOpen ? "auto" : "none",
