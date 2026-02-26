@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, memo } from "react";
-import FullscreenButton from "./FullscreenButton";
 import VideoProgressBar from "./VideoProgressBar";
 import useDisplayName from "../hooks/useDisplayName";
 import { useCurrentMedia, useMediaData } from "../context/MediaContext";
@@ -180,9 +179,6 @@ const Navigation = memo(function Navigation({
             ⋯
           </button>
 
-          {currentMediaFile?.media_type === "video" && (
-            <FullscreenButton currentMediaFile={currentMediaFile} />
-          )}
         </div>
 
         {activeFilter ? (

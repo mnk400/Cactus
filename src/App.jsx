@@ -11,6 +11,7 @@ import MediaViewer from "./components/MediaViewer";
 import Navigation from "./components/Navigation";
 import SideNavigation from "./components/SideNavigation";
 import TagDisplay from "./components/TagDisplay";
+import VideoControlsBar from "./components/VideoControlsBar";
 import LoadingMessage from "./components/LoadingMessage";
 import ErrorMessage from "./components/ErrorMessage";
 import ViewTransition from "./components/ViewTransition";
@@ -24,6 +25,7 @@ import { useFavorite } from "./hooks/useFavorite";
 import {
   useCurrentMedia,
   useMediaData,
+  useAudio,
   useSlideshowState,
 } from "./context/MediaContext";
 import { isMobile } from "./utils/helpers";
@@ -39,6 +41,7 @@ function App() {
   const { currentIndex, currentMediaFile } = useCurrentMedia();
   const { mediaFiles, loading, error, settings, navigate } = useMediaData();
   const { slideshowActive, toggleSlideshow } = useSlideshowState();
+  const { isMuted, toggleMute } = useAudio();
 
   const { pathFilter, galleryView: isGalleryView, debug: debugMode } = settings;
 
@@ -193,12 +196,28 @@ function App() {
       </div>
 
       {!isGalleryView && !slideshowActive && (
-        <TagDisplay
-          currentMediaFile={currentMediaFile}
-          showTagInput={showTagInput}
-          key={tagUpdateTrigger}
-          isVideoPlaying={currentMediaFile?.media_type === "video"}
-        />
+        <div
+          className="fixed left-0 z-10 pointer-events-none transition-all duration-300"
+          style={{
+            bottom: `calc(${currentMediaFile?.media_type === "video" ? "96px" : "60px"} + max(0px, env(safe-area-inset-bottom, 0px) - 0.75rem))`,
+            right: "var(--settings-drawer-width, 0px)",
+            width: "calc(100% - var(--settings-drawer-width, 0px))",
+          }}
+        >
+          <div className="flex items-center justify-end px-4 pb-1 gap-2">
+            <TagDisplay
+              currentMediaFile={currentMediaFile}
+              showTagInput={showTagInput}
+              key={tagUpdateTrigger}
+            />
+            {currentMediaFile?.media_type === "video" && (
+              <VideoControlsBar
+                isMuted={isMuted}
+                onToggleMute={toggleMute}
+              />
+            )}
+          </div>
+        </div>
       )}
 
       {(!isSettingsOpen || !isMobileView) && !slideshowActive && (

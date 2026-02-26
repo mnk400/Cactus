@@ -11,7 +11,6 @@ import { useMediaData } from "../context/MediaContext";
 const TagDisplay = memo(function TagDisplay({
   currentMediaFile,
   showTagInput,
-  isVideoPlaying,
 }) {
   const [mediaTags, setMediaTags] = useState([]);
   const { fetchTags } = useMediaData();
@@ -157,17 +156,9 @@ const TagDisplay = memo(function TagDisplay({
   }
 
   return (
-    <div
-      className={`fixed pb-1 left-0 z-10 pointer-events-none transition-all duration-300`}
-      style={{
-        bottom: `calc(${isVideoPlaying ? "84px" : "60px"} + max(0px, env(safe-area-inset-bottom, 0px) - 0.75rem))`,
-        right: "var(--settings-drawer-width, 0px)",
-        width: "calc(100% - var(--settings-drawer-width, 0px))",
-      }}
-    >
-      <div className="pb-3 pointer-events-auto px-4">
-        <div className="overflow-x-auto scrollbar-hide">
-          <div className="flex gap-2 min-w-max pb-1">
+    <div className="flex-1 min-w-0 overflow-hidden pointer-events-auto">
+      <div className="overflow-x-auto scrollbar-hide">
+        <div className="flex gap-2 min-w-max pb-1">
             {mediaTags
               .filter((tag) => tag.name !== "favorites")
               .map((tag) => (
@@ -199,7 +190,6 @@ const TagDisplay = memo(function TagDisplay({
                   </button>
                 </span>
               ))}
-          </div>
         </div>
       </div>
     </div>

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from "react";
-import VideoControls from "./VideoControls";
 import { useAudio } from "../context/MediaContext";
 
 const MediaItem = memo(function MediaItem({
@@ -391,18 +390,6 @@ const VideoPlayer = memo(function VideoPlayer({
         </div>
       )}
 
-      {/* Audio controls - small button in top-left, offset for notch */}
-      {!isLoading && !isSlideshow && (
-        <div
-          className="absolute left-4 z-20"
-          style={{ top: "calc(env(safe-area-inset-top, 0px) + 1rem)" }}
-        >
-          <VideoControls
-            isMuted={isMuted || autoplayFailed}
-            onToggleMute={handleToggleMute}
-          />
-        </div>
-      )}
     </>
   );
 });
