@@ -1,9 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { CSSTransition } from "react-transition-group";
 import TagInput from "./TagInput";
 import useTags from "../hooks/useTags";
-
-import { usePrediction } from "../hooks/usePrediction";
 
 const TagInputModal = ({
   isOpen,
@@ -13,8 +11,6 @@ const TagInputModal = ({
 }) => {
   const { tags, addTagsToMedia } = useTags();
   const [stagedTags, setStagedTags] = useState([]);
-  const [predictEnabled, setPredictEnabled] = useState(false);
-  const [predictApiUrl, setPredictApiUrl] = useState("");
   const [wasOpen, setWasOpen] = useState(isOpen);
 
   // Clear staged tags when modal closes (during render, not in effect)
@@ -37,30 +33,6 @@ const TagInputModal = ({
     });
   };
 
-  const { isPredicting, predictTags } = usePrediction(
-    predictApiUrl,
-    currentMediaFile,
-    handleAddStagedTag,
-  );
-
-  // Check if prediction is enabled
-  useEffect(() => {
-    const checkPredictEnabled = async () => {
-      try {
-        const response = await fetch("/api/config");
-        if (response.ok) {
-          const data = await response.json();
-          setPredictEnabled(data.predictEnabled);
-          setPredictApiUrl(data.predictApiUrl);
-        }
-      } catch (error) {
-        console.error("Failed to check if prediction is enabled:", error);
-      }
-    };
-
-    checkPredictEnabled();
-  }, []);
-
   const handleRemoveStagedTag = (tagId) => {
     setStagedTags((prevTags) => prevTags.filter((tag) => tag.id !== tagId));
   };
@@ -80,10 +52,6 @@ const TagInputModal = ({
         console.error("Failed to add tags:", error);
       }
     }
-  };
-
-  const handlePredict = () => {
-    predictTags(currentMediaFile.file_path);
   };
 
   // Close modal when clicking the background overlay
@@ -129,18 +97,7 @@ const TagInputModal = ({
               </div>
             )}
           </div>
-          <div className="flex justify-between mt-4">
-            {predictEnabled &&
-              (currentMediaFile?.media_type === "image" ||
-                currentMediaFile?.media_type === "video") && (
-                <button
-                  onClick={handlePredict}
-                  disabled={isPredicting}
-                  className="px-3 py-1.5 text-sm bg-red-400 text-white rounded-lg hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isPredicting ? "Predicting..." : "Predict"}
-                </button>
-              )}
+          <div className="flex justify-end mt-4">
             <button
               onClick={handleConfirmAdd}
               disabled={stagedTags.length === 0}

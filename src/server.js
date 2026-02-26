@@ -30,13 +30,6 @@ const argv = minimist(process.argv.slice(2));
 
 const PORT = argv.p || process.env.PORT || 3000;
 const providerType = argv.provider || process.env.PROVIDER || "local";
-const enablePredict =
-  argv["experimental-prediction-test"] ||
-  process.env.EXPERIMENTAL_PREDICTION_TEST === "true" ||
-  false; // Flag to enable extremely experimental prediction functionality
-const predictApiUrl =
-  argv["predict-api-url"] || process.env.PREDICT_API_URL || "http://localhost"; // Prediction API URL super WIP
-
 // Authentication configuration
 const keyphrase = argv.keyphrase || process.env.CACTUS_KEYPHRASE || null;
 const sessionSecret =
@@ -851,9 +844,6 @@ app.get(
 
       res.json({
         // Server configuration
-        predictEnabled: enablePredict,
-        predictApiUrl: predictApiUrl,
-
         // Provider information
         provider: {
           type: providerType,
@@ -925,7 +915,6 @@ app.get("*", (req, res) => {
         provider: mediaProvider.constructor.name,
         providerType: mediaProvider.getProviderType(),
         config: validation.config,
-        predictEnabled: enablePredict,
       });
     });
   } catch (error) {
