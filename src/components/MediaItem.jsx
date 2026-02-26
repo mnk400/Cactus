@@ -306,6 +306,7 @@ const VideoPlayer = memo(function VideoPlayer({
             );
             video.muted = true;
             setAutoplayFailed(true);
+            setMuted(true);
             video.play().catch((mutedErr) => {
               console.error("Failed to play video even when muted:", mutedErr);
             });
