@@ -35,6 +35,12 @@ export const MediaProvider = ({ children }) => {
   // AbortController to cancel stale API requests when filters change rapidly
   const fetchAbortController = useRef(null);
 
+  // Browsing snapshot: saves state before a context switch (e.g. applying filters)
+  // so we can restore position + order when returning to the original context
+  const browsingSnapshot = useRef(null);
+  // Ref to read currentIndex without adding it as a dependency
+  const currentIndexRef = useRef(0);
+
   // Audio state
   const [isMuted, setIsMuted] = useState(() => {
     const saved = localStorage.getItem("cactus-video-muted");
@@ -70,6 +76,9 @@ export const MediaProvider = ({ children }) => {
     galleryView,
     mediaId,
   } = settings;
+
+  // Keep currentIndex ref in sync for snapshot reads without adding dependency
+  currentIndexRef.current = currentIndex;
 
   // Memoized current media file
   const currentMediaFile = useMemo(
@@ -334,13 +343,97 @@ export const MediaProvider = ({ children }) => {
     [mediaFiles.length],
   );
 
+  // Helper: are content-narrowing filters active?
+  const hasActiveFilters = useCallback(
+    (tags, excluded, path) =>
+      tags.length > 0 || excluded.length > 0 || (path && path.trim() !== ""),
+    [],
+  );
+
   // Public API
   const setFilters = useCallback(
     (newSettings) => {
+      // Resolve what the new full filter state will be
+      const newTags = newSettings.selectedTags ?? selectedTags;
+      const newExcluded = newSettings.excludedTags ?? excludedTags;
+      const newPath =
+        newSettings.pathFilter !== undefined
+          ? newSettings.pathFilter
+          : pathFilter;
+      const newMediaType = newSettings.mediaType ?? mediaType;
+      const newSortBy = newSettings.sortBy ?? sortBy;
+
+      const wasFiltered = hasActiveFilters(
+        selectedTags,
+        excludedTags,
+        pathFilter,
+      );
+      const willBeFiltered = hasActiveFilters(newTags, newExcluded, newPath);
+
+      // Base view settings changing → invalidate snapshot
+      if (newMediaType !== mediaType || newSortBy !== sortBy) {
+        browsingSnapshot.current = null;
+      }
+
+      if (!wasFiltered && willBeFiltered) {
+        // Entering filtered mode → save current browsing state
+        browsingSnapshot.current = {
+          mediaFiles,
+          currentIndex: currentIndexRef.current,
+          mediaType,
+          sortBy,
+        };
+      } else if (wasFiltered && !willBeFiltered && browsingSnapshot.current) {
+        // Leaving filtered mode → try to restore snapshot
+        const snapshot = browsingSnapshot.current;
+        if (
+          snapshot.mediaType === newMediaType &&
+          snapshot.sortBy === newSortBy
+        ) {
+          setMediaFiles(snapshot.mediaFiles);
+          setCurrentIndex(snapshot.currentIndex);
+          browsingSnapshot.current = null;
+
+          // Update URL to reflect restored state
+          const restoredHash =
+            snapshot.mediaFiles[snapshot.currentIndex]?.file_hash || "";
+          updateSettings({ ...newSettings, mediaId: restoredHash });
+
+          // Sync lastFetchedFilters so the effect doesn't re-fetch
+          lastFetchedFilters.current = JSON.stringify({
+            mediaType: newMediaType,
+            sortBy: newSortBy,
+            tags: (Array.isArray(newTags)
+              ? newTags.map((t) => t.name || t)
+              : []
+            ).join(","),
+            excludeTags: (Array.isArray(newExcluded)
+              ? newExcluded.map((t) => t.name || t)
+              : []
+            ).join(","),
+            pathFilter: newPath || "",
+          });
+
+          return; // Skip fetch — restored from snapshot
+        }
+        // Base settings don't match → invalidate and fetch fresh
+        browsingSnapshot.current = null;
+      }
+
       updateSettings({ ...newSettings, mediaId: "" });
       fetchMedia({ ...newSettings, mediaId: "" });
     },
-    [updateSettings, fetchMedia],
+    [
+      updateSettings,
+      fetchMedia,
+      hasActiveFilters,
+      selectedTags,
+      excludedTags,
+      pathFilter,
+      mediaType,
+      sortBy,
+      mediaFiles,
+    ],
   );
 
   const toggleGallery = useCallback(() => {
