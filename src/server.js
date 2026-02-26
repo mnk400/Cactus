@@ -754,7 +754,7 @@ app.get("/media", async (req, res) => {
       return res.status(400).send("File path is required");
     }
 
-    await mediaProvider.serveMedia(filePath, res);
+    await mediaProvider.serveMedia(filePath, req, res);
   } catch (error) {
     log.error("Failed to serve media file", {
       filePath: req.query.path,

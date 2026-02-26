@@ -912,6 +912,34 @@ class SbMediaProvider extends MediaSourceProvider {
 
   // ── Serving (proxy) ────────────────────────────────────────────────
 
+  /**
+   * Probe the content-type of a URL using Node's http module.
+   * Reads only the response headers, then destroys the socket immediately.
+   * This avoids Bun's fetch which can hang on large binary responses.
+   */
+  probeContentType(url) {
+    return new Promise((resolve, reject) => {
+      const parsedUrl = new URL(url);
+      const mod = parsedUrl.protocol === "https:" ? require("https") : require("http");
+      const reqHeaders = {};
+      if (this.apiKey) reqHeaders["ApiKey"] = this.apiKey;
+
+      const req = mod.get(url, { headers: reqHeaders, timeout: 10000 }, (res) => {
+        // We only need the headers — destroy the socket immediately
+        res.destroy();
+        if (res.statusCode >= 400) {
+          return reject(new Error(`Upstream returned ${res.statusCode}`));
+        }
+        resolve(res.headers["content-type"] || "");
+      });
+      req.on("error", reject);
+      req.on("timeout", () => {
+        req.destroy();
+        reject(new Error("Content-type probe timed out"));
+      });
+    });
+  }
+
   async proxyFetch(url, res, errorLabel = "media") {
     const headers = this.apiKey ? { ApiKey: this.apiKey } : {};
     const response = await fetch(url, { headers });
@@ -928,17 +956,53 @@ class SbMediaProvider extends MediaSourceProvider {
     res.send(Buffer.from(buffer));
   }
 
-  async serveMedia(filePath, res) {
+  async serveMedia(filePath, req, res) {
     try {
       if (!filePath.startsWith("http"))
         return res.status(400).send("Invalid media path for provider");
-      await this.proxyFetch(filePath, res, "Media");
+
+      const headers = this.apiKey ? { ApiKey: this.apiKey } : {};
+
+      // Forward Range header for seeking support
+      if (req.headers.range) {
+        headers["Range"] = req.headers.range;
+      }
+
+      const response = await fetch(filePath, { headers });
+      if (!response.ok && response.status !== 206) {
+        log.error("Server returned error for media", {
+          url: filePath,
+          status: response.status,
+        });
+        return res.status(404).send("Media not found on server");
+      }
+
+      // Forward relevant headers from upstream
+      const contentType = response.headers.get("content-type");
+      const contentLength = response.headers.get("content-length");
+      const contentRange = response.headers.get("content-range");
+      const acceptRanges = response.headers.get("accept-ranges");
+
+      if (contentType) res.set("Content-Type", contentType);
+      if (contentLength) res.set("Content-Length", contentLength);
+      if (contentRange) res.set("Content-Range", contentRange);
+      if (acceptRanges) res.set("Accept-Ranges", acceptRanges);
+
+      // Set status code (206 for partial content, otherwise upstream status)
+      res.status(response.status);
+
+      // Stream the response body directly to the client
+      const { Readable } = require("stream");
+      const readable = Readable.fromWeb(response.body);
+      readable.pipe(res);
     } catch (error) {
       log.error("Failed to serve media file", {
         filePath,
         error: error.message,
       });
-      res.status(500).send("Failed to serve media file");
+      if (!res.headersSent) {
+        res.status(500).send("Failed to serve media file");
+      }
     }
   }
 
@@ -961,44 +1025,32 @@ class SbMediaProvider extends MediaSourceProvider {
         if (!thumbnailUrl) return res.status(404).send("Thumbnail not found");
       }
 
-      // 3. Fetch upstream and inspect content-type
-      const headers = this.apiKey ? { ApiKey: this.apiKey } : {};
-      const response = await fetch(thumbnailUrl, { headers });
-      if (!response.ok) {
-        return res.status(404).send("Thumbnail not found on server");
-      }
+      // 3. Probe content-type via Node http (Bun's fetch hangs on large binary responses)
+      const contentType = await this.probeContentType(thumbnailUrl);
 
-      const contentType = response.headers.get("content-type") || "";
-      const buffer = Buffer.from(await response.arrayBuffer());
-
-      // 4. If it's an image, serve directly
-      if (contentType.startsWith("image/")) {
-        res.set("Content-Type", contentType);
-        return res.send(buffer);
-      }
-
-      // 5. If it's a video, generate a proper thumbnail
+      // 4. If it's a video, generate thumbnail via ffmpeg (reads URL directly, no full download)
       if (contentType.startsWith("video/")) {
-        log.info("Upstream returned video instead of thumbnail, generating locally", {
-          fileHash,
-          contentType,
-          size: buffer.length,
-        });
+        log.info(
+          "Upstream returned video instead of thumbnail, generating locally",
+          { fileHash, contentType },
+        );
 
-        const thumbBuffer = await this.generateThumbnailFromVideo(buffer, fileHash);
+        const thumbBuffer = await this.generateThumbnailFromVideo(
+          thumbnailUrl,
+          fileHash,
+        );
         if (thumbBuffer) {
           this.generatedThumbnails.set(fileHash, thumbBuffer);
           res.set("Content-Type", "image/jpeg");
           return res.send(thumbBuffer);
         }
-        // Fallback: serve original buffer if thumbnail generation fails
-        res.set("Content-Type", contentType);
-        return res.send(buffer);
+        // Fallback: proxy the original content
+        await this.proxyFetch(thumbnailUrl, res, "Thumbnail fallback");
+        return;
       }
 
-      // 6. Unknown content-type, serve as-is
-      if (contentType) res.set("Content-Type", contentType);
-      res.send(buffer);
+      // 5. For images and other content, proxy (thumbnails are small, buffering is fine)
+      await this.proxyFetch(thumbnailUrl, res, "Thumbnail");
     } catch (error) {
       log.error("Failed to serve thumbnail file", {
         fileHash,
@@ -1009,18 +1061,27 @@ class SbMediaProvider extends MediaSourceProvider {
   }
 
   /**
-   * Generate a thumbnail from a video buffer using ffmpeg.
-   * Writes to temp files for ffmpeg, reads result back into a Buffer.
-   * @param {Buffer} videoBuffer - The video data
-   * @param {string} fileHash - Used for temp filenames
+   * Generate a thumbnail from a video URL using ffmpeg.
+   * Downloads the video, writes to a temp file for ffmpeg.
+   * @param {string} videoUrl - The upstream video URL
+   * @param {string} fileHash - Used for temp filenames and caching
    * @returns {Promise<Buffer|null>} JPEG thumbnail buffer, or null on failure
    */
-  generateThumbnailFromVideo(videoBuffer, fileHash) {
+  async generateThumbnailFromVideo(videoUrl, fileHash) {
     const tmpDir = os.tmpdir();
     const tempVideoPath = path.join(tmpDir, `cactus_${fileHash}_in.mp4`);
     const tempThumbPath = path.join(tmpDir, `cactus_${fileHash}_out.jpg`);
 
-    fs.writeFileSync(tempVideoPath, videoBuffer);
+    try {
+      const headers = this.apiKey ? { ApiKey: this.apiKey } : {};
+      const response = await fetch(videoUrl, { headers });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const videoBuffer = Buffer.from(await response.arrayBuffer());
+      await fs.promises.writeFile(tempVideoPath, videoBuffer);
+    } catch (err) {
+      log.error("Failed to download video for thumbnail", { fileHash, error: err.message });
+      return null;
+    }
 
     return new Promise((resolve) => {
       const cleanup = () => {
@@ -1030,17 +1091,12 @@ class SbMediaProvider extends MediaSourceProvider {
 
       ffmpeg.ffprobe(tempVideoPath, (err, metadata) => {
         if (err) {
-          log.error("Failed to probe video for thumbnail generation", {
-            fileHash,
-            error: err.message,
-          });
+          log.error("Failed to probe video for thumbnail generation", { fileHash, error: err.message });
           cleanup();
           return resolve(null);
         }
 
-        const videoStream = metadata.streams.find(
-          (s) => s.codec_type === "video",
-        );
+        const videoStream = metadata.streams.find((s) => s.codec_type === "video");
         if (!videoStream) {
           log.error("No video stream found for thumbnail generation", { fileHash });
           cleanup();
@@ -1050,7 +1106,6 @@ class SbMediaProvider extends MediaSourceProvider {
         const maxDim = 500;
         const { width: origW, height: origH } = videoStream;
         let newWidth, newHeight;
-
         if (origW > origH) {
           newWidth = maxDim;
           newHeight = Math.round((origH / origW) * maxDim);
@@ -1067,28 +1122,19 @@ class SbMediaProvider extends MediaSourceProvider {
             size: `${newWidth}x${newHeight}`,
           })
           .on("end", () => {
-            log.info("Generated thumbnail from upstream video", {
-              fileHash,
-              size: `${newWidth}x${newHeight}`,
-            });
+            log.info("Generated thumbnail from upstream video", { fileHash, size: `${newWidth}x${newHeight}` });
             try {
               const thumbBuffer = fs.readFileSync(tempThumbPath);
               cleanup();
               resolve(thumbBuffer);
             } catch (readErr) {
-              log.error("Failed to read generated thumbnail", {
-                fileHash,
-                error: readErr.message,
-              });
+              log.error("Failed to read generated thumbnail", { fileHash, error: readErr.message });
               cleanup();
               resolve(null);
             }
           })
           .on("error", (err) => {
-            log.error("Failed to generate thumbnail from video", {
-              fileHash,
-              error: err.message,
-            });
+            log.error("Failed to generate thumbnail from video", { fileHash, error: err.message });
             cleanup();
             resolve(null);
           });

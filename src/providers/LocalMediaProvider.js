@@ -551,7 +551,11 @@ class LocalMediaProvider extends MediaSourceProvider {
         width: result.width,
         height: result.height,
       });
-      return { path: thumbnailPath, width: result.width, height: result.height };
+      return {
+        path: thumbnailPath,
+        width: result.width,
+        height: result.height,
+      };
     } catch (error) {
       log.error("Failed to generate image thumbnail", {
         filePath,
@@ -614,7 +618,11 @@ class LocalMediaProvider extends MediaSourceProvider {
               thumbnailPath,
               size: `${newWidth}x${newHeight}`,
             });
-            resolve({ path: thumbnailPath, width: newWidth, height: newHeight });
+            resolve({
+              path: thumbnailPath,
+              width: newWidth,
+              height: newHeight,
+            });
           })
           .on("error", (err) => {
             log.error("Failed to generate video thumbnail", {
@@ -1139,7 +1147,7 @@ class LocalMediaProvider extends MediaSourceProvider {
    * @param {string} filePath - Path to the media file
    * @param {Object} res - Express response object
    */
-  async serveMedia(filePath, res) {
+  async serveMedia(filePath, req, res) {
     const path = require("path");
     const fs = require("fs");
 
@@ -1204,10 +1212,18 @@ class LocalMediaProvider extends MediaSourceProvider {
 
     const fileFields = [];
     if (mediaFile.file_path) {
-      fileFields.push({ label: "Path", value: mediaFile.file_path, type: "text" });
+      fileFields.push({
+        label: "Path",
+        value: mediaFile.file_path,
+        type: "text",
+      });
     }
     if (mediaFile.file_hash) {
-      fileFields.push({ label: "Hash", value: mediaFile.file_hash, type: "text" });
+      fileFields.push({
+        label: "Hash",
+        value: mediaFile.file_hash,
+        type: "text",
+      });
     }
     if (fileFields.length > 0) {
       result.sections.push({ title: "File Info", fields: fileFields });

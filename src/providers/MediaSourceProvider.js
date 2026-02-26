@@ -196,10 +196,11 @@ class MediaSourceProvider {
   /**
    * Serve media file (provider-specific logic)
    * @param {string} filePath - Path or URL to the media file
+   * @param {Object} req - Express request object
    * @param {Object} res - Express response object
    * @returns {Promise<void>} Handles the response
    */
-  async serveMedia(filePath, res) {
+  async serveMedia(filePath, req, res) {
     throw new Error("Method serveMedia() must be implemented by subclass");
   }
 
@@ -284,25 +285,53 @@ class MediaSourceProvider {
     const fields = [];
 
     if (mediaFile.filename) {
-      fields.push({ label: "Filename", value: mediaFile.filename, type: "text" });
+      fields.push({
+        label: "Filename",
+        value: mediaFile.filename,
+        type: "text",
+      });
     }
     if (mediaFile.media_type) {
-      fields.push({ label: "Type", value: mediaFile.media_type === "image" ? "Image" : "Video", type: "text" });
+      fields.push({
+        label: "Type",
+        value: mediaFile.media_type === "image" ? "Image" : "Video",
+        type: "text",
+      });
     }
     if (mediaFile.width && mediaFile.height) {
-      fields.push({ label: "Resolution", value: `${mediaFile.width} × ${mediaFile.height}`, type: "text" });
+      fields.push({
+        label: "Resolution",
+        value: `${mediaFile.width} × ${mediaFile.height}`,
+        type: "text",
+      });
     }
     if (mediaFile.file_size) {
-      fields.push({ label: "File Size", value: this.formatFileSize(mediaFile.file_size), type: "text" });
+      fields.push({
+        label: "File Size",
+        value: this.formatFileSize(mediaFile.file_size),
+        type: "text",
+      });
     }
     if (mediaFile.duration) {
-      fields.push({ label: "Duration", value: this.formatDuration(mediaFile.duration), type: "text" });
+      fields.push({
+        label: "Duration",
+        value: this.formatDuration(mediaFile.duration),
+        type: "text",
+      });
     }
     if (mediaFile.date_created) {
-      fields.push({ label: "Date Created", value: new Date(mediaFile.date_created).toLocaleDateString(), type: "text" });
+      fields.push({
+        label: "Date Created",
+        value: new Date(mediaFile.date_created).toLocaleDateString(),
+        type: "text",
+      });
     }
     if (mediaFile.date_added) {
-      fields.push({ label: "Date Added", value: new Date(mediaFile.date_added).toLocaleDateString(), type: "text" });
+      fields.push({
+        label: "Date Added",
+        value: new Date(mediaFile.date_added).toLocaleDateString(),
+        type: "text",
+      });
     }
 
     return {

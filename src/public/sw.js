@@ -11,7 +11,9 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((k) => k.startsWith("cactus-thumbnails-") && k !== CACHE_NAME)
+            .filter(
+              (k) => k.startsWith("cactus-thumbnails-") && k !== CACHE_NAME,
+            )
             .map((k) => caches.delete(k)),
         ),
       )
