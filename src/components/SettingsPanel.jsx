@@ -60,7 +60,7 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
 
   const getSortButtonClass = (sortOption) => {
     const baseClass =
-      "media-type-btn flex-1 border-none py-2 px-3 rounded-xl cursor-pointer text-sm font-medium transition-all duration-200 ease-in-out active:scale-95";
+      "media-type-btn flex-1 border-none py-2 px-3 rounded-xl cursor-pointer text-sm font-medium transition-colors duration-200 ease-in-out active:scale-95";
 
     if (sortBy === sortOption) {
       return `${baseClass} bg-white bg-opacity-20 text-white shadow-lg`;
@@ -70,7 +70,7 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
 
   const getButtonClass = (mediaType) => {
     const baseClass =
-      "media-type-btn flex-1 border-none py-2 px-3 rounded-xl cursor-pointer text-sm font-medium transition-all duration-200 ease-in-out active:scale-95";
+      "media-type-btn flex-1 border-none py-2 px-3 rounded-xl cursor-pointer text-sm font-medium transition-colors duration-200 ease-in-out active:scale-95";
 
     if (currentMediaType === mediaType) {
       return `${baseClass} bg-white bg-opacity-20 text-white shadow-lg`;
@@ -175,7 +175,7 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
 
   return (
     <div
-      className={`fixed bg-black-shades-900 p-6 text-gray-200 z-50 overflow-y-auto safe-area-top safe-area-bottom ${
+      className={`fixed bg-black-shades-900 px-4 py-4 md:p-6 text-gray-200 z-50 overflow-y-auto safe-area-top safe-area-bottom ${
         isDesktop ? "top-0 right-0 bottom-0 w-[420px] lg:w-[450px]" : "inset-0"
       }`}
       style={
@@ -195,7 +195,7 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
         </h3>
         <button
           onClick={() => onClose()}
-          className="px-3 py-1 bg-red-400 text-white rounded-lg hover:bg-red-500 transition-colors duration-200"
+          className="px-3 py-1 bg-red-400 text-white rounded-xl hover:bg-red-500 transition-colors duration-200"
           aria-label="Close settings"
         >
           Close
@@ -277,8 +277,8 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
                 />
               </div>
               <div className="flex justify-between text-xs text-gray-400 mt-1">
-                <span>📸 {photoPercentage}%</span>
-                <span>🎥 {videoPercentage}%</span>
+                <span>Photos {photoPercentage}%</span>
+                <span>Videos {videoPercentage}%</span>
               </div>
             </div>
           )}
@@ -286,7 +286,7 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
 
         <button
           onClick={handleToggleFavorites}
-          className={`w-full mb-4 py-2.5 rounded-2xl font-medium transition-all duration-200 active:scale-95 ${
+          className={`w-full mb-4 py-2.5 rounded-2xl font-medium transition-colors duration-200 active:scale-95 ${
             selectedTags.some((t) => t.name === "favorites")
               ? "bg-pink-500 bg-opacity-30 text-pink-200 border border-pink-500 border-opacity-40"
               : "bg-black bg-opacity-40 text-gray-300 hover:bg-white hover:bg-opacity-10"
@@ -347,7 +347,7 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
           </div>
         </div>
 
-        <div className="tag-filter-section mb-4 p-3 bg-black bg-opacity-40 rounded-2xl">
+        <div className="tag-filter-section mb-4 p-3 bg-black-shades-800 rounded-2xl">
           <h4 className="text-base font-medium text-white mb-3">Tag Filters</h4>
           <TagFilter
             tags={tags}
@@ -358,7 +358,7 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
           />
         </div>
 
-        <div className="general-filter-section mb-4 p-3 bg-black bg-opacity-40 rounded-2xl">
+        <div className="general-filter-section mb-4 p-3 bg-black-shades-800 rounded-2xl">
           <h4 className="text-base font-medium text-white mb-3">
             General Filter
           </h4>
@@ -368,7 +368,7 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
           />
         </div>
 
-        <div className="slideshow-section mb-4 p-3 bg-black bg-opacity-40 rounded-2xl">
+        <div className="slideshow-section mb-4 p-3 bg-black-shades-800 rounded-2xl">
           <h4 className="text-base font-medium text-white mb-3">Slideshow</h4>
           <div className="space-y-3">
             <div>
@@ -380,7 +380,7 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
                   <button
                     key={speed}
                     onClick={() => setSlideshowSpeed(speed)}
-                    className={`media-type-btn flex-1 border-none py-2 px-3 rounded-xl cursor-pointer text-sm font-medium transition-all duration-200 ease-in-out active:scale-95 ${
+                    className={`media-type-btn flex-1 border-none py-2 px-3 rounded-xl cursor-pointer text-sm font-medium transition-colors duration-200 ease-in-out active:scale-95 ${
                       slideshowSpeed === speed
                         ? "bg-white bg-opacity-20 text-white shadow-lg"
                         : "bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-gray-300"
@@ -397,7 +397,7 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
                 // Small delay to let the settings panel close before entering fullscreen
                 setTimeout(() => startSlideshow(), 300);
               }}
-              className="w-full py-2.5 rounded-xl bg-white bg-opacity-15 text-white hover:bg-opacity-25 transition-all font-medium"
+              className="w-full py-2.5 rounded-xl bg-white bg-opacity-15 text-white hover:bg-opacity-25 transition-colors duration-200 font-medium"
             >
               Start Slideshow
             </button>
@@ -415,7 +415,7 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
                 {canManageTags && (
                   <button
                     onClick={() => setShowTagManager(true)}
-                    className="w-full py-2.5 rounded-xl bg-black bg-opacity-50 text-white hover:bg-opacity-20 transition-all"
+                    className="w-full py-2.5 rounded-xl bg-black bg-opacity-50 text-white hover:bg-opacity-20 transition-colors duration-200"
                   >
                     Manage Tags
                   </button>
@@ -424,7 +424,7 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
                   <button
                     onClick={rescan}
                     disabled={isScanning}
-                    className="w-full py-2.5 rounded-xl bg-black bg-opacity-50 text-white hover:bg-opacity-20 transition-all"
+                    className="w-full py-2.5 rounded-xl bg-black bg-opacity-50 text-white hover:bg-opacity-20 transition-colors duration-200"
                   >
                     {isScanning ? "Scanning..." : "Rescan Directory"}
                   </button>
@@ -433,7 +433,7 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
                   <button
                     onClick={regenerateThumbnails}
                     disabled={isRegeneratingThumbnails}
-                    className="w-full py-2.5 rounded-xl bg-black bg-opacity-50 text-white hover:bg-opacity-20 transition-all"
+                    className="w-full py-2.5 rounded-xl bg-black bg-opacity-50 text-white hover:bg-opacity-20 transition-colors duration-200"
                   >
                     {isRegeneratingThumbnails
                       ? "Generating..."

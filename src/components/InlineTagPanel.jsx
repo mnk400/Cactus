@@ -252,6 +252,7 @@ const InlineTagPanel = memo(function InlineTagPanel({
           onClose={() => onToggleExpanded(false)}
           placeholder="Add tags..."
           className="flex-1"
+          autoFocus={isExpanded}
         />
 
         {currentMediaFile && (

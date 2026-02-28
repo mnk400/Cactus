@@ -6,6 +6,7 @@ const TagInput = ({
   onClose,
   placeholder = "Add tags...",
   className = "",
+  autoFocus = false,
 }) => {
   const [inputValue, setInputValue] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -31,10 +32,10 @@ const TagInput = ({
   }
 
   useEffect(() => {
-    if (inputRef.current) {
+    if (autoFocus && inputRef.current) {
       inputRef.current.focus();
     }
-  }, []);
+  }, [autoFocus]);
 
   const handleKeyDown = (e) => {
     if (e.key === "Escape") {
