@@ -5,7 +5,11 @@ const crypto = require("crypto");
 const NodeCache = require("node-cache");
 const path = require("path");
 const fs = require("fs");
+const os = require("os");
+const sharp = require("sharp");
+const ffmpeg = require("fluent-ffmpeg");
 const { ProviderFactory } = require("./providers");
+const AutoTagService = require("./services/AutoTagService");
 const minimist = require("minimist");
 
 // Bun has built-in fetch support
@@ -38,6 +42,11 @@ const sessionSecret =
 // Provider factory and media provider instance
 const providerFactory = new ProviderFactory();
 let mediaProvider;
+
+// Auto-tag service (external llama-server container)
+const autoTagService = new AutoTagService({
+  baseUrl: process.env.AUTOTAG_URL || "http://127.0.0.1:7209",
+});
 
 // Simple structured logging
 const log = {
@@ -547,15 +556,28 @@ app.post("/api/media/:fileHash/tags", async (req, res) => {
     // Handle tag names (create if they don't exist)
     if (tagNames && Array.isArray(tagNames)) {
       const allTags = await mediaProvider.getAllTags();
-      const tagsByName = new Map(allTags.map((t) => [t.name, t]));
+      const tagsByName = new Map(
+        allTags.map((t) => [t.name.toLowerCase(), t]),
+      );
 
       for (const tagName of tagNames) {
-        let tag = tagsByName.get(tagName);
+        const trimmed = String(tagName).trim();
+        if (!trimmed) continue;
+
+        let tag = tagsByName.get(trimmed.toLowerCase());
         const created = !tag;
 
         if (!tag) {
-          tag = await mediaProvider.createTag(tagName);
-          tagsByName.set(tagName, tag);
+          try {
+            tag = await mediaProvider.createTag(trimmed);
+          } catch (createErr) {
+            const refreshed = await mediaProvider.getAllTags();
+            tag = refreshed.find(
+              (t) => t.name.toLowerCase() === trimmed.toLowerCase(),
+            );
+            if (!tag) throw createErr;
+          }
+          tagsByName.set(trimmed.toLowerCase(), tag);
         }
 
         const added = await mediaProvider.addTagToMedia(fileHash, tag.id);
@@ -565,6 +587,14 @@ app.post("/api/media/:fileHash/tags", async (req, res) => {
           added,
           created,
         });
+      }
+    }
+
+    // Invalidate cache for tags and media endpoints
+    const cacheKeys = requestCache.keys();
+    for (const key of cacheKeys) {
+      if (key.includes("/api/tags") || key.includes("/api/media")) {
+        requestCache.del(key);
       }
     }
 
@@ -680,21 +710,41 @@ app.post("/api/media-path/tags", async (req, res) => {
     // Handle tag names (create if they don't exist)
     if (tagNames && Array.isArray(tagNames)) {
       const allTags = await mediaProvider.getAllTags();
-      const tagsByName = new Map(allTags.map((t) => [t.name, t]));
+      const tagsByName = new Map(
+        allTags.map((t) => [t.name.toLowerCase(), t]),
+      );
 
       for (const tagName of tagNames) {
         const trimmedTagName = String(tagName).trim();
         if (!trimmedTagName) continue;
 
-        let tag = tagsByName.get(trimmedTagName);
+        let tag = tagsByName.get(trimmedTagName.toLowerCase());
 
         if (!tag) {
-          tag = await mediaProvider.createTag(trimmedTagName);
-          tagsByName.set(trimmedTagName, tag);
+          try {
+            tag = await mediaProvider.createTag(trimmedTagName);
+          } catch (createErr) {
+            // Tag was created concurrently — refetch and find it
+            const refreshed = await mediaProvider.getAllTags();
+            tag = refreshed.find(
+              (t) =>
+                t.name.toLowerCase() === trimmedTagName.toLowerCase(),
+            );
+            if (!tag) throw createErr;
+          }
+          tagsByName.set(trimmedTagName.toLowerCase(), tag);
         }
 
         const added = await mediaProvider.addTagToMedia(fileHash, tag.id);
         results.push({ tagId: tag.id, tagName: tag.name, added });
+      }
+    }
+
+    // Invalidate cache for tags and media endpoints
+    const cacheKeys = requestCache.keys();
+    for (const key of cacheKeys) {
+      if (key.includes("/api/tags") || key.includes("/api/media")) {
+        requestCache.del(key);
       }
     }
 
@@ -706,6 +756,394 @@ app.post("/api/media-path/tags", async (req, res) => {
       error: error.message,
     });
     res.status(500).json({ error: "Failed to add tags to media" });
+  }
+});
+
+// Convenience endpoint: Remove tag from media by file path
+app.delete("/api/media-path/tags/:tagId", async (req, res) => {
+  const { path: filePath } = req.query;
+  const { tagId } = req.params;
+
+  if (!filePath) {
+    return res.status(400).json({ error: "File path is required" });
+  }
+
+  try {
+    const fileHash = mediaProvider.getFileHashForPath(filePath);
+    const removed = await mediaProvider.removeTagFromMedia(fileHash, tagId);
+
+    // Invalidate cache for tags and media endpoints
+    const cacheKeys = requestCache.keys();
+    for (const key of cacheKeys) {
+      if (key.includes("/api/tags") || key.includes("/api/media")) {
+        requestCache.del(key);
+      }
+    }
+
+    if (removed) {
+      log.info("Tag removed from media by path", { filePath, fileHash, tagId });
+      res.json({ message: "Tag removed successfully", fileHash });
+    } else {
+      res.status(404).json({ error: "Tag assignment not found" });
+    }
+  } catch (error) {
+    log.error("Failed to remove tag from media by path", {
+      filePath,
+      tagId,
+      error: error.message,
+    });
+    res.status(500).json({ error: "Failed to remove tag from media" });
+  }
+});
+
+// ===== AUTO-TAG API ENDPOINTS =====
+
+// Get auto-tag service status
+app.get("/api/auto-tag/status", (req, res) => {
+  res.json({ ready: autoTagService.ready });
+});
+
+// ---- Video frame extraction helpers ----
+
+// Determine how many frames to extract based on video duration.
+// Each image uses ~729 fixed tokens in the vision encoder regardless of
+// resolution. With 8192 context: 729×3 + ~33 text + 256 output = ~2476.
+const MAX_FRAMES = 3;
+const FRAME_TIERS = [
+  { maxDuration: 4, timestamps: ["25%"] },
+  { maxDuration: 10, timestamps: ["20%", "60%"] },
+  { maxDuration: Infinity, timestamps: ["15%", "45%", "75%"] },
+];
+
+function getFrameTimestamps(durationSeconds) {
+  for (const tier of FRAME_TIERS) {
+    if (durationSeconds <= tier.maxDuration) {
+      return tier.timestamps;
+    }
+  }
+  return FRAME_TIERS[FRAME_TIERS.length - 1].timestamps;
+}
+
+// Extract frames from a video file on disk, returns array of JPEG buffers
+function extractVideoFrames(videoPath, timestamps) {
+  const tmpDir = os.tmpdir();
+  const id = crypto.randomBytes(6).toString("hex");
+
+  return new Promise((resolve, reject) => {
+    ffmpeg.ffprobe(videoPath, (err, metadata) => {
+      if (err) return reject(new Error("ffprobe failed: " + err.message));
+
+      const duration = metadata.format.duration || 0;
+
+      // Convert percentage timestamps to seconds for ffmpeg
+      const absTimestamps = timestamps.map((t) => {
+        if (typeof t === "string" && t.endsWith("%")) {
+          return (parseFloat(t) / 100) * duration;
+        }
+        return parseFloat(t);
+      });
+
+      let completed = 0;
+      const frameBuffers = new Array(timestamps.length);
+      let hasErrored = false;
+
+      timestamps.forEach((ts, i) => {
+        const outFile = path.join(tmpDir, `cactus_frame_${id}_${i}.jpg`);
+
+        ffmpeg(videoPath)
+          .seekInput(absTimestamps[i])
+          .frames(1)
+          .outputOptions("-q:v", "2")
+          .output(outFile)
+          .on("end", () => {
+            try {
+              frameBuffers[i] = fs.readFileSync(outFile);
+              fs.unlinkSync(outFile);
+            } catch (readErr) {
+              if (!hasErrored) {
+                hasErrored = true;
+                reject(readErr);
+              }
+              return;
+            }
+            completed++;
+            if (completed === timestamps.length) {
+              resolve(frameBuffers.filter(Boolean));
+            }
+          })
+          .on("error", (ffErr) => {
+            if (!hasErrored) {
+              hasErrored = true;
+              // Clean up any written frames
+              timestamps.forEach((_, j) => {
+                const f = path.join(tmpDir, `cactus_frame_${id}_${j}.jpg`);
+                try { fs.unlinkSync(f); } catch {}
+              });
+              reject(new Error("Frame extraction failed: " + ffErr.message));
+            }
+          })
+          .run();
+      });
+    });
+  });
+}
+
+// Detect if a file path points to a video (by extension or content-type probe)
+function isVideoPath(filePath) {
+  const videoExts = new Set([
+    ".mp4", ".webm", ".mov", ".avi", ".mkv", ".ogg", ".m4v",
+  ]);
+  const ext = path.extname(filePath).toLowerCase().split("?")[0];
+  return videoExts.has(ext);
+}
+
+// Generate auto-tags for a media file (preview only, does not apply)
+app.post("/api/media-path/auto-tag/generate", async (req, res) => {
+  const { path: filePath } = req.query;
+
+  if (!filePath) {
+    return res.status(400).json({ error: "File path is required" });
+  }
+
+  if (!autoTagService.ready) {
+    return res.status(503).json({ error: "Auto-tag service is not ready" });
+  }
+
+  try {
+    const isUrl =
+      filePath.startsWith("http://") || filePath.startsWith("https://");
+
+    // Determine if this is a video — check provider media type first, fall back to extension
+    const allMedia = await mediaProvider.getAllMedia("all", "random");
+    // Match by full URL or by the path portion for remote providers
+    const mediaItem = allMedia.find(
+      (m) =>
+        m.file_path === filePath ||
+        (isUrl && filePath.endsWith(m.file_path)),
+    );
+    let isVideo = mediaItem
+      ? mediaItem.media_type === "video"
+      : isVideoPath(filePath);
+
+    log.info("Auto-tag: media detection", {
+      filePath,
+      mediaItemFound: !!mediaItem,
+      mediaItemType: mediaItem?.media_type || null,
+      isVideoByExtension: isVideoPath(filePath),
+      isVideo,
+    });
+
+    // For remote URLs, fetch the content and detect type from content-type header
+    let fetchedBuffer = null;
+    let fetchedContentType = null;
+
+    if (isUrl) {
+      const headers = mediaProvider.apiKey
+        ? { ApiKey: mediaProvider.apiKey }
+        : {};
+      const fetchRes = await fetch(filePath, { headers });
+      if (!fetchRes.ok) {
+        throw new Error(
+          `Failed to fetch media from provider: ${fetchRes.status}`,
+        );
+      }
+      fetchedContentType = (
+        fetchRes.headers.get("content-type") || ""
+      ).split(";")[0].trim();
+      fetchedBuffer = Buffer.from(await fetchRes.arrayBuffer());
+
+      log.info("Auto-tag: remote fetch complete", {
+        contentType: fetchedContentType,
+        bufferSize: fetchedBuffer.length,
+      });
+
+      // Override video detection using content-type if we couldn't match from provider data
+      if (!mediaItem) {
+        isVideo = fetchedContentType.startsWith("video/");
+        log.info("Auto-tag: content-type override", { isVideo, fetchedContentType });
+      }
+    }
+
+    if (isVideo) {
+      // --- VIDEO: extract frames, send multi-image ---
+      let videoPath;
+      let tempVideoPath = null;
+
+      if (isUrl) {
+        // Write already-fetched buffer to temp file
+        tempVideoPath = path.join(
+          os.tmpdir(),
+          `cactus_autotag_${crypto.randomBytes(6).toString("hex")}.mp4`,
+        );
+        fs.writeFileSync(tempVideoPath, fetchedBuffer);
+        videoPath = tempVideoPath;
+      } else {
+        videoPath = mediaProvider.resolveFilePath
+          ? mediaProvider.resolveFilePath(filePath)
+          : path.join(mediaProvider.mediaDirectory, filePath);
+      }
+
+      try {
+        log.info("Auto-tag: video path resolved", { videoPath, isTemp: !!tempVideoPath });
+
+        // Probe duration and pick timestamps
+        const duration = await new Promise((resolve, reject) => {
+          ffmpeg.ffprobe(videoPath, (err, metadata) => {
+            if (err) return reject(err);
+            resolve(metadata.format.duration || 0);
+          });
+        });
+
+        const timestamps = getFrameTimestamps(duration);
+        log.info("Auto-tag: extracting frames", {
+          duration: Math.round(duration),
+          frameCount: timestamps.length,
+          timestamps,
+        });
+
+        const frameBuffers = await extractVideoFrames(videoPath, timestamps);
+        log.info("Auto-tag: frames extracted", {
+          extractedCount: frameBuffers.length,
+          frameSizes: frameBuffers.map((b) => b.length),
+        });
+
+        // Normalize each frame with sharp
+        const normalizedImages = await Promise.all(
+          frameBuffers.map(async (buf) => ({
+            buffer: await sharp(buf)
+              .resize(1024, 1024, {
+                fit: "inside",
+                withoutEnlargement: true,
+              })
+              .jpeg({ quality: 85 })
+              .toBuffer(),
+            mime: "image/jpeg",
+          })),
+        );
+
+        const tags = await autoTagService.generateTagsFromBuffers(
+          normalizedImages,
+        );
+
+        log.info("Auto-tags generated from video", {
+          filePath,
+          frameCount: normalizedImages.length,
+          duration: Math.round(duration),
+          tagCount: tags.length,
+          tags,
+        });
+
+        res.json({ tags });
+      } finally {
+        // Clean up temp video file
+        if (tempVideoPath) {
+          try {
+            fs.unlinkSync(tempVideoPath);
+          } catch {}
+        }
+      }
+    } else {
+      // --- IMAGE: existing single-image flow ---
+      let imageBuffer;
+
+      if (isUrl) {
+        // Reuse already-fetched buffer
+        imageBuffer = fetchedBuffer;
+      } else {
+        const absolutePath = mediaProvider.resolveFilePath
+          ? mediaProvider.resolveFilePath(filePath)
+          : path.join(mediaProvider.mediaDirectory, filePath);
+        imageBuffer = fs.readFileSync(absolutePath);
+      }
+
+      // Normalize image to JPEG ≤1024px for llama-server compatibility
+      const normalizedBuffer = await sharp(imageBuffer)
+        .resize(1024, 1024, { fit: "inside", withoutEnlargement: true })
+        .jpeg({ quality: 85 })
+        .toBuffer();
+
+      const tags = await autoTagService.generateTagsFromBuffer(
+        normalizedBuffer,
+        "image/jpeg",
+      );
+
+      log.info("Auto-tags generated (preview)", {
+        filePath,
+        tagCount: tags.length,
+        tags,
+      });
+
+      res.json({ tags });
+    }
+  } catch (error) {
+    log.error("Auto-tag generate failed", { filePath, error: error.message });
+    res.status(500).json({ error: "Auto-tag failed: " + error.message });
+  }
+});
+
+// Apply selected auto-tags to a media file
+app.post("/api/media-path/auto-tag/apply", async (req, res) => {
+  const { path: filePath } = req.query;
+  const { tags } = req.body;
+
+  if (!filePath) {
+    return res.status(400).json({ error: "File path is required" });
+  }
+
+  if (!tags || !Array.isArray(tags) || tags.length === 0) {
+    return res.status(400).json({ error: "tags array is required" });
+  }
+
+  try {
+    const fileHash = mediaProvider.getFileHashForPath(filePath);
+
+    const allTags = await mediaProvider.getAllTags();
+    const tagsByName = new Map(
+      allTags.map((t) => [t.name.toLowerCase(), t]),
+    );
+    const results = [];
+
+    for (const tagName of tags) {
+      const trimmed = String(tagName).trim().toLowerCase();
+      if (!trimmed) continue;
+
+      let tag = tagsByName.get(trimmed);
+      if (!tag) {
+        try {
+          tag = await mediaProvider.createTag(trimmed);
+        } catch (createErr) {
+          // Tag was created concurrently — refetch and find it
+          const refreshed = await mediaProvider.getAllTags();
+          tag = refreshed.find(
+            (t) => t.name.toLowerCase() === trimmed,
+          );
+          if (!tag) throw createErr;
+        }
+        tagsByName.set(trimmed, tag);
+      }
+      const added = await mediaProvider.addTagToMedia(fileHash, tag.id);
+      results.push({ tagId: tag.id, tagName: tag.name, added });
+    }
+
+    // Invalidate cache for tags and media endpoints
+    const cacheKeys = requestCache.keys();
+    for (const key of cacheKeys) {
+      if (key.includes("/api/tags") || key.includes("/api/media")) {
+        requestCache.del(key);
+      }
+    }
+
+    log.info("Auto-tags applied", {
+      filePath,
+      fileHash,
+      tagCount: tags.length,
+      tags,
+    });
+
+    res.json({ tags, results, fileHash });
+  } catch (error) {
+    log.error("Auto-tag apply failed", { filePath, error: error.message });
+    res.status(500).json({ error: "Failed to apply tags: " + error.message });
   }
 });
 
@@ -907,6 +1345,9 @@ app.get("*", (req, res) => {
       config: validation.config,
     });
 
+    // Start polling external llama-server for readiness
+    autoTagService.startPolling();
+
     // Start the server only after provider is initialized
     app.listen(PORT, () => {
       log.info("Cactus media server started", {
@@ -934,6 +1375,7 @@ process.on("exit", async () => {
 });
 
 process.on("SIGINT", async () => {
+  autoTagService.stopPolling();
   if (mediaProvider) {
     await mediaProvider.close();
   }
@@ -941,6 +1383,7 @@ process.on("SIGINT", async () => {
 });
 
 process.on("SIGTERM", async () => {
+  autoTagService.stopPolling();
   if (mediaProvider) {
     await mediaProvider.close();
   }

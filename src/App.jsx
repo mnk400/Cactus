@@ -10,7 +10,7 @@ import {
 import MediaViewer from "./components/MediaViewer";
 import Navigation from "./components/Navigation";
 import SideNavigation from "./components/SideNavigation";
-import TagDisplay from "./components/TagDisplay";
+import InlineTagPanel from "./components/InlineTagPanel";
 import VideoControlsBar from "./components/VideoControlsBar";
 import LoadingMessage from "./components/LoadingMessage";
 import ErrorMessage from "./components/ErrorMessage";
@@ -18,7 +18,6 @@ import ViewTransition from "./components/ViewTransition";
 
 const SettingsPanel = lazy(() => import("./components/SettingsPanel"));
 const GalleryView = lazy(() => import("./components/GalleryView"));
-const TagInputModal = lazy(() => import("./components/TagInputModal"));
 const DebugInfo = lazy(() => import("./components/DebugInfo"));
 import { useKeyboardNavigation } from "./hooks/useKeyboardNavigation";
 import { useFavorite } from "./hooks/useFavorite";
@@ -32,8 +31,7 @@ import { isMobile } from "./utils/helpers";
 
 function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [showTagInput, setShowTagInput] = useState(false);
-  const [tagUpdateTrigger, setTagUpdateTrigger] = useState(0);
+  const [isTagPanelExpanded, setIsTagPanelExpanded] = useState(false);
   const [galleryScrollPosition, setGalleryScrollPosition] = useState(0);
   const [isMobileView, setIsMobileView] = useState(isMobile());
   const settingsDrawerRef = useRef(null);
@@ -57,25 +55,19 @@ function App() {
   useKeyboardNavigation(
     useCallback(
       (direction) => {
-        if (mediaFiles.length > 0 && !showTagInput) {
+        if (mediaFiles.length > 0 && !isTagPanelExpanded) {
           navigate(direction);
         }
       },
-      [mediaFiles.length, showTagInput, navigate],
+      [mediaFiles.length, isTagPanelExpanded, navigate],
     ),
     { onToggleSlideshow: toggleSlideshow },
   );
 
-  const handleToggleTagInput = useCallback((show) => {
-    setShowTagInput((prev) => (typeof show === "boolean" ? show : !prev));
-  }, []);
-
-  const handleCloseTagInput = useCallback(() => {
-    setShowTagInput(false);
-  }, []);
-
-  const handleTagsUpdated = useCallback(() => {
-    setTagUpdateTrigger((prev) => prev + 1);
+  const handleToggleTagPanel = useCallback((show) => {
+    setIsTagPanelExpanded((prev) =>
+      typeof show === "boolean" ? show : !prev,
+    );
   }, []);
 
   const handleToggleSettings = useCallback(() => {
@@ -163,8 +155,8 @@ function App() {
               />
             </Suspense>
             <MediaViewer
-              showTagInput={showTagInput}
-              onToggleTagInput={handleToggleTagInput}
+              showTagInput={isTagPanelExpanded}
+              onToggleTagInput={handleToggleTagPanel}
             />
           </ViewTransition>
         )}
@@ -204,13 +196,19 @@ function App() {
             width: "calc(100% - var(--settings-drawer-width, 0px))",
           }}
         >
-          <div className="flex items-center justify-end px-4 pb-1 gap-2">
-            <TagDisplay
+          <div className={`flex px-4 pb-1 gap-2 ${isTagPanelExpanded ? "flex-col items-end" : "items-end justify-end"}`}>
+            {isTagPanelExpanded && currentMediaFile?.media_type === "video" && (
+              <VideoControlsBar
+                isMuted={isMuted}
+                onToggleMute={toggleMute}
+              />
+            )}
+            <InlineTagPanel
               currentMediaFile={currentMediaFile}
-              showTagInput={showTagInput}
-              key={tagUpdateTrigger}
+              isExpanded={isTagPanelExpanded}
+              onToggleExpanded={handleToggleTagPanel}
             />
-            {currentMediaFile?.media_type === "video" && (
+            {!isTagPanelExpanded && currentMediaFile?.media_type === "video" && (
               <VideoControlsBar
                 isMuted={isMuted}
                 onToggleMute={toggleMute}
@@ -223,21 +221,12 @@ function App() {
       {(!isSettingsOpen || !isMobileView) && !slideshowActive && (
         <Navigation
           onToggleSettings={handleToggleSettings}
-          onToggleTagInput={handleToggleTagInput}
+          onToggleTagPanel={handleToggleTagPanel}
           directoryName={directoryPath}
           isFavorited={isFavorited}
           onToggleFavorite={toggleFavorite}
         />
       )}
-
-      <Suspense fallback={null}>
-        <TagInputModal
-          isOpen={showTagInput}
-          onClose={handleCloseTagInput}
-          currentMediaFile={currentMediaFile}
-          onTagsUpdated={handleTagsUpdated}
-        />
-      </Suspense>
     </div>
   );
 }

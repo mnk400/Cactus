@@ -1,196 +1,179 @@
 import React, {
   useState,
-  useEffect,
   useRef,
   useLayoutEffect,
   memo,
-  useCallback,
 } from "react";
-import { useMediaData } from "../context/MediaContext";
+
+const TAG_GAP = 8; // gap-2 = 0.5rem = 8px
+const BADGE_WIDTH = 52; // approximate "+N" badge width
 
 const TagDisplay = memo(function TagDisplay({
-  currentMediaFile,
-  showTagInput,
+  tags = [],
+  onRemoveTag,
+  expanded = false,
 }) {
-  const [mediaTags, setMediaTags] = useState([]);
-  const { fetchTags } = useMediaData();
+  const [visibleCount, setVisibleCount] = useState(null);
+  const [localExpanded, setLocalExpanded] = useState(false);
 
-  const tagRefs = useRef(new Map());
-  const prevTagPositions = useRef(new Map());
+  const containerRef = useRef(null);
+  const measureRowRef = useRef(null);
 
-  // Stable function to fetch media tags - doesn't change between renders
-  const fetchMediaTags = useCallback(async (filePath) => {
-    try {
-      const response = await fetch(
-        `/api/media-path/tags?path=${encodeURIComponent(filePath)}`,
-      );
-      if (!response.ok) {
-        throw new Error("Failed to fetch media tags");
-      }
-      const data = await response.json();
-      return data.tags || [];
-    } catch (err) {
-      console.error("Error fetching media tags:", err);
-      return [];
+  const isExpanded = expanded || localExpanded;
+
+  const filteredTags = tags.filter((tag) => tag.name !== "favorites");
+
+  // Measure how many tags fit in one row
+  useLayoutEffect(() => {
+    if (isExpanded || filteredTags.length === 0) {
+      setVisibleCount(filteredTags.length);
+      return;
     }
-  }, []);
 
-  // Load tags for current media file
-  useEffect(() => {
-    let isMounted = true;
+    const measure = () => {
+      const measureRow = measureRowRef.current;
+      const container = containerRef.current;
+      if (!measureRow || !container) return;
 
-    const loadMediaTags = async () => {
-      if (currentMediaFile) {
-        try {
-          const tags = await fetchMediaTags(currentMediaFile.file_path);
-          if (isMounted) {
-            setMediaTags(tags);
-          }
-        } catch (error) {
-          console.error("Failed to load media tags:", error);
-          if (isMounted) {
-            setMediaTags([]);
-          }
-        }
-      } else {
-        if (isMounted) {
-          setMediaTags([]);
-        }
+      const containerWidth = container.offsetWidth;
+      const children = Array.from(measureRow.children);
+
+      if (children.length === 0) {
+        setVisibleCount(0);
+        return;
       }
+
+      // If all tags fit without a badge, show them all
+      let totalWidth = 0;
+      for (let i = 0; i < children.length; i++) {
+        totalWidth += children[i].offsetWidth + (i > 0 ? TAG_GAP : 0);
+      }
+      if (totalWidth <= containerWidth) {
+        setVisibleCount(children.length);
+        return;
+      }
+
+      // Otherwise, find how many fit with room for the "+N" badge
+      let usedWidth = 0;
+      let count = 0;
+
+      for (let i = 0; i < children.length; i++) {
+        const childWidth = children[i].offsetWidth;
+        const widthWithGap = i > 0 ? TAG_GAP + childWidth : childWidth;
+        const spaceAfter = containerWidth - (usedWidth + widthWithGap);
+
+        // Need room for the "+N" badge after
+        if (spaceAfter < TAG_GAP + BADGE_WIDTH) {
+          break;
+        }
+
+        usedWidth += widthWithGap;
+        count++;
+      }
+
+      // Show at least 1 tag
+      setVisibleCount(Math.max(1, count));
     };
 
-    loadMediaTags();
+    const rafId = requestAnimationFrame(measure);
 
-    const handleTagsUpdated = () => loadMediaTags();
-    window.addEventListener("tags-updated", handleTagsUpdated);
+    const observer = new ResizeObserver(measure);
+    if (containerRef.current) observer.observe(containerRef.current);
 
     return () => {
-      isMounted = false;
-      window.removeEventListener("tags-updated", handleTagsUpdated);
+      cancelAnimationFrame(rafId);
+      observer.disconnect();
     };
-  }, [currentMediaFile?.file_path, fetchMediaTags]);
+  }, [filteredTags, isExpanded]);
 
-  const handleRemoveTag = useCallback(
-    async (tagId) => {
-      if (currentMediaFile) {
-        try {
-          // We need the file hash for removal, let's get it from the API
-          const response = await fetch(
-            `/api/media-path/tags?path=${encodeURIComponent(
-              currentMediaFile.file_path,
-            )}`,
-          );
-          const data = await response.json();
-
-          if (data.fileHash) {
-            // Remove the tag directly via API
-            const removeResponse = await fetch(
-              `/api/media/${data.fileHash}/tags/${tagId}`,
-              { method: "DELETE" },
-            );
-            if (!removeResponse.ok) {
-              throw new Error("Failed to remove tag");
-            }
-            // Reload media tags and global tags in parallel
-            const [updatedTags] = await Promise.all([
-              fetchMediaTags(currentMediaFile.file_path),
-              fetchTags(),
-            ]);
-            setMediaTags(updatedTags);
-            window.dispatchEvent(new CustomEvent("tags-updated"));
-          }
-        } catch (error) {
-          console.error("Failed to remove tag:", error);
-        }
-      }
-    },
-    [currentMediaFile, fetchMediaTags, fetchTags],
-  );
-
+  // Reset local expanded when parent forces expanded
   useLayoutEffect(() => {
-    // Capture "first" positions before render
-    const currentTags = Array.from(tagRefs.current.values()).filter(Boolean);
-    currentTags.forEach((tagEl) => {
-      prevTagPositions.current.set(
-        tagEl.dataset.tagId,
-        tagEl.getBoundingClientRect(),
-      );
-    });
+    if (expanded) setLocalExpanded(false);
+  }, [expanded]);
 
-    // Cleanup for next render
-    return () => {
-      tagRefs.current.clear();
-    };
-  }, [mediaTags]);
+  if (filteredTags.length === 0) return null;
 
-  useLayoutEffect(() => {
-    // After render, calculate "last" and "invert", then animate
-    mediaTags.forEach((tag) => {
-      const tagEl = tagRefs.current.get(tag.id);
-      const prevRect = prevTagPositions.current.get(tag.id);
-
-      if (tagEl && prevRect) {
-        const currentRect = tagEl.getBoundingClientRect();
-        const dx = prevRect.left - currentRect.left;
-        const dy = prevRect.top - currentRect.top;
-
-        if (dx || dy) {
-          // Invert: move to the "first" position
-          tagEl.style.transform = `translate(${dx}px, ${dy}px)`;
-          tagEl.style.transition = "transform 0s";
-
-          // Force reflow
-          tagEl.offsetWidth;
-
-          // Play: animate to "last" position
-          tagEl.style.transition = "transform 300ms ease-in-out";
-          tagEl.style.transform = "";
-        }
-      }
-    });
-  }, [mediaTags]);
-
-  // Don't show tags if tag input is open or if there are no tags
-  if (mediaTags.length === 0) {
-    return null;
-  }
+  const measured = visibleCount !== null;
+  const hiddenCount = isExpanded
+    ? 0
+    : Math.max(0, filteredTags.length - (visibleCount ?? filteredTags.length));
+  const displayedTags = isExpanded
+    ? filteredTags
+    : filteredTags.slice(0, visibleCount ?? filteredTags.length);
 
   return (
-    <div className="flex-1 min-w-0 overflow-hidden pointer-events-auto">
-      <div className="overflow-x-auto scrollbar-hide">
-        <div className="flex gap-2 min-w-max pb-1">
-            {mediaTags
-              .filter((tag) => tag.name !== "favorites")
-              .map((tag) => (
-                <span
-                  key={tag.id}
-                  data-tag-id={tag.id} // Use data attribute to store tag ID for ref lookup
-                  ref={(el) => {
-                    if (el) {
-                      tagRefs.current.set(tag.id, el);
-                    } else {
-                      tagRefs.current.delete(tag.id); // Cleanup on unmount
-                    }
-                  }}
-                  className="inline-flex items-center px-3 py-1.5 rounded-xl text-sm font-medium text-white shadow-sm whitespace-nowrap flex-shrink-0 tag-animated"
-                  style={{
-                    backgroundColor: tag.color,
-                  }}
-                >
-                  {tag.name}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemoveTag(tag.id);
-                    }}
-                    className="ml-2 text-white hover:text-gray-200 focus:outline-none transition-colors duration-150 hover:bg-white hover:bg-opacity-20 rounded-lg w-5 h-5 flex items-center justify-center text-lg leading-none"
-                    aria-label={`Remove ${tag.name} tag`}
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
+    <div
+      className="flex-1 min-w-0 overflow-hidden pointer-events-auto"
+      ref={containerRef}
+    >
+      {/* Hidden measurement row — renders all tags to measure their widths */}
+      {!isExpanded && (
+        <div
+          ref={measureRowRef}
+          className="flex gap-2 absolute invisible pointer-events-none h-0 overflow-hidden"
+          aria-hidden="true"
+        >
+          {filteredTags.map((tag) => (
+            <span
+              key={tag.id}
+              className="inline-flex items-center px-3 py-1.5 rounded-xl text-sm font-medium whitespace-nowrap flex-shrink-0"
+            >
+              {tag.name}
+              {onRemoveTag && <span className="ml-2 w-5 h-5">×</span>}
+            </span>
+          ))}
         </div>
+      )}
+
+      {/* Visible tags */}
+      <div
+        className={`flex gap-2 pb-1 transition-opacity duration-150 ${
+          isExpanded ? "flex-wrap" : ""
+        } ${measured ? "opacity-100" : "opacity-0"}`}
+      >
+        {displayedTags.map((tag) => (
+          <span
+            key={tag.id}
+            className="inline-flex items-center px-3 py-1.5 rounded-xl text-sm font-medium text-white shadow-sm whitespace-nowrap flex-shrink-0 tag-animated"
+            style={{ backgroundColor: tag.color }}
+          >
+            {tag.name}
+            {onRemoveTag && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemoveTag(tag.id);
+                }}
+                className="ml-2 text-white hover:text-gray-200 focus:outline-none transition-colors duration-150 hover:bg-white hover:bg-opacity-20 rounded-lg w-5 h-5 flex items-center justify-center text-lg leading-none"
+                aria-label={`Remove ${tag.name} tag`}
+              >
+                ×
+              </button>
+            )}
+          </span>
+        ))}
+        {hiddenCount > 0 && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setLocalExpanded(true);
+            }}
+            className="inline-flex items-center px-3 py-1.5 rounded-xl text-sm font-medium text-white bg-zinc-800 bg-opacity-60 backdrop-blur-md hover:bg-zinc-600 hover:bg-opacity-60 shadow-sm whitespace-nowrap flex-shrink-0 transition-colors duration-150"
+          >
+            +{hiddenCount}
+          </button>
+        )}
+        {localExpanded && !expanded && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setLocalExpanded(false);
+            }}
+            className="inline-flex items-center px-3 py-1.5 rounded-xl text-sm font-medium text-zinc-400 bg-zinc-800 bg-opacity-60 backdrop-blur-md hover:bg-zinc-600 hover:bg-opacity-60 shadow-sm whitespace-nowrap flex-shrink-0 transition-colors duration-150"
+          >
+            Less
+          </button>
+        )}
       </div>
     </div>
   );

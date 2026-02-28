@@ -37,6 +37,12 @@ const TagInput = ({
   }, []);
 
   const handleKeyDown = (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      onClose?.();
+      return;
+    }
+
     if (e.key === "Enter") {
       e.preventDefault();
       if (selectedIndex >= 0 && filteredTags[selectedIndex]) {
@@ -73,11 +79,6 @@ const TagInput = ({
 
   return (
     <div className={`relative ${className}`}>
-      {/* Header with title and close hint */}
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-medium text-white">Add Tags</h3>
-      </div>
-
       <input
         ref={inputRef}
         type="text"
@@ -89,7 +90,7 @@ const TagInput = ({
           setTimeout(() => setShowSuggestions(false), 150);
         }}
         placeholder={placeholder}
-        className="w-full px-4 py-3 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-black-shades-700 text-white placeholder-gray-400 text-base"
+        className="w-full px-3 py-2 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-black-shades-700 text-white placeholder-gray-400 text-sm"
       />
 
       {showSuggestions && filteredTags.length > 0 && (
@@ -98,7 +99,7 @@ const TagInput = ({
             <button
               key={tag.id}
               onClick={() => handleSuggestionClick(tag.name)}
-              className={`w-full px-4 py-3 text-left hover:bg-black-shades-700 focus:outline-none focus:bg-black-shades-700 transition-colors ${
+              className={`w-full px-3 py-2 text-left hover:bg-black-shades-700 focus:outline-none focus:bg-black-shades-700 transition-colors ${
                 index === selectedIndex ? "bg-blue-600" : ""
               }`}
             >

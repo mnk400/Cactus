@@ -5,7 +5,7 @@ import { useCurrentMedia, useMediaData } from "../context/MediaContext";
 
 const Navigation = memo(function Navigation({
   onToggleSettings,
-  onToggleTagInput,
+  onToggleTagPanel,
   directoryName,
   isFavorited,
   onToggleFavorite,
@@ -132,7 +132,7 @@ const Navigation = memo(function Navigation({
           </button>
 
           <button
-            onClick={onToggleTagInput}
+            onClick={() => onToggleTagPanel()}
             className="nav-button bg-black-shades-700 text-gray-200 border-none p-2 rounded-xl cursor-pointer transition-all duration-200 ease-in-out hover:bg-white hover:bg-opacity-20 active:scale-95 min-w-10 min-h-11 flex items-center justify-center"
             title="Add tags (T)"
           >
