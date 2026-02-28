@@ -46,6 +46,10 @@ let mediaProvider;
 // Auto-tag service (external llama-server container)
 const autoTagService = new AutoTagService({
   baseUrl: process.env.AUTOTAG_URL || "http://127.0.0.1:7209",
+  prompt: process.env.AUTOTAG_PROMPT || undefined,
+  blocklist: process.env.AUTOTAG_BLOCKLIST
+    ? process.env.AUTOTAG_BLOCKLIST.split(",").map((w) => w.trim())
+    : undefined,
 });
 
 // Simple structured logging
