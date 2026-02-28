@@ -390,7 +390,6 @@ const VideoPlayer = memo(function VideoPlayer({
           </div>
         </div>
       )}
-
     </>
   );
 });

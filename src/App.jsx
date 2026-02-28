@@ -34,7 +34,10 @@ function App() {
   const [isTagPanelExpanded, setIsTagPanelExpanded] = useState(false);
   const [galleryScrollPosition, setGalleryScrollPosition] = useState(0);
   const [isMobileView, setIsMobileView] = useState(isMobile());
+  const [tagPanelHeight, setTagPanelHeight] = useState(0);
   const settingsDrawerRef = useRef(null);
+  const tagPanelWrapperRef = useRef(null);
+  const tagPanelContentRef = useRef(null);
 
   const { currentIndex, currentMediaFile } = useCurrentMedia();
   const { mediaFiles, loading, error, settings, navigate } = useMediaData();
@@ -65,9 +68,7 @@ function App() {
   );
 
   const handleToggleTagPanel = useCallback((show) => {
-    setIsTagPanelExpanded((prev) =>
-      typeof show === "boolean" ? show : !prev,
-    );
+    setIsTagPanelExpanded((prev) => (typeof show === "boolean" ? show : !prev));
   }, []);
 
   const handleToggleSettings = useCallback(() => {
@@ -119,115 +120,148 @@ function App() {
     }
   }, [isSettingsOpen, isMobileView]);
 
+  // Track tag panel content height for wrapper + floater offset
+  useEffect(() => {
+    const el = tagPanelContentRef.current;
+    if (!el) return;
+    const measure = () => setTagPanelHeight(el.offsetHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isGalleryView, isSettingsOpen, isMobileView, slideshowActive]);
+
   const isDesktop = !isMobileView;
 
   return (
-    <div className="container flex flex-col h-screen w-full max-w-full shadow-2xl overflow-hidden bg-black text-gray-200">
-      <Suspense fallback={null}>
-        <DebugInfo show={debugMode} />
-      </Suspense>
+    <>
+      <div className="container flex flex-col h-screen w-full max-w-full shadow-2xl overflow-hidden bg-black text-gray-200">
+        <Suspense fallback={null}>
+          <DebugInfo show={debugMode} />
+        </Suspense>
 
-      <div
-        className={`media-container flex-1 relative overflow-hidden bg-black`}
-        style={{
-          paddingBottom: slideshowActive
-            ? undefined
-            : "calc(4rem + env(safe-area-inset-bottom, 0px))",
-          width:
-            isSettingsOpen && isDesktop
-              ? "calc(100% - var(--settings-drawer-width, 0px))"
-              : "100%",
-        }}
-      >
-        {loading && <LoadingMessage message={loading} />}
-        {error && <ErrorMessage message={error} />}
+        <div
+          className={`media-container flex-1 relative overflow-hidden bg-black`}
+          style={{
+            paddingBottom: slideshowActive
+              ? undefined
+              : "calc(4rem + env(safe-area-inset-bottom, 0px))",
+            width:
+              isSettingsOpen && isDesktop
+                ? "calc(100% - var(--settings-drawer-width, 0px))"
+                : "100%",
+          }}
+        >
+          {loading && <LoadingMessage message={loading} />}
+          {error && <ErrorMessage message={error} />}
 
-        {!loading && !error && mediaFiles.length > 0 && (
-          <ViewTransition isGalleryView={isGalleryView}>
-            <Suspense
-              fallback={<LoadingMessage message="Loading gallery..." />}
-            >
-              <GalleryView
-                scrollPosition={galleryScrollPosition}
-                setScrollPosition={setGalleryScrollPosition}
-                isVisible={isGalleryView}
-                preload={true}
+          {!loading && !error && mediaFiles.length > 0 && (
+            <ViewTransition isGalleryView={isGalleryView}>
+              <Suspense
+                fallback={<LoadingMessage message="Loading gallery..." />}
+              >
+                <GalleryView
+                  scrollPosition={galleryScrollPosition}
+                  setScrollPosition={setGalleryScrollPosition}
+                  isVisible={isGalleryView}
+                  preload={true}
+                />
+              </Suspense>
+              <MediaViewer
+                showTagInput={isTagPanelExpanded}
+                onToggleTagInput={handleToggleTagPanel}
+              />
+            </ViewTransition>
+          )}
+
+          {!loading && !error && mediaFiles.length === 0 && (
+            <div className="h-full w-full flex justify-center items-center text-gray-500 text-center p-5">
+              <div>
+                <p className="text-lg mb-2">No media files found</p>
+                <p className="text-sm">
+                  Try adjusting your filters or check if the directory contains
+                  supported media files.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {(!isSettingsOpen || !isMobileView) &&
+            !isGalleryView &&
+            !slideshowActive && <SideNavigation />}
+
+          <ViewTransition isSettingsOpen={isSettingsOpen}>
+            <Suspense fallback={null}>
+              <SettingsPanel
+                isOpen={isSettingsOpen}
+                onClose={handleCloseSettings}
               />
             </Suspense>
-            <MediaViewer
-              showTagInput={isTagPanelExpanded}
-              onToggleTagInput={handleToggleTagPanel}
-            />
           </ViewTransition>
-        )}
-
-        {!loading && !error && mediaFiles.length === 0 && (
-          <div className="h-full w-full flex justify-center items-center text-gray-500 text-center p-5">
-            <div>
-              <p className="text-lg mb-2">No media files found</p>
-              <p className="text-sm">
-                Try adjusting your filters or check if the directory contains
-                supported media files.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {(!isSettingsOpen || !isMobileView) &&
-          !isGalleryView &&
-          !slideshowActive && <SideNavigation />}
-
-        <ViewTransition isSettingsOpen={isSettingsOpen}>
-          <Suspense fallback={null}>
-            <SettingsPanel
-              isOpen={isSettingsOpen}
-              onClose={handleCloseSettings}
-            />
-          </Suspense>
-        </ViewTransition>
+        </div>
       </div>
 
-      {!isGalleryView && !slideshowActive && (
+      {/* Bottom chrome: outside overflow-hidden container for proper fixed positioning on iOS */}
+      {(!isSettingsOpen || !isMobileView) && !slideshowActive && (
         <div
-          className="fixed left-0 z-10 pointer-events-none transition-all duration-300"
+          className="fixed bottom-0 left-0 z-20 flex flex-col transition-all duration-300"
           style={{
-            bottom: `calc(${currentMediaFile?.media_type === "video" ? "96px" : "60px"} + max(0px, env(safe-area-inset-bottom, 0px) - 0.75rem))`,
             right: "var(--settings-drawer-width, 0px)",
             width: "calc(100% - var(--settings-drawer-width, 0px))",
           }}
         >
-          <div className={`flex px-4 pb-1 gap-2 ${isTagPanelExpanded ? "flex-col items-end" : "items-end justify-end"}`}>
-            {isTagPanelExpanded && currentMediaFile?.media_type === "video" && (
-              <VideoControlsBar
-                isMuted={isMuted}
-                onToggleMute={toggleMute}
+          {/* Floating glass elements: tag badges + video controls */}
+          {!isGalleryView && (
+            <div
+              className="flex px-4 pb-1 gap-2 items-end justify-end pointer-events-none transition-transform duration-300 ease-in-out"
+              style={{
+                transform:
+                  isTagPanelExpanded && tagPanelHeight
+                    ? `translateY(-${tagPanelHeight}px)`
+                    : "translateY(0)",
+              }}
+            >
+              <InlineTagPanel
+                currentMediaFile={currentMediaFile}
+                isExpanded={false}
+                onToggleExpanded={handleToggleTagPanel}
+                mode="display"
               />
+              {currentMediaFile?.media_type === "video" && (
+                <VideoControlsBar isMuted={isMuted} onToggleMute={toggleMute} />
+              )}
+            </div>
+          )}
+          {/* Nav bar + slide-up tag input panel */}
+          <div className="relative">
+            {/* Tag input panel — grows upward from nav bar top edge */}
+            {!isGalleryView && (
+              <div
+                ref={tagPanelWrapperRef}
+                className="absolute bottom-full left-0 w-full overflow-hidden transition-[height] duration-300 ease-in-out"
+                style={{ height: isTagPanelExpanded ? tagPanelHeight : 0 }}
+              >
+                <div ref={tagPanelContentRef}>
+                  <InlineTagPanel
+                    currentMediaFile={currentMediaFile}
+                    isExpanded={isTagPanelExpanded}
+                    onToggleExpanded={handleToggleTagPanel}
+                    mode="input"
+                  />
+                </div>
+              </div>
             )}
-            <InlineTagPanel
-              currentMediaFile={currentMediaFile}
-              isExpanded={isTagPanelExpanded}
-              onToggleExpanded={handleToggleTagPanel}
+            <Navigation
+              onToggleSettings={handleToggleSettings}
+              onToggleTagPanel={handleToggleTagPanel}
+              directoryName={directoryPath}
+              isFavorited={isFavorited}
+              onToggleFavorite={toggleFavorite}
             />
-            {!isTagPanelExpanded && currentMediaFile?.media_type === "video" && (
-              <VideoControlsBar
-                isMuted={isMuted}
-                onToggleMute={toggleMute}
-              />
-            )}
           </div>
         </div>
       )}
-
-      {(!isSettingsOpen || !isMobileView) && !slideshowActive && (
-        <Navigation
-          onToggleSettings={handleToggleSettings}
-          onToggleTagPanel={handleToggleTagPanel}
-          directoryName={directoryPath}
-          isFavorited={isFavorited}
-          onToggleFavorite={toggleFavorite}
-        />
-      )}
-    </div>
+    </>
   );
 }
 

@@ -556,9 +556,7 @@ app.post("/api/media/:fileHash/tags", async (req, res) => {
     // Handle tag names (create if they don't exist)
     if (tagNames && Array.isArray(tagNames)) {
       const allTags = await mediaProvider.getAllTags();
-      const tagsByName = new Map(
-        allTags.map((t) => [t.name.toLowerCase(), t]),
-      );
+      const tagsByName = new Map(allTags.map((t) => [t.name.toLowerCase(), t]));
 
       for (const tagName of tagNames) {
         const trimmed = String(tagName).trim();
@@ -710,9 +708,7 @@ app.post("/api/media-path/tags", async (req, res) => {
     // Handle tag names (create if they don't exist)
     if (tagNames && Array.isArray(tagNames)) {
       const allTags = await mediaProvider.getAllTags();
-      const tagsByName = new Map(
-        allTags.map((t) => [t.name.toLowerCase(), t]),
-      );
+      const tagsByName = new Map(allTags.map((t) => [t.name.toLowerCase(), t]));
 
       for (const tagName of tagNames) {
         const trimmedTagName = String(tagName).trim();
@@ -727,8 +723,7 @@ app.post("/api/media-path/tags", async (req, res) => {
             // Tag was created concurrently — refetch and find it
             const refreshed = await mediaProvider.getAllTags();
             tag = refreshed.find(
-              (t) =>
-                t.name.toLowerCase() === trimmedTagName.toLowerCase(),
+              (t) => t.name.toLowerCase() === trimmedTagName.toLowerCase(),
             );
             if (!tag) throw createErr;
           }
@@ -877,7 +872,9 @@ function extractVideoFrames(videoPath, timestamps) {
               // Clean up any written frames
               timestamps.forEach((_, j) => {
                 const f = path.join(tmpDir, `cactus_frame_${id}_${j}.jpg`);
-                try { fs.unlinkSync(f); } catch {}
+                try {
+                  fs.unlinkSync(f);
+                } catch {}
               });
               reject(new Error("Frame extraction failed: " + ffErr.message));
             }
@@ -891,7 +888,13 @@ function extractVideoFrames(videoPath, timestamps) {
 // Detect if a file path points to a video (by extension or content-type probe)
 function isVideoPath(filePath) {
   const videoExts = new Set([
-    ".mp4", ".webm", ".mov", ".avi", ".mkv", ".ogg", ".m4v",
+    ".mp4",
+    ".webm",
+    ".mov",
+    ".avi",
+    ".mkv",
+    ".ogg",
+    ".m4v",
   ]);
   const ext = path.extname(filePath).toLowerCase().split("?")[0];
   return videoExts.has(ext);
@@ -918,8 +921,7 @@ app.post("/api/media-path/auto-tag/generate", async (req, res) => {
     // Match by full URL or by the path portion for remote providers
     const mediaItem = allMedia.find(
       (m) =>
-        m.file_path === filePath ||
-        (isUrl && filePath.endsWith(m.file_path)),
+        m.file_path === filePath || (isUrl && filePath.endsWith(m.file_path)),
     );
     let isVideo = mediaItem
       ? mediaItem.media_type === "video"
@@ -947,9 +949,9 @@ app.post("/api/media-path/auto-tag/generate", async (req, res) => {
           `Failed to fetch media from provider: ${fetchRes.status}`,
         );
       }
-      fetchedContentType = (
-        fetchRes.headers.get("content-type") || ""
-      ).split(";")[0].trim();
+      fetchedContentType = (fetchRes.headers.get("content-type") || "")
+        .split(";")[0]
+        .trim();
       fetchedBuffer = Buffer.from(await fetchRes.arrayBuffer());
 
       log.info("Auto-tag: remote fetch complete", {
@@ -960,7 +962,10 @@ app.post("/api/media-path/auto-tag/generate", async (req, res) => {
       // Override video detection using content-type if we couldn't match from provider data
       if (!mediaItem) {
         isVideo = fetchedContentType.startsWith("video/");
-        log.info("Auto-tag: content-type override", { isVideo, fetchedContentType });
+        log.info("Auto-tag: content-type override", {
+          isVideo,
+          fetchedContentType,
+        });
       }
     }
 
@@ -984,7 +989,10 @@ app.post("/api/media-path/auto-tag/generate", async (req, res) => {
       }
 
       try {
-        log.info("Auto-tag: video path resolved", { videoPath, isTemp: !!tempVideoPath });
+        log.info("Auto-tag: video path resolved", {
+          videoPath,
+          isTemp: !!tempVideoPath,
+        });
 
         // Probe duration and pick timestamps
         const duration = await new Promise((resolve, reject) => {
@@ -1021,9 +1029,8 @@ app.post("/api/media-path/auto-tag/generate", async (req, res) => {
           })),
         );
 
-        const tags = await autoTagService.generateTagsFromBuffers(
-          normalizedImages,
-        );
+        const tags =
+          await autoTagService.generateTagsFromBuffers(normalizedImages);
 
         log.info("Auto-tags generated from video", {
           filePath,
@@ -1098,9 +1105,7 @@ app.post("/api/media-path/auto-tag/apply", async (req, res) => {
     const fileHash = mediaProvider.getFileHashForPath(filePath);
 
     const allTags = await mediaProvider.getAllTags();
-    const tagsByName = new Map(
-      allTags.map((t) => [t.name.toLowerCase(), t]),
-    );
+    const tagsByName = new Map(allTags.map((t) => [t.name.toLowerCase(), t]));
     const results = [];
 
     for (const tagName of tags) {
@@ -1114,9 +1119,7 @@ app.post("/api/media-path/auto-tag/apply", async (req, res) => {
         } catch (createErr) {
           // Tag was created concurrently — refetch and find it
           const refreshed = await mediaProvider.getAllTags();
-          tag = refreshed.find(
-            (t) => t.name.toLowerCase() === trimmed,
-          );
+          tag = refreshed.find((t) => t.name.toLowerCase() === trimmed);
           if (!tag) throw createErr;
         }
         tagsByName.set(trimmed, tag);

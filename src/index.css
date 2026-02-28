@@ -352,12 +352,6 @@ textarea {
     }
   }
 
-  /* Ensure navigation is visible */
-  .navigation {
-    position: fixed;
-    z-index: 1000;
-  }
-
   .media-wrapper {
     /* Reduce scroll jank */
     -webkit-transform: translateZ(0);

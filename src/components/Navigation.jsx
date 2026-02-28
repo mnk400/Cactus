@@ -85,10 +85,8 @@ const Navigation = memo(function Navigation({
 
   return (
     <div
-      className={`navigation fixed bottom-0 left-0 flex flex-col justify-end z-20 bg-black-shades-1000 transition-all duration-300 pt-3`}
+      className={`navigation w-full flex flex-col justify-end bg-black-shades-1000 transition-all duration-300 pt-3`}
       style={{
-        right: "var(--settings-drawer-width, 0px)",
-        width: "calc(100% - var(--settings-drawer-width, 0px))",
         paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))",
       }}
     >
@@ -101,7 +99,7 @@ const Navigation = memo(function Navigation({
         <div className="flex items-center gap-2">
           <button
             onClick={onToggleFavorite}
-            className="nav-button bg-black-shades-700 text-gray-200 border-none p-2 rounded-xl cursor-pointer transition-all duration-200 ease-in-out hover:bg-white hover:bg-opacity-20 active:scale-95 min-w-10 min-h-11 flex items-center justify-center"
+            className="nav-button bg-black-shades-700 text-gray-200 border-none p-2 rounded-xl cursor-pointer transition-all duration-200 ease-in-out hover:bg-white hover:bg-opacity-20 active:scale-95 min-w-10 min-h-10 flex items-center justify-center"
             title={isFavorited ? "Remove from favorites" : "Add to favorites"}
           >
             {isFavorited ? (
@@ -133,7 +131,7 @@ const Navigation = memo(function Navigation({
 
           <button
             onClick={() => onToggleTagPanel()}
-            className="nav-button bg-black-shades-700 text-gray-200 border-none p-2 rounded-xl cursor-pointer transition-all duration-200 ease-in-out hover:bg-white hover:bg-opacity-20 active:scale-95 min-w-10 min-h-11 flex items-center justify-center"
+            className="nav-button bg-black-shades-700 text-gray-200 border-none p-2 rounded-xl cursor-pointer transition-all duration-200 ease-in-out hover:bg-white hover:bg-opacity-20 active:scale-95 min-w-10 min-h-10 flex items-center justify-center"
             title="Add tags (T)"
           >
             <svg
@@ -153,7 +151,7 @@ const Navigation = memo(function Navigation({
 
           <button
             onClick={toggleGallery}
-            className="nav-button bg-black-shades-700 text-gray-200 border-none p-2 rounded-xl cursor-pointer transition-all duration-200 ease-in-out hover:bg-white hover:bg-opacity-20 active:scale-95 min-w-10 min-h-11 flex items-center justify-center"
+            className="nav-button bg-black-shades-700 text-gray-200 border-none p-2 rounded-xl cursor-pointer transition-all duration-200 ease-in-out hover:bg-white hover:bg-opacity-20 active:scale-95 min-w-10 min-h-10 flex items-center justify-center"
             title="Gallery View"
           >
             <svg
@@ -174,11 +172,19 @@ const Navigation = memo(function Navigation({
 
           <button
             onClick={onToggleSettings}
-            className="nav-button bg-black-shades-700 text-gray-200 border-none p-2 rounded-xl cursor-pointer text-lg transition-all duration-200 ease-in-out hover:bg-white hover:bg-opacity-20 active:scale-95 min-w-10 min-h-10"
+            className="nav-button bg-black-shades-700 text-gray-200 border-none p-2 rounded-xl cursor-pointer transition-all duration-200 ease-in-out hover:bg-white hover:bg-opacity-20 active:scale-95 min-w-10 min-h-10 flex items-center justify-center"
           >
-            ⋯
+            <svg
+              className="w-4 h-4"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle cx="5" cy="12" r="2" />
+              <circle cx="12" cy="12" r="2" />
+              <circle cx="19" cy="12" r="2" />
+            </svg>
           </button>
-
         </div>
 
         {activeFilter ? (

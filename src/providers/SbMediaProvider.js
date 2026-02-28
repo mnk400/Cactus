@@ -920,18 +920,23 @@ class SbMediaProvider extends MediaSourceProvider {
   probeContentType(url) {
     return new Promise((resolve, reject) => {
       const parsedUrl = new URL(url);
-      const mod = parsedUrl.protocol === "https:" ? require("https") : require("http");
+      const mod =
+        parsedUrl.protocol === "https:" ? require("https") : require("http");
       const reqHeaders = {};
       if (this.apiKey) reqHeaders["ApiKey"] = this.apiKey;
 
-      const req = mod.get(url, { headers: reqHeaders, timeout: 10000 }, (res) => {
-        // We only need the headers — destroy the socket immediately
-        res.destroy();
-        if (res.statusCode >= 400) {
-          return reject(new Error(`Upstream returned ${res.statusCode}`));
-        }
-        resolve(res.headers["content-type"] || "");
-      });
+      const req = mod.get(
+        url,
+        { headers: reqHeaders, timeout: 10000 },
+        (res) => {
+          // We only need the headers — destroy the socket immediately
+          res.destroy();
+          if (res.statusCode >= 400) {
+            return reject(new Error(`Upstream returned ${res.statusCode}`));
+          }
+          resolve(res.headers["content-type"] || "");
+        },
+      );
       req.on("error", reject);
       req.on("timeout", () => {
         req.destroy();
@@ -1079,26 +1084,40 @@ class SbMediaProvider extends MediaSourceProvider {
       const videoBuffer = Buffer.from(await response.arrayBuffer());
       await fs.promises.writeFile(tempVideoPath, videoBuffer);
     } catch (err) {
-      log.error("Failed to download video for thumbnail", { fileHash, error: err.message });
+      log.error("Failed to download video for thumbnail", {
+        fileHash,
+        error: err.message,
+      });
       return null;
     }
 
     return new Promise((resolve) => {
       const cleanup = () => {
-        try { fs.unlinkSync(tempVideoPath); } catch {}
-        try { fs.unlinkSync(tempThumbPath); } catch {}
+        try {
+          fs.unlinkSync(tempVideoPath);
+        } catch {}
+        try {
+          fs.unlinkSync(tempThumbPath);
+        } catch {}
       };
 
       ffmpeg.ffprobe(tempVideoPath, (err, metadata) => {
         if (err) {
-          log.error("Failed to probe video for thumbnail generation", { fileHash, error: err.message });
+          log.error("Failed to probe video for thumbnail generation", {
+            fileHash,
+            error: err.message,
+          });
           cleanup();
           return resolve(null);
         }
 
-        const videoStream = metadata.streams.find((s) => s.codec_type === "video");
+        const videoStream = metadata.streams.find(
+          (s) => s.codec_type === "video",
+        );
         if (!videoStream) {
-          log.error("No video stream found for thumbnail generation", { fileHash });
+          log.error("No video stream found for thumbnail generation", {
+            fileHash,
+          });
           cleanup();
           return resolve(null);
         }
@@ -1122,19 +1141,28 @@ class SbMediaProvider extends MediaSourceProvider {
             size: `${newWidth}x${newHeight}`,
           })
           .on("end", () => {
-            log.info("Generated thumbnail from upstream video", { fileHash, size: `${newWidth}x${newHeight}` });
+            log.info("Generated thumbnail from upstream video", {
+              fileHash,
+              size: `${newWidth}x${newHeight}`,
+            });
             try {
               const thumbBuffer = fs.readFileSync(tempThumbPath);
               cleanup();
               resolve(thumbBuffer);
             } catch (readErr) {
-              log.error("Failed to read generated thumbnail", { fileHash, error: readErr.message });
+              log.error("Failed to read generated thumbnail", {
+                fileHash,
+                error: readErr.message,
+              });
               cleanup();
               resolve(null);
             }
           })
           .on("error", (err) => {
-            log.error("Failed to generate thumbnail from video", { fileHash, error: err.message });
+            log.error("Failed to generate thumbnail from video", {
+              fileHash,
+              error: err.message,
+            });
             cleanup();
             resolve(null);
           });
