@@ -72,7 +72,7 @@ export const MediaProvider = ({ children }) => {
     sortBy,
     selectedTags,
     excludedTags,
-    pathFilter,
+    search,
     galleryView,
     mediaId,
   } = settings;
@@ -166,10 +166,7 @@ export const MediaProvider = ({ children }) => {
         "exclude-tags": (overrides.excludedTags ?? excludedTags)
           .map((t) => t.name || t)
           .join(","),
-        pathSubstring:
-          overrides.pathFilter !== undefined
-            ? overrides.pathFilter
-            : pathFilter,
+        search: overrides.search !== undefined ? overrides.search : search,
       };
 
       // Update last fetched filters to prevent duplicate fetches from the effect
@@ -178,7 +175,7 @@ export const MediaProvider = ({ children }) => {
         sortBy: params.sortBy,
         tags: params.tags,
         excludeTags: params["exclude-tags"],
-        pathFilter: params.pathSubstring || "",
+        search: params.search || "",
       });
 
       // For initial load, use mediaId from overrides. Don't use state mediaId to avoid loops.
@@ -198,8 +195,8 @@ export const MediaProvider = ({ children }) => {
         if (params.tags) url += `&tags=${params.tags}`;
         if (params["exclude-tags"])
           url += `&exclude-tags=${params["exclude-tags"]}`;
-        if (params.pathSubstring)
-          url += `&pathSubstring=${encodeURIComponent(params.pathSubstring)}`;
+        if (params.search)
+          url += `&search=${encodeURIComponent(params.search)}`;
 
         const response = await fetch(url, { signal });
         if (!response.ok) {
@@ -237,7 +234,7 @@ export const MediaProvider = ({ children }) => {
         }
       }
     },
-    [mediaType, sortBy, selectedTags, excludedTags, pathFilter],
+    [mediaType, sortBy, selectedTags, excludedTags, search],
   );
 
   // Fetch server configuration
@@ -287,7 +284,7 @@ export const MediaProvider = ({ children }) => {
       sortBy,
       tags: selectedTags.map((t) => t.name || t).join(","),
       excludeTags: excludedTags.map((t) => t.name || t).join(","),
-      pathFilter: pathFilter || "",
+      search: search || "",
     });
 
     // Only fetch if filters have changed (or first load when ref is null)
@@ -302,7 +299,7 @@ export const MediaProvider = ({ children }) => {
     sortBy,
     selectedTags,
     excludedTags,
-    pathFilter,
+    search,
   ]);
 
   // Sync mediaId to URL when index changes.
@@ -345,8 +342,10 @@ export const MediaProvider = ({ children }) => {
 
   // Helper: are content-narrowing filters active?
   const hasActiveFilters = useCallback(
-    (tags, excluded, path) =>
-      tags.length > 0 || excluded.length > 0 || (path && path.trim() !== ""),
+    (tags, excluded, searchTerm) =>
+      tags.length > 0 ||
+      excluded.length > 0 ||
+      (searchTerm && searchTerm.trim() !== ""),
     [],
   );
 
@@ -356,19 +355,13 @@ export const MediaProvider = ({ children }) => {
       // Resolve what the new full filter state will be
       const newTags = newSettings.selectedTags ?? selectedTags;
       const newExcluded = newSettings.excludedTags ?? excludedTags;
-      const newPath =
-        newSettings.pathFilter !== undefined
-          ? newSettings.pathFilter
-          : pathFilter;
+      const newSearch =
+        newSettings.search !== undefined ? newSettings.search : search;
       const newMediaType = newSettings.mediaType ?? mediaType;
       const newSortBy = newSettings.sortBy ?? sortBy;
 
-      const wasFiltered = hasActiveFilters(
-        selectedTags,
-        excludedTags,
-        pathFilter,
-      );
-      const willBeFiltered = hasActiveFilters(newTags, newExcluded, newPath);
+      const wasFiltered = hasActiveFilters(selectedTags, excludedTags, search);
+      const willBeFiltered = hasActiveFilters(newTags, newExcluded, newSearch);
 
       // Base view settings changing → invalidate snapshot
       if (newMediaType !== mediaType || newSortBy !== sortBy) {
@@ -411,7 +404,7 @@ export const MediaProvider = ({ children }) => {
               ? newExcluded.map((t) => t.name || t)
               : []
             ).join(","),
-            pathFilter: newPath || "",
+            search: newSearch || "",
           });
 
           return; // Skip fetch — restored from snapshot
@@ -429,7 +422,7 @@ export const MediaProvider = ({ children }) => {
       hasActiveFilters,
       selectedTags,
       excludedTags,
-      pathFilter,
+      search,
       mediaType,
       sortBy,
       mediaFiles,

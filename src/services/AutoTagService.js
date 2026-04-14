@@ -19,8 +19,7 @@ const log = {
     ),
 };
 
-const DEFAULT_PROMPT =
-  "...";
+const DEFAULT_PROMPT = "...";
 
 const VIDEO_PREFIX = "These are frames from a video. ";
 

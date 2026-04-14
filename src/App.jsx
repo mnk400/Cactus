@@ -44,7 +44,7 @@ function App() {
   const { slideshowActive, toggleSlideshow } = useSlideshowState();
   const { isMuted, toggleMute } = useAudio();
 
-  const { pathFilter, galleryView: isGalleryView, debug: debugMode } = settings;
+  const { search, galleryView: isGalleryView, debug: debugMode } = settings;
 
   const directoryPath = useMemo(
     () =>

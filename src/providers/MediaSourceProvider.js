@@ -51,38 +51,32 @@ class MediaSourceProvider {
   }
 
   /**
-   * Get all media from the source
-   * @param {string} mediaType - Type of media to retrieve ('image', 'video', or 'all')
-   * @param {Object} sortBy - Sorting parameters
+   * Unified media retrieval with composable filters.
+   * @param {Object} filters
+   * @param {string} filters.mediaType - 'all', 'photos', or 'videos'
+   * @param {string} filters.sortBy - 'random', 'date_added', or 'date_created'
+   * @param {string[]} filters.includeTags - Tag names (AND logic)
+   * @param {string[]} filters.excludeTags - Tag names (NOT logic)
+   * @param {string} filters.search - Substring match on file paths
    * @returns {Promise<Array>} Array of media items
    */
+  async getMedia(filters = {}) {
+    throw new Error("Method getMedia() must be implemented by subclass");
+  }
+
+  /** @deprecated Use getMedia() */
   async getAllMedia(mediaType, sortBy) {
-    throw new Error("Method getAllMedia() must be implemented by subclass");
+    return this.getMedia({ mediaType, sortBy });
   }
 
-  /**
-   * Get media filtered by tags
-   * @param {Array} includeTags - Tags that must be present
-   * @param {Array} excludeTags - Tags that must not be present
-   * @param {string} mediaType - Type of media to retrieve ('image', 'video', or 'all')
-   * @param {Object} sortBy - Sorting parameters
-   * @returns {Promise<Array>} Array of filtered media items
-   */
+  /** @deprecated Use getMedia() */
   async getMediaByTags(includeTags, excludeTags, mediaType, sortBy) {
-    throw new Error("Method getMediaByTags() must be implemented by subclass");
+    return this.getMedia({ mediaType, sortBy, includeTags, excludeTags });
   }
 
-  /**
-   * Get media filtered by general filter substring
-   * @param {string} substring - Substring to match in file paths
-   * @param {string} mediaType - Type of media to retrieve ('image', 'video', or 'all')
-   * @param {Object} sortBy - Sorting parameters
-   * @returns {Promise<Array>} Array of filtered media items
-   */
+  /** @deprecated Use getMedia() */
   async getMediaByGeneralFilter(substring, mediaType, sortBy) {
-    throw new Error(
-      "Method getMediaByGeneralFilter() must be implemented by subclass",
-    );
+    return this.getMedia({ mediaType, sortBy, search: substring });
   }
 
   /**

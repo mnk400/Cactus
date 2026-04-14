@@ -358,108 +358,74 @@ class SbMediaProvider extends MediaSourceProvider {
 
   // ── Media Retrieval ────────────────────────────────────────────────
 
-  async getAllMedia(mediaType = "all", sortBy = "random") {
+  async getMedia(filters = {}) {
     if (!this.isInitialized) throw new Error("Provider not initialized");
 
+    const {
+      mediaType = "all",
+      sortBy = "random",
+      includeTags = [],
+      excludeTags = [],
+      search = "",
+    } = filters;
+
     try {
-      const now = Date.now();
-      if (
-        this.mediaCache.length > 0 &&
-        this.lastFetchTime &&
-        now - this.lastFetchTime < this.cacheTimeout
-      ) {
-        return this.filterAndSortMedia(this.mediaCache, mediaType, sortBy);
+      let media;
+      const hasTags = includeTags.length > 0 || excludeTags.length > 0;
+
+      if (hasTags) {
+        // Use GraphQL tag filtering
+        const allTags = await this.getAllTags();
+        const includeIds = this.resolveTagNamesToIds(includeTags, allTags);
+        const excludeIds = this.resolveTagNamesToIds(excludeTags, allTags);
+
+        const buildTagFilter = () => {
+          const filter = {};
+          if (includeIds.length > 0)
+            filter.tags = { value: includeIds, modifier: "INCLUDES_ALL" };
+          if (excludeIds.length > 0)
+            filter.tags = { ...filter.tags, excludes: excludeIds };
+          return filter;
+        };
+
+        media = await this.fetchAndTransformMedia(
+          sortBy,
+          buildTagFilter(),
+          buildTagFilter(),
+        );
+      } else {
+        // No tags — use cache-aware fetch
+        const now = Date.now();
+        if (
+          this.mediaCache.length > 0 &&
+          this.lastFetchTime &&
+          now - this.lastFetchTime < this.cacheTimeout
+        ) {
+          media = this.mediaCache;
+        } else {
+          media = await this.fetchAndTransformMedia(sortBy);
+          this.mediaCache = media;
+          this.lastFetchTime = now;
+          this.rebuildThumbnailMap();
+        }
       }
 
-      log.info("Fetching media from sb server", { mediaType, sortBy });
-      const media = await this.fetchAndTransformMedia(sortBy);
-
-      this.mediaCache = media;
-      this.lastFetchTime = now;
-      this.rebuildThumbnailMap();
+      // Client-side search (SB API doesn't support server-side text search)
+      if (search) {
+        const term = search.toLowerCase();
+        media = media.filter((item) =>
+          this.buildSearchText(item).includes(term),
+        );
+      }
 
       return this.filterAndSortMedia(media, mediaType, sortBy);
     } catch (error) {
       log.error("Failed to get media from sb", {
-        mediaType,
-        sortBy,
+        filters,
         error: error.message,
       });
       throw error;
     }
-  }
-
-  async getMediaByTags(includeTags, excludeTags, mediaType, sortBy) {
-    if (!this.isInitialized) throw new Error("Provider not initialized");
-
-    if (
-      (!includeTags || includeTags.length === 0) &&
-      (!excludeTags || excludeTags.length === 0)
-    ) {
-      return this.getAllMedia(mediaType, sortBy);
-    }
-
-    try {
-      log.info("Filtering media by tags in sb", {
-        includeTags,
-        excludeTags,
-        mediaType,
-      });
-
-      const allTags = await this.getAllTags();
-      const includeIds = this.resolveTagNamesToIds(includeTags, allTags);
-      const excludeIds = this.resolveTagNamesToIds(excludeTags, allTags);
-
-      const buildTagFilter = () => {
-        const filter = {};
-        if (includeIds.length > 0)
-          filter.tags = { value: includeIds, modifier: "INCLUDES_ALL" };
-        if (excludeIds.length > 0)
-          filter.tags = { ...filter.tags, excludes: excludeIds };
-        return filter;
-      };
-
-      const imageFilter = buildTagFilter();
-      const markerFilter = buildTagFilter();
-
-      const media = await this.fetchAndTransformMedia(
-        sortBy,
-        imageFilter,
-        markerFilter,
-      );
-
-      log.info("Tag filtering completed for sb", {
-        includeTags,
-        excludeTags,
-        resultCount: media.length,
-      });
-      return this.filterAndSortMedia(media, mediaType, sortBy);
-    } catch (error) {
-      log.error("Failed to filter media by tags in sb", {
-        includeTags,
-        excludeTags,
-        mediaType,
-        error: error.message,
-      });
-      throw error;
-    }
-  }
-
-  async getMediaByGeneralFilter(substring, mediaType, sortBy) {
-    const allMedia = await this.getAllMedia(mediaType, sortBy);
-    const term = substring.toLowerCase();
-
-    const filteredMedia = allMedia.filter((item) => {
-      const searchText = this.buildSearchText(item);
-      return searchText.includes(term);
-    });
-
-    log.info("Path substring filtering completed", {
-      substring,
-      totalMedia: allMedia.length,
-      filteredCount: filteredMedia.length,
-    });
-    return filteredMedia;
   }
 
   /**
@@ -865,7 +831,7 @@ class SbMediaProvider extends MediaSourceProvider {
   async getStats() {
     if (!this.isInitialized) throw new Error("Provider not initialized");
     try {
-      const allMedia = await this.getAllMedia("all");
+      const allMedia = await this.getMedia({});
       const images = allMedia.filter((item) => item.media_type === "image");
       const videos = allMedia.filter((item) => item.media_type === "video");
       return {
@@ -1024,7 +990,7 @@ class SbMediaProvider extends MediaSourceProvider {
       let thumbnailUrl = this.thumbnailMap.get(fileHash);
       if (!thumbnailUrl) {
         if (this.thumbnailMap.size === 0 && this.mediaCache.length === 0) {
-          await this.getAllMedia("all");
+          await this.getMedia({});
           thumbnailUrl = this.thumbnailMap.get(fileHash);
         }
         if (!thumbnailUrl) return res.status(404).send("Thumbnail not found");

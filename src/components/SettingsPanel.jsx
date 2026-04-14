@@ -2,13 +2,13 @@ import { useState, useEffect, useCallback, memo } from "react";
 import TagFilter from "./TagFilter";
 import GeneralFilter from "./GeneralFilter";
 import TagManager from "./TagManager";
-import MediaInfo from "./MediaInfo";
 import { useMediaData, useSlideshowState } from "../context/MediaContext";
 import { isMobile } from "../utils/helpers";
 
 const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
   const [showTagManager, setShowTagManager] = useState(false);
   const [shouldAnimate, setShouldAnimate] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
 
   const { slideshowSpeed, startSlideshow, setSlideshowSpeed } =
     useSlideshowState();
@@ -38,11 +38,11 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
     mediaType: currentMediaType,
     selectedTags,
     excludedTags,
-    pathFilter,
+    search,
     sortBy,
   } = settings;
 
-  // Calculate statistics
+  // Statistics
   const totalFiles = allMediaFiles.length;
   const totalPhotos = allMediaFiles.filter(
     (file) => file.media_type === "image",
@@ -51,42 +51,24 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
     (file) => file.media_type === "video",
   ).length;
   const currentCount = currentMediaFiles.length;
-
-  // Calculate percentages for visual representation
   const photoPercentage =
     totalFiles > 0 ? Math.round((totalPhotos / totalFiles) * 100) : 0;
   const videoPercentage =
     totalFiles > 0 ? Math.round((totalVideos / totalFiles) * 100) : 0;
 
-  const getSortButtonClass = (sortOption) => {
-    const baseClass =
-      "media-type-btn flex-1 border-none py-2 px-3 rounded-xl cursor-pointer text-sm font-medium transition-colors duration-200 ease-in-out active:scale-95";
+  const hasActiveFilters =
+    currentMediaType !== "all" ||
+    sortBy !== "random" ||
+    selectedTags.length > 0 ||
+    excludedTags.length > 0 ||
+    (search && search.length > 0);
 
-    if (sortBy === sortOption) {
-      return `${baseClass} bg-white bg-opacity-20 text-white shadow-lg`;
-    }
-    return `${baseClass} bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-gray-300`;
-  };
-
-  const getButtonClass = (mediaType) => {
-    const baseClass =
-      "media-type-btn flex-1 border-none py-2 px-3 rounded-xl cursor-pointer text-sm font-medium transition-colors duration-200 ease-in-out active:scale-95";
-
-    if (currentMediaType === mediaType) {
-      return `${baseClass} bg-white bg-opacity-20 text-white shadow-lg`;
-    }
-    return `${baseClass} bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-gray-300`;
-  };
-
-  const getMediaTypeLabel = (type) => {
-    switch (type) {
-      case "photos":
-        return "Photos Only";
-      case "videos":
-        return "Videos Only";
-      default:
-        return "All Media";
-    }
+  const getToggleClass = (isActive) => {
+    const base =
+      "flex-1 border-none py-2 px-3 rounded-xl cursor-pointer text-sm font-medium transition-colors duration-200 ease-in-out active:scale-95";
+    return isActive
+      ? `${base} bg-white bg-opacity-20 text-white shadow-lg`
+      : `${base} bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-gray-300`;
   };
 
   const handleCreateTag = async (name, color) => {
@@ -128,26 +110,19 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
   );
 
   const handleFilterChange = useCallback(
-    (path) =>
-      setFilters({ pathFilter: path, selectedTags: [], excludedTags: [] }),
+    (value) => setFilters({ search: value }),
     [setFilters],
   );
 
-  const handleToggleFavorites = useCallback(() => {
-    const favTag = tags.find((t) => t.name === "favorites");
-    if (!favTag) return;
-    const isActive = selectedTags.some((t) => t.name === "favorites");
-    if (isActive) {
-      setFilters({
-        selectedTags: selectedTags.filter((t) => t.name !== "favorites"),
-      });
-    } else {
-      setFilters({
-        selectedTags: [...selectedTags, favTag],
-        pathFilter: "",
-      });
-    }
-  }, [tags, selectedTags, setFilters]);
+  const handleClearAllFilters = useCallback(() => {
+    setFilters({
+      mediaType: "all",
+      sortBy: "random",
+      selectedTags: [],
+      excludedTags: [],
+      search: "",
+    });
+  }, [setFilters]);
 
   const directoryName =
     config?.provider?.config?.directoryPath ||
@@ -159,7 +134,6 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
   // Handle animation timing for desktop drawer
   useEffect(() => {
     if (isDesktop && isOpen) {
-      // Start off-screen, then animate in after a frame
       queueMicrotask(() => setShouldAnimate(false));
       requestAnimationFrame(() => {
         setShouldAnimate(true);
@@ -169,8 +143,6 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
     }
   }, [isOpen, isDesktop]);
 
-  // Mobile: return null when closed (handled by ViewTransition)
-  // Desktop: always render (with transform animation)
   if (!isOpen && !isDesktop) return null;
 
   return (
@@ -189,10 +161,9 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
           : {}
       }
     >
+      {/* Header */}
       <div className="flex justify-between items-center mb-4 max-w-4xl mx-auto">
-        <h3 className="text-lg font-semibold text-white m-0">
-          Settings & Stats
-        </h3>
+        <h3 className="text-lg font-semibold text-white m-0">Settings</h3>
         <button
           onClick={() => onClose()}
           className="px-3 py-1 bg-red-400 text-white rounded-xl hover:bg-red-500 transition-colors duration-200"
@@ -203,188 +174,205 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
       </div>
 
       <div className="max-w-4xl mx-auto">
-        <div className="stats-section mb-4 p-3 bg-black-shades-800 rounded-2xl">
-          <div className="flex items-center gap-2 mb-3">
+        {/* Library Overview — collapsible */}
+        <div className="mb-4 p-3 bg-black-shades-800 rounded-2xl">
+          <button
+            onClick={() => setShowLibrary((prev) => !prev)}
+            className="w-full flex items-center justify-between text-left"
+          >
             <h4 className="text-base font-medium text-white m-0">
-              Media Library
+              Library Overview
             </h4>
-          </div>
+            <svg
+              className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${showLibrary ? "rotate-180" : ""}`}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </button>
 
-          {ui.showDirectoryInfo && directoryName && (
-            <div className="mb-3 p-2 bg-black-shades-700 rounded-lg">
-              <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">
-                {ui.directoryLabel || "Directory"}
+          {showLibrary && (
+            <div className="mt-3">
+              {ui.showDirectoryInfo && directoryName && (
+                <div className="mb-3 p-2 bg-black-shades-700 rounded-lg">
+                  <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">
+                    {ui.directoryLabel || "Directory"}
+                  </div>
+                  <div className="text-xs font-mono text-gray-200 break-all leading-tight">
+                    {directoryName}
+                  </div>
+                  {ui.showConnectionStatus && (
+                    <div className="text-xs text-green-400 mt-1">
+                      ✓ Connected
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="grid grid-cols-3 gap-2 text-center mb-3">
+                <div className="p-2 bg-black-shades-700 rounded-lg">
+                  <div className="text-base font-bold text-white">
+                    {totalFiles}
+                  </div>
+                  <div className="text-xs text-gray-400 uppercase tracking-wide">
+                    Total
+                  </div>
+                </div>
+                <div className="p-2 bg-black-shades-700 rounded-lg">
+                  <div className="text-base font-bold text-gray-200">
+                    {totalPhotos}
+                  </div>
+                  <div className="text-xs text-gray-300 uppercase tracking-wide">
+                    Photos
+                  </div>
+                </div>
+                <div className="p-2 bg-black-shades-700 rounded-lg">
+                  <div className="text-base font-bold text-gray-200">
+                    {totalVideos}
+                  </div>
+                  <div className="text-xs text-gray-300 uppercase tracking-wide">
+                    Videos
+                  </div>
+                </div>
               </div>
-              <div className="text-xs font-mono text-gray-200 break-all leading-tight">
-                {directoryName}
-              </div>
-              {ui.showConnectionStatus && (
-                <div className="text-xs text-green-400 mt-1">✓ Connected</div>
+
+              {totalFiles > 0 && (
+                <div>
+                  <div className="flex h-1.5 bg-black-shades-600 rounded-full overflow-hidden">
+                    <div
+                      className="bg-white bg-opacity-60"
+                      style={{ width: `${photoPercentage}%` }}
+                    />
+                    <div
+                      className="bg-black-shades-400 bg-opacity-80"
+                      style={{ width: `${videoPercentage}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-400 mt-1">
+                    <span>Photos {photoPercentage}%</span>
+                    <span>Videos {videoPercentage}%</span>
+                  </div>
+                </div>
               )}
             </div>
           )}
+        </div>
 
-          <div className="mb-3 p-2 bg-black-shades-700 rounded-lg">
-            <div className="text-xs text-gray-300 uppercase tracking-wide mb-1">
-              Currently Viewing
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-base font-bold text-white">
-                {currentCount}
-              </span>
-              <span className="text-xs text-gray-300">
-                {getMediaTypeLabel(currentMediaType)}
-              </span>
-            </div>
+        {/* Filters */}
+        <div className="mb-4 p-3 bg-black-shades-800 rounded-2xl">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-base font-medium text-white m-0">Filters</h4>
+            <span className="text-xs text-gray-400">
+              Viewing {currentCount} of {totalFiles}
+            </span>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 text-center mb-3">
-            <div className="stat-item p-2 bg-black-shades-700 rounded-lg">
-              <div className="text-base font-bold text-white">{totalFiles}</div>
-              <div className="text-xs text-gray-400 uppercase tracking-wide">
-                Total
-              </div>
+          {/* Search */}
+          <div className="mb-4">
+            <GeneralFilter
+              onFilterChange={handleFilterChange}
+              initialValue={search || ""}
+              placeholder="Search by path, folder..."
+            />
+          </div>
+
+          {/* Tags */}
+          <div className="mb-4">
+            <TagFilter
+              tags={tags}
+              selectedTags={selectedTags}
+              excludedTags={excludedTags}
+              onTagsChange={handleTagsChange}
+              onExcludedTagsChange={handleExcludedTagsChange}
+            />
+          </div>
+
+          {/* Media Type */}
+          <div className="mb-4">
+            <div className="text-xs text-gray-400 uppercase tracking-wide mb-2">
+              Media Type
             </div>
-            <div className="stat-item p-2 bg-black-shades-700 rounded-lg">
-              <div className="text-base font-bold text-gray-200">
-                {totalPhotos}
-              </div>
-              <div className="text-xs text-gray-300 uppercase tracking-wide">
+            <div className="flex gap-2">
+              <button
+                onClick={() => setFilters({ mediaType: "all" })}
+                className={getToggleClass(currentMediaType === "all")}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setFilters({ mediaType: "photos" })}
+                className={getToggleClass(currentMediaType === "photos")}
+              >
                 Photos
-              </div>
-            </div>
-            <div className="stat-item p-2 bg-black-shades-700 rounded-lg">
-              <div className="text-base font-bold text-gray-200">
-                {totalVideos}
-              </div>
-              <div className="text-xs text-gray-300 uppercase tracking-wide">
+              </button>
+              <button
+                onClick={() => setFilters({ mediaType: "videos" })}
+                className={getToggleClass(currentMediaType === "videos")}
+              >
                 Videos
-              </div>
+              </button>
             </div>
           </div>
 
-          {totalFiles > 0 && (
-            <div>
-              <div className="text-xs text-gray-400 mb-1">Distribution</div>
-              <div className="flex h-1.5 bg-black-shades-600 rounded-full overflow-hidden">
-                <div
-                  className="bg-white bg-opacity-60"
-                  style={{ width: `${photoPercentage}%` }}
-                />
-                <div
-                  className="bg-black-shades-400 bg-opacity-80"
-                  style={{ width: `${videoPercentage}%` }}
-                />
-              </div>
-              <div className="flex justify-between text-xs text-gray-400 mt-1">
-                <span>Photos {photoPercentage}%</span>
-                <span>Videos {videoPercentage}%</span>
-              </div>
+          {/* Sort By */}
+          <div className="mb-4">
+            <div className="text-xs text-gray-400 uppercase tracking-wide mb-2">
+              Sort By
             </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setFilters({ sortBy: "random" })}
+                className={getToggleClass(sortBy === "random")}
+              >
+                Random
+              </button>
+              <button
+                onClick={() => setFilters({ sortBy: "date_added" })}
+                className={getToggleClass(sortBy === "date_added")}
+              >
+                Date Added
+              </button>
+              <button
+                onClick={() => setFilters({ sortBy: "date_created" })}
+                className={getToggleClass(sortBy === "date_created")}
+              >
+                Date Created
+              </button>
+            </div>
+          </div>
+
+          {/* Clear All */}
+          {hasActiveFilters && (
+            <button
+              onClick={handleClearAllFilters}
+              className="w-full px-3 py-2 text-sm bg-black-shades-700 hover:bg-white hover:bg-opacity-20 text-gray-200 rounded-xl transition-all duration-200 ease-in-out"
+            >
+              Clear All Filters
+            </button>
           )}
         </div>
 
-        <button
-          onClick={handleToggleFavorites}
-          className={`w-full mb-4 py-2.5 rounded-2xl font-medium transition-colors duration-200 active:scale-95 ${
-            selectedTags.some((t) => t.name === "favorites")
-              ? "bg-pink-500 bg-opacity-30 text-pink-200 border border-pink-500 border-opacity-40"
-              : "bg-black bg-opacity-40 text-gray-300 hover:bg-white hover:bg-opacity-10"
-          }`}
-        >
-          {selectedTags.some((t) => t.name === "favorites")
-            ? "♥ Showing Favorites"
-            : "♥ Show Favorites"}
-        </button>
-
-        <MediaInfo />
-
-        <div className="filter-section mb-4">
-          <h4 className="text-base font-medium text-white mb-3">Media Type</h4>
-          <div className="media-type-selector flex gap-2">
-            <button
-              onClick={() => setFilters({ mediaType: "all" })}
-              className={getButtonClass("all")}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setFilters({ mediaType: "photos" })}
-              className={getButtonClass("photos")}
-            >
-              Photos
-            </button>
-            <button
-              onClick={() => setFilters({ mediaType: "videos" })}
-              className={getButtonClass("videos")}
-            >
-              Videos
-            </button>
-          </div>
-        </div>
-
-        <div className="filter-section mb-4">
-          <h4 className="text-base font-medium text-white mb-3">Sort By</h4>
-          <div className="media-type-selector flex gap-2">
-            <button
-              onClick={() => setFilters({ sortBy: "random" })}
-              className={getSortButtonClass("random")}
-            >
-              Random
-            </button>
-            <button
-              onClick={() => setFilters({ sortBy: "date_added" })}
-              className={getSortButtonClass("date_added")}
-            >
-              Date Added
-            </button>
-            <button
-              onClick={() => setFilters({ sortBy: "date_created" })}
-              className={getSortButtonClass("date_created")}
-            >
-              Date Created
-            </button>
-          </div>
-        </div>
-
-        <div className="tag-filter-section mb-4 p-3 bg-black-shades-800 rounded-2xl">
-          <h4 className="text-base font-medium text-white mb-3">Tag Filters</h4>
-          <TagFilter
-            tags={tags}
-            selectedTags={selectedTags}
-            excludedTags={excludedTags}
-            onTagsChange={handleTagsChange}
-            onExcludedTagsChange={handleExcludedTagsChange}
-          />
-        </div>
-
-        <div className="general-filter-section mb-4 p-3 bg-black-shades-800 rounded-2xl">
-          <h4 className="text-base font-medium text-white mb-3">
-            General Filter
-          </h4>
-          <GeneralFilter
-            onFilterChange={handleFilterChange}
-            initialValue={pathFilter || ""}
-          />
-        </div>
-
-        <div className="slideshow-section mb-4 p-3 bg-black-shades-800 rounded-2xl">
+        {/* Slideshow */}
+        <div className="mb-4 p-3 bg-black-shades-800 rounded-2xl">
           <h4 className="text-base font-medium text-white mb-3">Slideshow</h4>
           <div className="space-y-3">
             <div>
               <div className="text-xs text-gray-400 uppercase tracking-wide mb-2">
                 Speed
               </div>
-              <div className="media-type-selector flex gap-2">
+              <div className="flex gap-2">
                 {["slow", "normal", "fast"].map((speed) => (
                   <button
                     key={speed}
                     onClick={() => setSlideshowSpeed(speed)}
-                    className={`media-type-btn flex-1 border-none py-2 px-3 rounded-xl cursor-pointer text-sm font-medium transition-colors duration-200 ease-in-out active:scale-95 ${
-                      slideshowSpeed === speed
-                        ? "bg-white bg-opacity-20 text-white shadow-lg"
-                        : "bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-gray-300"
-                    }`}
+                    className={getToggleClass(slideshowSpeed === speed)}
                   >
                     {speed.charAt(0).toUpperCase() + speed.slice(1)}
                   </button>
@@ -394,7 +382,6 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
             <button
               onClick={() => {
                 onClose();
-                // Small delay to let the settings panel close before entering fullscreen
                 setTimeout(() => startSlideshow(), 300);
               }}
               className="w-full py-2.5 rounded-xl bg-white bg-opacity-15 text-white hover:bg-opacity-25 transition-colors duration-200 font-medium"
@@ -407,9 +394,10 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
           </div>
         </div>
 
+        {/* Actions */}
         {!configLoading &&
           (canManageTags || canRescan || canRegenerateThumbnails) && (
-            <div className="actions-section mb-6">
+            <div className="mb-6">
               <h4 className="text-base font-medium text-white mb-3">Actions</h4>
               <div className="space-y-2">
                 {canManageTags && (

@@ -9,7 +9,7 @@ export const URL_PARAMS = {
   SORT_BY: "sort",
   SELECTED_TAGS: "tags",
   EXCLUDED_TAGS: "exclude",
-  PATH_FILTER: "path",
+  SEARCH: "search",
   GALLERY_VIEW: "gallery",
   DEBUG: "debug",
   MEDIA_ID: "media",
@@ -43,8 +43,8 @@ export const encodeSettingsToURL = (settings) => {
     params.set(URL_PARAMS.EXCLUDED_TAGS, tagNames);
   }
 
-  if (settings.pathFilter && settings.pathFilter.trim()) {
-    params.set(URL_PARAMS.PATH_FILTER, settings.pathFilter);
+  if (settings.search && settings.search.trim()) {
+    params.set(URL_PARAMS.SEARCH, settings.search);
   }
 
   if (settings.galleryView) {
@@ -75,7 +75,7 @@ export const decodeSettingsFromURL = (
     sortBy: params.get(URL_PARAMS.SORT_BY) || "random",
     selectedTags: [],
     excludedTags: [],
-    pathFilter: params.get(URL_PARAMS.PATH_FILTER) || "",
+    search: params.get(URL_PARAMS.SEARCH) || params.get("path") || "",
     galleryView: params.get(URL_PARAMS.GALLERY_VIEW) === "true",
     debug: params.get(URL_PARAMS.DEBUG) === "true",
     mediaId: params.get(URL_PARAMS.MEDIA_ID) || "",

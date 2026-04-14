@@ -13,7 +13,7 @@ const Navigation = memo(function Navigation({
   const { currentMediaFile } = useCurrentMedia();
   const { toggleGallery, settings, setFilters } = useMediaData();
 
-  const { galleryView: isGalleryView, pathFilter: activeFilter } = settings;
+  const { galleryView: isGalleryView, search: activeFilter } = settings;
   const [videoElement, setVideoElement] = useState(null);
 
   // Video element finder
@@ -196,7 +196,7 @@ const Navigation = memo(function Navigation({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                setFilters({ pathFilter: "" });
+                setFilters({ search: "" });
               }}
               className="ml-2 text-white hover:text-gray-200 focus:outline-none transition-colors duration-150 hover:bg-white hover:bg-opacity-20 rounded-lg w-5 h-5 flex items-center justify-center text-lg leading-none"
               aria-label="Clear filter"
@@ -208,7 +208,7 @@ const Navigation = memo(function Navigation({
           <div
             className="media-source-info text-gray-200 text-base whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer hover:text-blue-400 transition-colors duration-200 active:scale-95"
             title={`Click to filter by: ${displayName}`}
-            onClick={() => setFilters({ pathFilter: displayName })}
+            onClick={() => setFilters({ search: displayName })}
           >
             {displayName}
           </div>

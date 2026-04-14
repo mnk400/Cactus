@@ -330,10 +330,10 @@ log.info("Performance optimizations enabled", {
 // Unified API endpoint to get media files with optional filtering
 app.get("/api/media", async (req, res) => {
   const mediaType = req.query.type || "all";
+  const sortBy = req.query.sortBy || "random";
+  const search = req.query.search || req.query.pathSubstring || "";
   const tags = req.query.tags;
   const excludeTags = req.query["exclude-tags"];
-  const pathSubstring = req.query.pathSubstring;
-  const sortBy = req.query.sortBy || "random";
 
   // Validate media type
   if (!["all", "photos", "videos"].includes(mediaType)) {
@@ -343,51 +343,26 @@ app.get("/api/media", async (req, res) => {
   }
 
   try {
-    let files;
+    const includeTags = tags
+      ? tags
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean)
+      : [];
+    const excludeTagList = excludeTags
+      ? excludeTags
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean)
+      : [];
 
-    if (pathSubstring) {
-      log.info("Filtering media by general filter", { pathSubstring });
-      files = await mediaProvider.getMediaByGeneralFilter(
-        pathSubstring,
-        mediaType,
-        sortBy,
-      );
-    } else if (tags || excludeTags) {
-      const tagList = tags
-        ? tags
-            .split(",")
-            .map((t) => t.trim())
-            .filter((t) => t)
-        : [];
-      const excludeTagList = excludeTags
-        ? excludeTags
-            .split(",")
-            .map((t) => t.trim())
-            .filter((t) => t)
-        : [];
-
-      log.info("Filtering media by tags", {
-        mediaType,
-        includeTags: tagList,
-        excludeTags: excludeTagList,
-      });
-
-      files = await mediaProvider.getMediaByTags(
-        tagList,
-        excludeTagList,
-        mediaType,
-        sortBy,
-      );
-
-      log.info("Tag filtering completed", {
-        mediaType,
-        includeTags: tagList,
-        excludeTags: excludeTagList,
-        resultCount: files.length,
-      });
-    } else {
-      files = await mediaProvider.getAllMedia(mediaType, sortBy);
-    }
+    const files = await mediaProvider.getMedia({
+      mediaType,
+      sortBy,
+      includeTags,
+      excludeTags: excludeTagList,
+      search,
+    });
 
     // Add display names to each media file using provider-specific logic
     const filesWithDisplayNames = files.map((file) => {
@@ -406,19 +381,9 @@ app.get("/api/media", async (req, res) => {
       count: filesWithDisplayNames.length,
       type: mediaType,
       filters: {
-        tags: tags
-          ? tags
-              .split(",")
-              .map((t) => t.trim())
-              .filter((t) => t)
-          : [],
-        excludeTags: excludeTags
-          ? excludeTags
-              .split(",")
-              .map((t) => t.trim())
-              .filter((t) => t)
-          : [],
-        pathSubstring,
+        tags: includeTags,
+        excludeTags: excludeTagList,
+        search,
       },
     });
   } catch (error) {
@@ -640,7 +605,7 @@ app.get("/api/media/:fileHash/info", async (req, res) => {
 
   try {
     // Find the media item from the provider's data
-    const allMedia = await mediaProvider.getAllMedia("all", "random");
+    const allMedia = await mediaProvider.getMedia({});
     const mediaFile = allMedia.find((item) => item.file_hash === fileHash);
 
     if (!mediaFile) {
@@ -921,7 +886,7 @@ app.post("/api/media-path/auto-tag/generate", async (req, res) => {
       filePath.startsWith("http://") || filePath.startsWith("https://");
 
     // Determine if this is a video — check provider media type first, fall back to extension
-    const allMedia = await mediaProvider.getAllMedia("all", "random");
+    const allMedia = await mediaProvider.getMedia({});
     // Match by full URL or by the path portion for remote providers
     const mediaItem = allMedia.find(
       (m) =>

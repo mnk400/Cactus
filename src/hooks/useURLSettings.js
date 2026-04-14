@@ -106,7 +106,7 @@ export const useURLSettings = (availableTags = []) => {
       sortBy: "random",
       selectedTags: [],
       excludedTags: [],
-      pathFilter: "",
+      search: "",
       galleryView: false,
       debug: false,
       mediaId: "",

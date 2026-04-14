@@ -229,102 +229,25 @@ class LocalMediaProvider extends MediaSourceProvider {
   }
 
   /**
-   * Get all media from the source
-   * @param {string} mediaType - Type of media to retrieve ('image', 'video', or 'all')
-   * @param {string} sortBy - Sorting parameter ('random', 'date_added', 'date_created')
+   * Unified media retrieval with composable filters
+   * @param {Object} filters - See MediaSourceProvider.getMedia()
    * @returns {Promise<Array>} Array of media items
    */
-  async getAllMedia(mediaType = "all", sortBy = "random") {
+  async getMedia(filters = {}) {
     if (!this.isInitialized) {
       throw new Error("Provider not initialized");
     }
 
     try {
-      const files = this.mediaDatabase.getAllMedia(sortBy, mediaType);
+      const files = this.mediaDatabase.getMedia(filters);
       log.info("Media files retrieved", {
-        mediaType,
-        sortBy,
+        filters,
         count: files.length,
       });
       return files;
     } catch (error) {
-      log.error("Failed to get all media", {
-        mediaType,
-        sortBy,
-        error: error.message,
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Get media filtered by tags
-   * @param {Array} includeTags - Tags that must be present
-   * @param {Array} excludeTags - Tags that must not be present
-   * @param {string} mediaType - Type of media to retrieve ('image', 'video', or 'all')
-   * @param {string} sortBy - Sorting parameter ('random', 'date_added', 'date_created')
-   * @returns {Promise<Array>} Array of filtered media items
-   */
-  async getMediaByTags(
-    includeTags = [],
-    excludeTags = [],
-    mediaType = "all",
-    sortBy = "random",
-  ) {
-    if (!this.isInitialized) {
-      throw new Error("Provider not initialized");
-    }
-
-    try {
-      const files = this.mediaDatabase.getMediaByTagsAndType(
-        includeTags,
-        excludeTags,
-        mediaType,
-      );
-      log.info("Media files filtered by tags", {
-        includeTags,
-        excludeTags,
-        mediaType,
-        count: files.length,
-      });
-      return files;
-    } catch (error) {
-      log.error("Failed to get media by tags", {
-        includeTags,
-        excludeTags,
-        mediaType,
-        error: error.message,
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Get media filtered by general filter substring
-   * @param {string} substring - Substring to match in file paths
-   * @param {string} mediaType - Type of media to retrieve ('image', 'video', or 'all')
-   * @param {string} sortBy - Sorting parameter ('random', 'date_added', 'date_created')
-   * @returns {Promise<Array>} Array of filtered media items
-   */
-  async getMediaByGeneralFilter(
-    substring,
-    mediaType = "all",
-    sortBy = "random",
-  ) {
-    if (!this.isInitialized) {
-      throw new Error("Provider not initialized");
-    }
-
-    try {
-      const files = this.mediaDatabase.getMediaByGeneralFilter(substring);
-      log.info("Media files filtered by general filter", {
-        substring,
-        count: files.length,
-      });
-      return files;
-    } catch (error) {
-      log.error("Failed to get media by general filter", {
-        substring,
+      log.error("Failed to get media", {
+        filters,
         error: error.message,
       });
       throw error;
@@ -864,7 +787,7 @@ class LocalMediaProvider extends MediaSourceProvider {
 
     try {
       // First, try to get files from database
-      const dbFiles = this.mediaDatabase.getAllMedia("all");
+      const dbFiles = this.mediaDatabase.getMedia({});
 
       if (dbFiles.length > 0) {
         // Verify that some of the files still exist
@@ -918,7 +841,7 @@ class LocalMediaProvider extends MediaSourceProvider {
     });
 
     // Return all media from the database, ensuring a consistent return type
-    return this.mediaDatabase.getAllMedia("all");
+    return this.mediaDatabase.getMedia({});
   }
 
   /**
@@ -990,7 +913,7 @@ class LocalMediaProvider extends MediaSourceProvider {
 
     try {
       log.info("Starting thumbnail regeneration");
-      const mediaFiles = this.mediaDatabase.getAllMedia("all");
+      const mediaFiles = this.mediaDatabase.getMedia({});
       let regeneratedCount = 0;
 
       log.info(
