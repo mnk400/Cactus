@@ -238,10 +238,12 @@ function cacheMiddleware(req, res, next) {
 
   if (cached) {
     const stats = requestCache.getStats();
+    const total = stats.hits + stats.misses;
     log.info("Serving cached API response", {
       url: key,
-      hitRate:
-        ((stats.hits / (stats.hits + stats.misses)) * 100).toFixed(1) + "%",
+      hitRate: total > 0
+        ? ((stats.hits / total) * 100).toFixed(1) + "%"
+        : "0.0%",
     });
     return res.json(cached);
   }
@@ -789,6 +791,8 @@ function getFrameTimestamps(durationSeconds) {
 }
 
 // Extract frames from a video file on disk, returns array of JPEG buffers
+const FRAME_EXTRACTION_TIMEOUT_MS = 30000;
+
 function extractVideoFrames(videoPath, timestamps) {
   const tmpDir = os.tmpdir();
   const id = crypto.randomBytes(6).toString("hex");
@@ -810,11 +814,33 @@ function extractVideoFrames(videoPath, timestamps) {
       let completed = 0;
       const frameBuffers = new Array(timestamps.length);
       let hasErrored = false;
+      const ffmpegProcesses = [];
+
+      const cleanupAll = () => {
+        // Kill any still-running ffmpeg processes
+        ffmpegProcesses.forEach((proc) => {
+          try { proc.kill("SIGKILL"); } catch {}
+        });
+        // Remove any temp files
+        timestamps.forEach((_, j) => {
+          const f = path.join(tmpDir, `cactus_frame_${id}_${j}.jpg`);
+          try { fs.unlinkSync(f); } catch {}
+        });
+      };
+
+      // Timeout to prevent hung ffmpeg processes from blocking forever
+      const timeout = setTimeout(() => {
+        if (!hasErrored) {
+          hasErrored = true;
+          cleanupAll();
+          reject(new Error("Frame extraction timed out"));
+        }
+      }, FRAME_EXTRACTION_TIMEOUT_MS);
 
       timestamps.forEach((ts, i) => {
         const outFile = path.join(tmpDir, `cactus_frame_${id}_${i}.jpg`);
 
-        ffmpeg(videoPath)
+        const proc = ffmpeg(videoPath)
           .seekInput(absTimestamps[i])
           .frames(1)
           .outputOptions("-q:v", "2")
@@ -826,29 +852,29 @@ function extractVideoFrames(videoPath, timestamps) {
             } catch (readErr) {
               if (!hasErrored) {
                 hasErrored = true;
+                clearTimeout(timeout);
+                cleanupAll();
                 reject(readErr);
               }
               return;
             }
             completed++;
             if (completed === timestamps.length) {
+              clearTimeout(timeout);
               resolve(frameBuffers.filter(Boolean));
             }
           })
           .on("error", (ffErr) => {
             if (!hasErrored) {
               hasErrored = true;
-              // Clean up any written frames
-              timestamps.forEach((_, j) => {
-                const f = path.join(tmpDir, `cactus_frame_${id}_${j}.jpg`);
-                try {
-                  fs.unlinkSync(f);
-                } catch {}
-              });
+              clearTimeout(timeout);
+              cleanupAll();
               reject(new Error("Frame extraction failed: " + ffErr.message));
             }
-          })
-          .run();
+          });
+
+        ffmpegProcesses.push(proc);
+        proc.run();
       });
     });
   });

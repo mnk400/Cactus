@@ -44,6 +44,8 @@ class SbMediaProvider extends MediaSourceProvider {
     this.tagsCacheTime = null;
     this.thumbnailMap = new Map();
     this.generatedThumbnails = new Map();
+    this.thumbnailCache = new Map(); // Caches proxied thumbnail buffers + content-type
+    this.contentTypeCache = new Map(); // Caches probeContentType results per URL
   }
 
   static getConfigSchema() {
@@ -531,6 +533,7 @@ class SbMediaProvider extends MediaSourceProvider {
     this.tagsCache = null;
     this.tagsCacheTime = null;
     this.thumbnailMap.clear();
+    this.contentTypeCache.clear();
   }
 
   // ── Tags ───────────────────────────────────────────────────────────
@@ -979,11 +982,17 @@ class SbMediaProvider extends MediaSourceProvider {
 
   async serveThumbnail(fileHash, res) {
     try {
-      // 1. Check in-memory cache for previously generated thumbnails
-      const cached = this.generatedThumbnails.get(fileHash);
-      if (cached) {
+      // 1. Check in-memory caches (generated video thumbs + proxied image thumbs)
+      const generated = this.generatedThumbnails.get(fileHash);
+      if (generated) {
         res.set("Content-Type", "image/jpeg");
-        return res.send(cached);
+        return res.send(generated);
+      }
+
+      const cached = this.thumbnailCache.get(fileHash);
+      if (cached) {
+        if (cached.contentType) res.set("Content-Type", cached.contentType);
+        return res.send(cached.buffer);
       }
 
       // 2. Resolve upstream thumbnail URL
@@ -996,10 +1005,14 @@ class SbMediaProvider extends MediaSourceProvider {
         if (!thumbnailUrl) return res.status(404).send("Thumbnail not found");
       }
 
-      // 3. Probe content-type via Node http (Bun's fetch hangs on large binary responses)
-      const contentType = await this.probeContentType(thumbnailUrl);
+      // 3. Probe content-type (cached per URL to avoid repeated upstream calls)
+      let contentType = this.contentTypeCache.get(thumbnailUrl);
+      if (contentType === undefined) {
+        contentType = await this.probeContentType(thumbnailUrl);
+        this.contentTypeCache.set(thumbnailUrl, contentType);
+      }
 
-      // 4. If it's a video, generate thumbnail via ffmpeg (reads URL directly, no full download)
+      // 4. If it's a video, generate thumbnail via ffmpeg
       if (contentType.startsWith("video/")) {
         log.info(
           "Upstream returned video instead of thumbnail, generating locally",
@@ -1020,8 +1033,20 @@ class SbMediaProvider extends MediaSourceProvider {
         return;
       }
 
-      // 5. For images and other content, proxy (thumbnails are small, buffering is fine)
-      await this.proxyFetch(thumbnailUrl, res, "Thumbnail");
+      // 5. For images, fetch once, cache, and serve
+      const headers = this.apiKey ? { ApiKey: this.apiKey } : {};
+      const response = await fetch(thumbnailUrl, { headers });
+      if (!response.ok) {
+        return res.status(404).send("Thumbnail not found on server");
+      }
+      const respContentType = response.headers.get("content-type");
+      const buffer = Buffer.from(await response.arrayBuffer());
+
+      // Cache for subsequent requests
+      this.thumbnailCache.set(fileHash, { buffer, contentType: respContentType });
+
+      if (respContentType) res.set("Content-Type", respContentType);
+      res.send(buffer);
     } catch (error) {
       log.error("Failed to serve thumbnail file", {
         fileHash,
@@ -1408,6 +1433,8 @@ class SbMediaProvider extends MediaSourceProvider {
     this.tagsCacheTime = null;
     this.thumbnailMap.clear();
     this.generatedThumbnails.clear();
+    this.thumbnailCache.clear();
+    this.contentTypeCache.clear();
     await super.close();
     log.info("sbMediaProvider closed");
   }

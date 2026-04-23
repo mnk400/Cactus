@@ -70,7 +70,9 @@ function VideoProgressBar({ videoElement }) {
     setIsDragging(false);
   }, []);
 
+  // Only attach document-level drag listeners while actively dragging
   useEffect(() => {
+    if (!isDragging) return;
     document.addEventListener("mousemove", handleMove);
     document.addEventListener("mouseup", handleEnd);
     document.addEventListener("touchmove", handleMove);
@@ -81,7 +83,7 @@ function VideoProgressBar({ videoElement }) {
       document.removeEventListener("touchmove", handleMove);
       document.removeEventListener("touchend", handleEnd);
     };
-  }, [handleMove, handleEnd]);
+  }, [isDragging, handleMove, handleEnd]);
 
   useEffect(() => {
     if (videoRef.current && videoRef.current !== videoElement) {

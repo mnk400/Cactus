@@ -63,7 +63,6 @@ const GalleryView = memo(function GalleryView({
   } = getMasonryConfig();
 
   const [imageDimensions, setImageDimensions] = useState(new Map());
-  const [mediaTypeCache, setMediaTypeCache] = useState(new Map());
   const [loadStatusCache, setLoadStatusCache] = useState(new Map());
 
   const calculateItemHeight = useCallback(
@@ -211,10 +210,15 @@ const GalleryView = memo(function GalleryView({
   useEffect(() => {
     if (!isVisible || !containerRef.current) return;
 
+    let rafId = null;
     const handleScroll = () => {
-      if (containerRef.current) {
-        setActualScrollTop(containerRef.current.scrollTop);
-      }
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        if (containerRef.current) {
+          setActualScrollTop(containerRef.current.scrollTop);
+        }
+        rafId = null;
+      });
     };
 
     const container = containerRef.current;
@@ -222,6 +226,7 @@ const GalleryView = memo(function GalleryView({
 
     return () => {
       container.removeEventListener("scroll", handleScroll);
+      if (rafId) cancelAnimationFrame(rafId);
     };
   }, [isVisible]);
 
@@ -229,14 +234,6 @@ const GalleryView = memo(function GalleryView({
     setImageDimensions((prev) => {
       const newMap = new Map(prev);
       newMap.set(fileHash, dimensions);
-      return newMap;
-    });
-  }, []);
-
-  const handleMediaTypeChecked = useCallback((fileHash, isVideo) => {
-    setMediaTypeCache((prev) => {
-      const newMap = new Map(prev);
-      newMap.set(fileHash, { isVideo, checked: true });
       return newMap;
     });
   }, []);
@@ -268,9 +265,7 @@ const GalleryView = memo(function GalleryView({
             isSelected={item.isSelected}
             onSelect={selectMedia}
             onDimensionsLoad={handleDimensionsLoad}
-            mediaTypeInfo={mediaTypeCache.get(item.file.file_hash)}
             loadStatus={loadStatusCache.get(item.file.file_hash)}
-            onMediaTypeChecked={handleMediaTypeChecked}
             onLoadStatusChange={handleLoadStatusChange}
             preload={preload}
           />
@@ -292,9 +287,7 @@ const GalleryItem = React.memo(
     isSelected,
     onSelect,
     onDimensionsLoad,
-    mediaTypeInfo,
     loadStatus,
-    onMediaTypeChecked,
     onLoadStatusChange,
     preload,
   }) => {
@@ -305,8 +298,6 @@ const GalleryItem = React.memo(
     // Use cached values if available, otherwise use local state
     const cachedMediaLoaded = loadStatus?.loaded || false;
     const cachedMediaError = loadStatus?.error || false;
-    const cachedIsVideo = mediaTypeInfo?.isVideo || false;
-    const cachedMediaTypeChecked = mediaTypeInfo?.checked || false;
 
     const handleClick = useCallback(
       (e) => {
@@ -375,35 +366,6 @@ const GalleryItem = React.memo(
       }
     }, [preload, inView]);
 
-    useEffect(() => {
-      if (!inView) return;
-
-      // If media type is already cached, no need to check again
-      if (cachedMediaTypeChecked) return;
-
-      const checkMediaType = async () => {
-        try {
-          const response = await fetch(`/thumbnails?hash=${file.file_hash}`, {
-            method: "HEAD",
-          });
-
-          const contentType = response.headers.get("content-type");
-          const isVideoContent =
-            contentType && contentType.startsWith("video/");
-
-          if (onMediaTypeChecked) {
-            onMediaTypeChecked(file.file_hash, isVideoContent);
-          }
-        } catch (error) {
-          if (onMediaTypeChecked) {
-            onMediaTypeChecked(file.file_hash, false);
-          }
-        }
-      };
-
-      checkMediaType();
-    }, [file.file_hash, inView, cachedMediaTypeChecked, onMediaTypeChecked]);
-
     return (
       <div
         ref={containerRef}
@@ -436,10 +398,6 @@ const GalleryItem = React.memo(
               </svg>
             </div>
           </div>
-        ) : !cachedMediaTypeChecked ? (
-          <div className="absolute inset-0 bg-black-shades-800 animate-pulse flex items-center justify-center">
-            <div className="w-6 h-6 border-2 border-gray-600 border-t-gray-400 rounded-full animate-spin" />
-          </div>
         ) : !cachedMediaError ? (
           <>
             {!cachedMediaLoaded && (
@@ -447,36 +405,19 @@ const GalleryItem = React.memo(
                 <div className="w-6 h-6 border-2 border-gray-600 border-t-gray-400 rounded-full animate-spin" />
               </div>
             )}
-            {cachedIsVideo ? (
-              <video
-                ref={mediaRef}
-                src={`/thumbnails?hash=${file.file_hash}`}
-                className={`w-full h-full object-cover transition-opacity duration-300 ${
-                  cachedMediaLoaded ? "opacity-100" : "opacity-0"
-                }`}
-                onLoadedData={handleMediaLoad}
-                onError={handleMediaError}
-                muted
-                loop
-                autoPlay
-                playsInline
-                style={{ pointerEvents: "none" }}
-              />
-            ) : (
-              <img
-                ref={mediaRef}
-                src={`/thumbnails?hash=${file.file_hash}`}
-                alt={`media-${index}`}
-                className={`w-full h-full object-cover transition-opacity duration-300 ${
-                  cachedMediaLoaded ? "opacity-100" : "opacity-0"
-                }`}
-                onLoad={handleMediaLoad}
-                onError={handleMediaError}
-                loading="lazy"
-                decoding="async"
-                style={{ pointerEvents: "none" }}
-              />
-            )}
+            <img
+              ref={mediaRef}
+              src={`/thumbnails?hash=${file.file_hash}`}
+              alt={`media-${index}`}
+              className={`w-full h-full object-cover transition-opacity duration-300 ${
+                cachedMediaLoaded ? "opacity-100" : "opacity-0"
+              }`}
+              onLoad={handleMediaLoad}
+              onError={handleMediaError}
+              loading="lazy"
+              decoding="async"
+              style={{ pointerEvents: "none" }}
+            />
           </>
         ) : (
           <div className="w-full h-full bg-black-shades-800 flex items-center justify-center">

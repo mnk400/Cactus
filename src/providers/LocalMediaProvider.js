@@ -1079,6 +1079,12 @@ class LocalMediaProvider extends MediaSourceProvider {
         ? filePath
         : path.resolve(filePath);
 
+      // Prevent path traversal — ensure resolved path is within the media directory
+      const mediaDir = path.resolve(this.directoryPath);
+      if (!absolutePath.startsWith(mediaDir + path.sep) && absolutePath !== mediaDir) {
+        return res.status(403).send("Access denied");
+      }
+
       if (!fs.existsSync(absolutePath)) {
         return res.status(404).send("File not found");
       }
