@@ -1,6 +1,4 @@
 import { useState, useEffect, useCallback, memo } from "react";
-import TagFilter from "./TagFilter";
-import GeneralFilter from "./GeneralFilter";
 import TagManager from "./TagManager";
 import { useMediaData, useSlideshowState } from "../context/MediaContext";
 import { isMobile } from "../utils/helpers";
@@ -98,21 +96,6 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
       console.error("Failed to delete tag:", error);
     }
   };
-
-  const handleTagsChange = useCallback(
-    (tags) => setFilters({ selectedTags: tags }),
-    [setFilters],
-  );
-
-  const handleExcludedTagsChange = useCallback(
-    (tags) => setFilters({ excludedTags: tags }),
-    [setFilters],
-  );
-
-  const handleFilterChange = useCallback(
-    (value) => setFilters({ search: value }),
-    [setFilters],
-  );
 
   const handleClearAllFilters = useCallback(() => {
     setFilters({
@@ -272,26 +255,6 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
             <span className="text-xs text-gray-400">
               Viewing {currentCount} of {totalFiles}
             </span>
-          </div>
-
-          {/* Search */}
-          <div className="mb-4">
-            <GeneralFilter
-              onFilterChange={handleFilterChange}
-              initialValue={search || ""}
-              placeholder="Search by path, folder..."
-            />
-          </div>
-
-          {/* Tags */}
-          <div className="mb-4">
-            <TagFilter
-              tags={tags}
-              selectedTags={selectedTags}
-              excludedTags={excludedTags}
-              onTagsChange={handleTagsChange}
-              onExcludedTagsChange={handleExcludedTagsChange}
-            />
           </div>
 
           {/* Media Type */}

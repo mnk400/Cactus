@@ -34,13 +34,11 @@ function App() {
   const [isTagPanelExpanded, setIsTagPanelExpanded] = useState(false);
   const [galleryScrollPosition, setGalleryScrollPosition] = useState(0);
   const [isMobileView, setIsMobileView] = useState(isMobile());
-  const [tagPanelHeight, setTagPanelHeight] = useState(0);
   const settingsDrawerRef = useRef(null);
-  const tagPanelWrapperRef = useRef(null);
-  const tagPanelContentRef = useRef(null);
 
-  const { currentIndex, currentMediaFile } = useCurrentMedia();
-  const { mediaFiles, loading, error, settings, navigate } = useMediaData();
+  const { currentMediaFile } = useCurrentMedia();
+  const { mediaFiles, loading, error, settings, navigate, setFilters } =
+    useMediaData();
   const { slideshowActive, toggleSlideshow } = useSlideshowState();
   const { isMuted, toggleMute } = useAudio();
 
@@ -119,17 +117,6 @@ function App() {
       root.style.setProperty("--settings-drawer-width", "0px");
     }
   }, [isSettingsOpen, isMobileView]);
-
-  // Track tag panel content height for wrapper + floater offset
-  useEffect(() => {
-    const el = tagPanelContentRef.current;
-    if (!el) return;
-    const measure = () => setTagPanelHeight(el.offsetHeight);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [isGalleryView, isSettingsOpen, isMobileView, slideshowActive]);
 
   const isDesktop = !isMobileView;
 
@@ -213,14 +200,22 @@ function App() {
           {/* Floating glass elements: tag badges + video controls */}
           {!isGalleryView && (
             <div
-              className="flex px-4 pb-1 gap-2 items-end justify-end pointer-events-none transition-transform duration-300 ease-in-out"
-              style={{
-                transform:
-                  isTagPanelExpanded && tagPanelHeight
-                    ? `translateY(-${tagPanelHeight}px)`
-                    : "translateY(0)",
-              }}
+              className="flex px-4 pb-1 gap-2 items-end justify-end pointer-events-none"
             >
+              {search?.trim() && (
+                <div className="inline-flex items-center px-3 py-1.5 mb-1 rounded-xl text-sm font-medium text-white shadow-sm whitespace-nowrap flex-shrink-0 pointer-events-auto bg-red-500">
+                  <span className="max-w-[220px] truncate">
+                    Search: {search.trim()}
+                  </span>
+                  <button
+                    onClick={() => setFilters({ search: "" })}
+                    className="ml-2 text-white hover:text-gray-200 focus:outline-none transition-colors duration-150 hover:bg-white hover:bg-opacity-20 rounded-lg w-5 h-5 flex items-center justify-center text-lg leading-none"
+                    aria-label="Clear search"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
               <InlineTagPanel
                 currentMediaFile={currentMediaFile}
                 isExpanded={false}
@@ -232,33 +227,14 @@ function App() {
               )}
             </div>
           )}
-          {/* Nav bar + slide-up tag input panel */}
-          <div className="relative">
-            {/* Tag input panel — grows upward from nav bar top edge */}
-            {!isGalleryView && (
-              <div
-                ref={tagPanelWrapperRef}
-                className="absolute bottom-full left-0 w-full overflow-hidden transition-[height] duration-300 ease-in-out"
-                style={{ height: isTagPanelExpanded ? tagPanelHeight : 0 }}
-              >
-                <div ref={tagPanelContentRef}>
-                  <InlineTagPanel
-                    currentMediaFile={currentMediaFile}
-                    isExpanded={isTagPanelExpanded}
-                    onToggleExpanded={handleToggleTagPanel}
-                    mode="input"
-                  />
-                </div>
-              </div>
-            )}
-            <Navigation
-              onToggleSettings={handleToggleSettings}
-              onToggleTagPanel={handleToggleTagPanel}
-              directoryName={directoryPath}
-              isFavorited={isFavorited}
-              onToggleFavorite={toggleFavorite}
-            />
-          </div>
+          <Navigation
+            onToggleSettings={handleToggleSettings}
+            onToggleTagPanel={handleToggleTagPanel}
+            isTagPanelExpanded={isTagPanelExpanded}
+            directoryName={directoryPath}
+            isFavorited={isFavorited}
+            onToggleFavorite={toggleFavorite}
+          />
         </div>
       )}
     </>
