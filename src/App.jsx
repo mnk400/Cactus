@@ -12,8 +12,7 @@ import Navigation from "./components/Navigation";
 import SideNavigation from "./components/SideNavigation";
 import InlineTagPanel from "./components/InlineTagPanel";
 import VideoControlsBar from "./components/VideoControlsBar";
-import LoadingMessage from "./components/LoadingMessage";
-import ErrorMessage from "./components/ErrorMessage";
+import Message from "./components/Message";
 import ViewTransition from "./components/ViewTransition";
 
 const SettingsPanel = lazy(() => import("./components/SettingsPanel"));
@@ -139,13 +138,13 @@ function App() {
                 : "100%",
           }}
         >
-          {loading && <LoadingMessage message={loading} />}
-          {error && <ErrorMessage message={error} />}
+          {loading && <Message message={loading} />}
+          {error && <Message message={error} variant="error" />}
 
           {!loading && !error && mediaFiles.length > 0 && (
             <ViewTransition isGalleryView={isGalleryView}>
               <Suspense
-                fallback={<LoadingMessage message="Loading gallery..." />}
+                fallback={<Message message="Loading gallery..." />}
               >
                 <GalleryView
                   scrollPosition={galleryScrollPosition}

@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import TagList from "./TagList";
 
 const TagManager = ({
   tags = [],

@@ -2,8 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
 import LoginPage from "./components/LoginPage.jsx";
-import LoadingMessage from "./components/LoadingMessage.jsx";
-import ErrorMessage from "./components/ErrorMessage.jsx";
+import Message from "./components/Message.jsx";
 
 import "./index.css";
 import { MediaProvider } from "./context/MediaContext";
@@ -46,7 +45,7 @@ function Root() {
   if (authState.checking) {
     return (
       <div className="container flex flex-col h-screen w-full max-w-full shadow-2xl overflow-hidden bg-black text-gray-200">
-        <LoadingMessage message="Loading..." />
+        <Message message="Loading..." />
       </div>
     );
   }
@@ -54,7 +53,7 @@ function Root() {
   if (authState.error) {
     return (
       <div className="container flex flex-col h-screen w-full max-w-full shadow-2xl overflow-hidden bg-black text-gray-200">
-        <ErrorMessage message={authState.error} />
+        <Message message={authState.error} variant="error" />
       </div>
     );
   }

@@ -3,7 +3,6 @@ import VideoProgressBar from "./VideoProgressBar";
 import UnifiedSearchBar from "./UnifiedSearchBar";
 import InlineTagPanel from "./InlineTagPanel";
 import TagDisplay from "./TagDisplay";
-import useDisplayName from "../hooks/useDisplayName";
 import { useCurrentMedia, useMediaData } from "../context/MediaContext";
 
 const Navigation = memo(function Navigation({
@@ -88,8 +87,7 @@ const Navigation = memo(function Navigation({
     }
   }, [currentMediaFile, findActiveVideo]);
 
-  // Use provider-based display name computation
-  const { displayName } = useDisplayName(currentMediaFile, directoryName);
+  const displayName = currentMediaFile?.displayName || "";
   const isVideoPlaying = currentMediaFile?.media_type === "video";
 
   const activeFilterTags = useMemo(() => {
