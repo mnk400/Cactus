@@ -1,7 +1,6 @@
 import {
   useState,
   useCallback,
-  useMemo,
   useEffect,
   useRef,
   lazy,
@@ -10,8 +9,6 @@ import {
 import MediaViewer from "./components/MediaViewer";
 import Navigation from "./components/Navigation";
 import SideNavigation from "./components/SideNavigation";
-import InlineTagPanel from "./components/InlineTagPanel";
-import VideoControlsBar from "./components/VideoControlsBar";
 import Message from "./components/Message";
 import ViewTransition from "./components/ViewTransition";
 
@@ -23,7 +20,6 @@ import { useFavorite } from "./hooks/useFavorite";
 import {
   useCurrentMedia,
   useMediaData,
-  useAudio,
   useSlideshowState,
 } from "./context/MediaContext";
 import { isMobile } from "./utils/helpers";
@@ -36,20 +32,10 @@ function App() {
   const settingsDrawerRef = useRef(null);
 
   const { currentMediaFile } = useCurrentMedia();
-  const { mediaFiles, loading, error, settings, navigate, setFilters } =
-    useMediaData();
+  const { mediaFiles, loading, error, settings, navigate } = useMediaData();
   const { slideshowActive, toggleSlideshow } = useSlideshowState();
-  const { isMuted, toggleMute } = useAudio();
 
-  const { search, galleryView: isGalleryView, debug: debugMode } = settings;
-
-  const directoryPath = useMemo(
-    () =>
-      currentMediaFile
-        ? currentMediaFile.file_path.split("/").slice(0, -1).join("/") || "/"
-        : "",
-    [currentMediaFile],
-  );
+  const { galleryView: isGalleryView, debug: debugMode } = settings;
 
   // Keyboard navigation
   useKeyboardNavigation(
@@ -143,9 +129,7 @@ function App() {
 
           {!loading && !error && mediaFiles.length > 0 && (
             <ViewTransition isGalleryView={isGalleryView}>
-              <Suspense
-                fallback={<Message message="Loading gallery..." />}
-              >
+              <Suspense fallback={<Message message="Loading gallery..." />}>
                 <GalleryView
                   scrollPosition={galleryScrollPosition}
                   setScrollPosition={setGalleryScrollPosition}
@@ -196,41 +180,10 @@ function App() {
             width: "calc(100% - var(--settings-drawer-width, 0px))",
           }}
         >
-          {/* Floating glass elements: tag badges + video controls */}
-          {!isGalleryView && (
-            <div
-              className="flex px-4 pb-1 gap-2 items-end justify-end pointer-events-none"
-            >
-              {search?.trim() && (
-                <div className="inline-flex items-center px-3 py-1.5 mb-1 rounded-xl text-sm font-medium text-white shadow-sm whitespace-nowrap flex-shrink-0 pointer-events-auto bg-red-500">
-                  <span className="max-w-[220px] truncate">
-                    Search: {search.trim()}
-                  </span>
-                  <button
-                    onClick={() => setFilters({ search: "" })}
-                    className="ml-2 text-white hover:text-gray-200 focus:outline-none transition-colors duration-150 hover:bg-white hover:bg-opacity-20 rounded-lg w-5 h-5 flex items-center justify-center text-lg leading-none"
-                    aria-label="Clear search"
-                  >
-                    ×
-                  </button>
-                </div>
-              )}
-              <InlineTagPanel
-                currentMediaFile={currentMediaFile}
-                isExpanded={false}
-                onToggleExpanded={handleToggleTagPanel}
-                mode="display"
-              />
-              {currentMediaFile?.media_type === "video" && (
-                <VideoControlsBar isMuted={isMuted} onToggleMute={toggleMute} />
-              )}
-            </div>
-          )}
           <Navigation
             onToggleSettings={handleToggleSettings}
             onToggleTagPanel={handleToggleTagPanel}
             isTagPanelExpanded={isTagPanelExpanded}
-            directoryName={directoryPath}
             isFavorited={isFavorited}
             onToggleFavorite={toggleFavorite}
           />

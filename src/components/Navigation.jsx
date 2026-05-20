@@ -1,20 +1,24 @@
-import { useState, useEffect, useCallback, useMemo, memo } from "react";
-import VideoProgressBar from "./VideoProgressBar";
+import { useState, useEffect, useCallback, memo } from "react";
 import UnifiedSearchBar from "./UnifiedSearchBar";
 import InlineTagPanel from "./InlineTagPanel";
-import TagDisplay from "./TagDisplay";
-import { useCurrentMedia, useMediaData } from "../context/MediaContext";
+import StatusPillRow from "./StatusPillRow";
+import {
+  useAudio,
+  useCurrentMedia,
+  useMediaData,
+} from "../context/MediaContext";
 
 const Navigation = memo(function Navigation({
   onToggleSettings,
   onToggleTagPanel,
   isTagPanelExpanded = false,
-  directoryName,
   isFavorited,
   onToggleFavorite,
 }) {
   const { currentMediaFile } = useCurrentMedia();
-  const { toggleGallery, settings, setFilters, tags } = useMediaData();
+  const { toggleGallery, settings, setFilters, tags, fetchTags } =
+    useMediaData();
+  const { isMuted, toggleMute } = useAudio();
 
   const {
     galleryView: isGalleryView,
@@ -90,80 +94,12 @@ const Navigation = memo(function Navigation({
   const displayName = currentMediaFile?.displayName || "";
   const isVideoPlaying = currentMediaFile?.media_type === "video";
 
-  const activeFilterTags = useMemo(() => {
-    const chips = [];
-
-    selectedTags.forEach((tag) => {
-      chips.push({
-        id: `include:${tag.id}`,
-        name: `Tag: ${tag.name}`,
-        color: tag.color || "#2563eb",
-      });
-    });
-
-    excludedTags.forEach((tag) => {
-      chips.push({
-        id: `exclude:${tag.id}`,
-        name: `Not: ${tag.name}`,
-        color: "#4b5563",
-      });
-    });
-
-    if (mediaType !== "all") {
-      chips.push({
-        id: "mediaType",
-        name: mediaType === "photos" ? "Photos only" : "Videos only",
-        color: "#1f2937",
-      });
-    }
-
-    if (sortBy !== "random") {
-      chips.push({
-        id: "sortBy",
-        name: `Sort: ${sortBy === "date_added" ? "Date Added" : "Date Created"}`,
-        color: "#1f2937",
-      });
-    }
-
-    return chips;
-  }, [selectedTags, excludedTags, mediaType, sortBy]);
-
   const hasActiveFilters =
     Boolean(search?.trim()) ||
     selectedTags.length > 0 ||
     excludedTags.length > 0 ||
     mediaType !== "all" ||
     sortBy !== "random";
-
-  const handleRemoveFilterChip = useCallback(
-    (chipId) => {
-      if (chipId === "mediaType") {
-        setFilters({ mediaType: "all" });
-        return;
-      }
-
-      if (chipId === "sortBy") {
-        setFilters({ sortBy: "random" });
-        return;
-      }
-
-      if (chipId.startsWith("include:")) {
-        const tagId = Number(chipId.split(":")[1]);
-        setFilters({
-          selectedTags: selectedTags.filter((tag) => tag.id !== tagId),
-        });
-        return;
-      }
-
-      if (chipId.startsWith("exclude:")) {
-        const tagId = Number(chipId.split(":")[1]);
-        setFilters({
-          excludedTags: excludedTags.filter((tag) => tag.id !== tagId),
-        });
-      }
-    },
-    [setFilters, selectedTags, excludedTags],
-  );
 
   const handleClearAllFilters = useCallback(() => {
     setFilters({
@@ -196,16 +132,6 @@ const Navigation = memo(function Navigation({
         paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))",
       }}
     >
-      <div
-        className={`w-full overflow-hidden transition-all duration-300 px-4 ${isVideoPlaying && !isGalleryView ? "max-h-8 mb-2" : "max-h-0"}`}
-      >
-        <VideoProgressBar videoElement={videoElement} />
-      </div>
-      {hasActiveFilters && (
-        <div className="w-full px-4 mb-2">
-          <TagDisplay tags={activeFilterTags} onRemoveTag={handleRemoveFilterChip} />
-        </div>
-      )}
       {/* Unified expansion slot — any expanding panel goes here */}
       <div
         className={`w-full transition-all duration-300 ease-in-out px-4 ${
@@ -213,7 +139,7 @@ const Navigation = memo(function Navigation({
             ? "overflow-visible opacity-100 mb-2"
             : "max-h-0 overflow-hidden opacity-0"
         }`}
-        style={{ maxHeight: hasExpandedPanel ? '50vh' : '0px' }}
+        style={{ maxHeight: hasExpandedPanel ? "50vh" : "0px" }}
       >
         {isSearchPanelVisible && (
           <div className="space-y-2">
@@ -222,7 +148,9 @@ const Navigation = memo(function Navigation({
               selectedTags={selectedTags}
               excludedTags={excludedTags}
               search={search || ""}
-              onTagsChange={(nextTags) => setFilters({ selectedTags: nextTags })}
+              onTagsChange={(nextTags) =>
+                setFilters({ selectedTags: nextTags })
+              }
               onSearchChange={(value) => setFilters({ search: value })}
               dropdownPosition="top"
             />
@@ -241,10 +169,20 @@ const Navigation = memo(function Navigation({
             currentMediaFile={currentMediaFile}
             isExpanded={isTagPanelExpanded}
             onToggleExpanded={onToggleTagPanel}
-            mode="input"
           />
         )}
       </div>
+      <StatusPillRow
+        currentMediaFile={currentMediaFile}
+        settings={settings}
+        setFilters={setFilters}
+        fetchTags={fetchTags}
+        videoElement={videoElement}
+        isMuted={isMuted}
+        onToggleMute={toggleMute}
+        showMediaTags={!isGalleryView}
+        showVideoControls={isVideoPlaying && !isGalleryView}
+      />
       <div className="w-full flex items-center justify-between px-4 gap-2">
         <div className="flex items-center gap-2">
           <button

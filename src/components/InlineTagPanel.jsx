@@ -1,64 +1,20 @@
 import { useState, useEffect, useCallback, memo, useRef } from "react";
-import TagDisplay from "./TagDisplay";
 import TagInput from "./TagInput";
 import useTags from "../hooks/useTags";
-import { useMediaData } from "../context/MediaContext";
 import { isMobile } from "../utils/helpers";
 
 const InlineTagPanel = memo(function InlineTagPanel({
   currentMediaFile,
   isExpanded,
   onToggleExpanded,
-  mode = "display", // "display" = tag badges, "input" = input panel
 }) {
-  const [mediaTags, setMediaTags] = useState([]);
   const { tags: allTags, addTagsToMedia } = useTags();
-  const { fetchTags: fetchContextTags } = useMediaData();
 
   // AI auto-tag state
   const [aiState, setAiState] = useState("idle"); // idle | loading | confirm | applying | done | error
   const [serviceReady, setServiceReady] = useState(false);
   const [suggestedTags, setSuggestedTags] = useState([]);
   const [selectedTags, setSelectedTags] = useState(new Set());
-
-  // Fetch media tags for current file
-  const fetchMediaTags = useCallback(async (filePath) => {
-    try {
-      const response = await fetch(
-        `/api/media-path/tags?path=${encodeURIComponent(filePath)}`,
-      );
-      if (!response.ok) throw new Error("Failed to fetch media tags");
-      const data = await response.json();
-      return data.tags || [];
-    } catch (err) {
-      console.error("Error fetching media tags:", err);
-      return [];
-    }
-  }, []);
-
-  // Load tags when media changes or tags-updated event fires
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadMediaTags = async () => {
-      if (currentMediaFile) {
-        const tags = await fetchMediaTags(currentMediaFile.file_path);
-        if (isMounted) setMediaTags(tags);
-      } else {
-        if (isMounted) setMediaTags([]);
-      }
-    };
-
-    loadMediaTags();
-
-    const handleTagsUpdated = () => loadMediaTags();
-    window.addEventListener("tags-updated", handleTagsUpdated);
-
-    return () => {
-      isMounted = false;
-      window.removeEventListener("tags-updated", handleTagsUpdated);
-    };
-  }, [currentMediaFile?.file_path, fetchMediaTags]);
 
   // Collapse panel when media changes (skip initial mount)
   const prevFilePathRef = useRef(currentMediaFile?.file_path);
@@ -69,7 +25,7 @@ const InlineTagPanel = memo(function InlineTagPanel({
     setAiState("idle");
     setSuggestedTags([]);
     setSelectedTags(new Set());
-  }, [currentMediaFile?.file_path]);
+  }, [currentMediaFile?.file_path, isExpanded, onToggleExpanded]);
 
   // Poll auto-tag service readiness only when panel is expanded
   useEffect(() => {
@@ -114,29 +70,6 @@ const InlineTagPanel = memo(function InlineTagPanel({
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isExpanded, onToggleExpanded]);
-
-  // Remove tag from current media
-  const handleRemoveTag = useCallback(
-    async (tagId) => {
-      if (!currentMediaFile) return;
-      try {
-        const res = await fetch(
-          `/api/media-path/tags/${tagId}?path=${encodeURIComponent(currentMediaFile.file_path)}`,
-          { method: "DELETE" },
-        );
-        if (!res.ok) throw new Error("Failed to remove tag");
-        const [updatedTags] = await Promise.all([
-          fetchMediaTags(currentMediaFile.file_path),
-          fetchContextTags(),
-        ]);
-        setMediaTags(updatedTags);
-        window.dispatchEvent(new CustomEvent("tags-updated"));
-      } catch (error) {
-        console.error("Failed to remove tag:", error);
-      }
-    },
-    [currentMediaFile, fetchMediaTags, fetchContextTags],
-  );
 
   // Add tags immediately (no staging)
   const handleAddTags = useCallback(
@@ -238,12 +171,7 @@ const InlineTagPanel = memo(function InlineTagPanel({
   if (aiState === "done") sparkleTitle = "Tags added!";
   if (aiState === "error") sparkleTitle = "Auto-tag failed";
 
-  // Display mode: just show tag badges (floating glass)
-  if (mode === "display") {
-    return <TagDisplay tags={mediaTags} onRemoveTag={handleRemoveTag} />;
-  }
-
-  // Input mode: panel content (animation handled by parent wrapper)
+  // Panel content (animation handled by parent wrapper)
   return (
     <div className="w-full">
       <div className="space-y-2">

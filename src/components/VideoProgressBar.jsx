@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 
-function VideoProgressBar({ videoElement }) {
+function VideoProgressBar({ videoElement, variant = "bar" }) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
@@ -145,17 +145,27 @@ function VideoProgressBar({ videoElement }) {
         cancelAnimationFrame(animationRef.current);
       }
     }
-  }, [videoElement]);
+  }, [videoElement, updateProgress]);
 
   if (!isVisible) return null;
 
+  const isPill = variant === "pill";
+
   return (
-    <div className="video-progress-wrapper w-full flex items-center gap-3">
-      <span className="current-time text-sm text-white min-w-fit font-mono">
+    <div
+      className={
+        isPill
+          ? "flex h-8 w-full items-center gap-2 rounded-xl bg-black-shades-700 px-3 text-white shadow-sm"
+          : "video-progress-wrapper w-full flex items-center gap-3"
+      }
+    >
+      <span
+        className={`${isPill ? "text-xs" : "text-sm"} current-time text-white min-w-fit font-mono`}
+      >
         {formatTime(currentTime)}
       </span>
       <div
-        className="video-progress-container flex-1 h-3 bg-black-shades-600 rounded-full overflow-hidden cursor-pointer"
+        className={`${isPill ? "h-2" : "h-3"} video-progress-container flex-1 bg-black-shades-600 rounded-full overflow-hidden cursor-pointer`}
         onMouseDown={handleStart}
         onTouchStart={handleStart}
       >
@@ -165,7 +175,9 @@ function VideoProgressBar({ videoElement }) {
           style={{ width: "0%" }}
         />
       </div>
-      <div className="time-info flex gap-2 text-sm text-white min-w-fit">
+      <div
+        className={`${isPill ? "text-xs" : "text-sm"} time-info flex gap-2 text-white min-w-fit`}
+      >
         <span className="remaining-time font-mono">
           -{formatTime(duration - currentTime)}
         </span>

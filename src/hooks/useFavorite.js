@@ -5,14 +5,7 @@ const FAVORITE_TAG_NAME = "favorites";
 const FAVORITE_TAG_COLOR = "#FF69B4"; // Pastel red/pink color
 
 export const useFavorite = (currentMediaFile) => {
-  const {
-    tags,
-    fetchTags,
-    createTag,
-    getMediaTags,
-    addTagsToMedia,
-    removeTagFromMedia,
-  } = useTags();
+  const { tags, createTag, addTagsToMedia, removeTagFromMedia } = useTags();
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteTagId, setFavoriteTagId] = useState(null);
 
@@ -72,7 +65,7 @@ export const useFavorite = (currentMediaFile) => {
         await addTagsToMedia(currentMediaFile, [FAVORITE_TAG_NAME]);
         setIsFavorited(true);
       }
-      // Trigger a global event to notify other components (like TagDisplay) that tags have updated
+      // Trigger a global event to notify components that tag state changed.
       window.dispatchEvent(new CustomEvent("tags-updated"));
     } catch (error) {
       console.error("Failed to toggle favorite status:", error);
