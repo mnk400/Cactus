@@ -189,6 +189,7 @@ function App() {
           style={{
             right: "var(--settings-drawer-width, 0px)",
             width: "calc(100% - var(--settings-drawer-width, 0px))",
+            viewTransitionName: "nav-bar",
           }}
         >
           <Navigation

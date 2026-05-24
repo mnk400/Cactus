@@ -74,6 +74,25 @@ body {
   animation-duration: 220ms;
 }
 
+/* Keep the bottom nav above the morphing media snapshot so tall images
+   don't render over the nav mid-animation. We snapshot the nav purely
+   for z-index isolation — step-start makes every nav animation snap to
+   its end state instantly, so the nav doesn't visually morph when its
+   height changes (pills/progress bar appearing). The group still lives
+   for the full duration, keeping it stacked above media-active. */
+::view-transition-group(nav-bar),
+::view-transition-old(nav-bar),
+::view-transition-new(nav-bar) {
+  animation-timing-function: step-start;
+  animation-duration: 320ms;
+}
+::view-transition-group(nav-bar) {
+  z-index: 100;
+}
+::view-transition-group(media-active) {
+  z-index: 1;
+}
+
 /* Optimize images for better performance */
 img,
 video {

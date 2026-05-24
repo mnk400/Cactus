@@ -383,11 +383,6 @@ const VideoPlayer = memo(function VideoPlayer({
 
   return (
     <>
-      {isLoading && (
-        <div className="absolute inset-0 bg-black flex items-center justify-center z-10">
-          <div className="w-12 h-12 border-2 border-gray-600 border-t-gray-400 rounded-full animate-spin" />
-        </div>
-      )}
       <video
         ref={videoRef}
         src={src}
