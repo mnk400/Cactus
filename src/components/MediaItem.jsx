@@ -104,7 +104,7 @@ const MediaItem = memo(function MediaItem({
   // Container query units + min() pre-clamps width to whichever container
   // dimension is the binding constraint, so aspect-ratio derives the other
   // dim cleanly without the browser violating the ratio. Requires
-  // `container-type: size` on .media-item (see index.css).
+  // `container-type: size` on the wrapping .media-item (set inline below).
   const canvasStyle = aspectRatio
     ? {
         width: `min(100cqw, 100cqh * ${aspectRatio})`,
@@ -112,6 +112,7 @@ const MediaItem = memo(function MediaItem({
         backgroundImage: `url(${thumbnailUrl})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
+        viewTransitionName: isActive ? "media-active" : undefined,
       }
     : {
         height: "100%",
@@ -120,7 +121,12 @@ const MediaItem = memo(function MediaItem({
         backgroundSize: "contain",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
+        viewTransitionName: isActive ? "media-active" : undefined,
       };
+  // `media-item` is retained as a JS query hook (Navigation.jsx queries
+  // `.unified-feed-card video`, but other tooling may still rely on the class).
+  const wrapperClass =
+    "media-item absolute inset-0 flex justify-center items-center [container-type:size]";
 
   if (mediaFile.media_type === "image") {
     const preloadedImg = getPreloadedMedia(index);
@@ -129,11 +135,8 @@ const MediaItem = memo(function MediaItem({
       : `/media?path=${encodeURIComponent(mediaFile.file_path)}`;
 
     return (
-      <div
-        ref={mediaRef}
-        className="media-item relative h-full w-full flex justify-center items-center"
-      >
-        <div className="media-canvas relative" style={canvasStyle}>
+      <div ref={mediaRef} className={wrapperClass}>
+        <div className="relative" style={canvasStyle}>
           <img
             ref={imgRef}
             src={imgSrc}
@@ -158,11 +161,8 @@ const MediaItem = memo(function MediaItem({
       : `/media?path=${encodeURIComponent(mediaFile.file_path)}`;
 
     return (
-      <div
-        ref={mediaRef}
-        className="media-item relative h-full w-full flex justify-center items-center"
-      >
-        <div className="media-canvas relative" style={canvasStyle}>
+      <div ref={mediaRef} className={wrapperClass}>
+        <div className="relative" style={canvasStyle}>
           <VideoPlayer
             src={videoSrc}
             mediaFile={mediaFile}
@@ -180,10 +180,7 @@ const MediaItem = memo(function MediaItem({
 
   // Fallback for unknown media types
   return (
-    <div
-      ref={mediaRef}
-      className="media-item relative h-full w-full flex justify-center items-center"
-    >
+    <div ref={mediaRef} className={wrapperClass}>
       <div className="text-gray-500 text-center">
         <p>Unsupported media type</p>
         <p className="text-sm">{mediaFile.file_path}</p>

@@ -1043,7 +1043,10 @@ class SbMediaProvider extends MediaSourceProvider {
       const buffer = Buffer.from(await response.arrayBuffer());
 
       // Cache for subsequent requests
-      this.thumbnailCache.set(fileHash, { buffer, contentType: respContentType });
+      this.thumbnailCache.set(fileHash, {
+        buffer,
+        contentType: respContentType,
+      });
 
       if (respContentType) res.set("Content-Type", respContentType);
       res.send(buffer);

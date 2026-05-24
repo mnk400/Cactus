@@ -33,52 +33,27 @@ const Navigation = memo(function Navigation({
   const isSearchPanelVisible = isFilterPanelOpen && !isTagPanelExpanded;
   const hasExpandedPanel = isSearchPanelVisible || isTagPanelExpanded;
 
-  // Video element finder
+  // Video element finder — looks inside the active feed card, falls back to
+  // any currently playing video if the active card hasn't mounted yet.
   const findActiveVideo = useCallback(() => {
     if (currentMediaFile?.media_type !== "video") {
       setVideoElement(null);
       return;
     }
 
-    // Method 1: Find by checking which container is in the center of viewport
-    const containers = document.querySelectorAll(".media-item-container");
-    const viewportHeight = window.innerHeight;
-    const centerY = viewportHeight / 2;
-
-    for (const container of containers) {
-      const rect = container.getBoundingClientRect();
-      const containerCenterY = rect.top + rect.height / 2;
-      if (Math.abs(containerCenterY - centerY) < 100) {
-        const video = container.querySelector("video");
-        if (video) {
-          setVideoElement(video);
-          return;
-        }
-      }
+    const activeCard = document.querySelector(
+      ".unified-feed-item.is-active .unified-feed-card",
+    );
+    const activeVideo = activeCard?.querySelector("video");
+    if (activeVideo) {
+      setVideoElement(activeVideo);
+      return;
     }
 
-    // Method 2: Find the video that's currently playing
-    const allVideos = document.querySelectorAll(".media-item video");
-    for (const video of allVideos) {
-      if (!video.paused) {
-        setVideoElement(video);
-        return;
-      }
-    }
-
-    // Method 3: Find any video in a visible container
-    for (const container of containers) {
-      const rect = container.getBoundingClientRect();
-      if (rect.top < viewportHeight && rect.bottom > 0) {
-        const video = container.querySelector("video");
-        if (video) {
-          setVideoElement(video);
-          return;
-        }
-      }
-    }
-
-    setVideoElement(null);
+    const playingVideo = Array.from(
+      document.querySelectorAll(".unified-feed-card video"),
+    ).find((v) => !v.paused);
+    setVideoElement(playingVideo || null);
   }, [currentMediaFile]);
 
   useEffect(() => {

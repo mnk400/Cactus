@@ -241,9 +241,8 @@ function cacheMiddleware(req, res, next) {
     const total = stats.hits + stats.misses;
     log.info("Serving cached API response", {
       url: key,
-      hitRate: total > 0
-        ? ((stats.hits / total) * 100).toFixed(1) + "%"
-        : "0.0%",
+      hitRate:
+        total > 0 ? ((stats.hits / total) * 100).toFixed(1) + "%" : "0.0%",
     });
     return res.json(cached);
   }
@@ -819,12 +818,16 @@ function extractVideoFrames(videoPath, timestamps) {
       const cleanupAll = () => {
         // Kill any still-running ffmpeg processes
         ffmpegProcesses.forEach((proc) => {
-          try { proc.kill("SIGKILL"); } catch {}
+          try {
+            proc.kill("SIGKILL");
+          } catch {}
         });
         // Remove any temp files
         timestamps.forEach((_, j) => {
           const f = path.join(tmpDir, `cactus_frame_${id}_${j}.jpg`);
-          try { fs.unlinkSync(f); } catch {}
+          try {
+            fs.unlinkSync(f);
+          } catch {}
         });
       };
 

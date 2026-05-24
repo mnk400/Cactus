@@ -6,11 +6,11 @@ import {
   lazy,
   Suspense,
 } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import UnifiedMediaBrowser from "./components/UnifiedMediaBrowser";
 import Navigation from "./components/Navigation";
 import SideNavigation from "./components/SideNavigation";
 import Message from "./components/Message";
-import ViewTransition from "./components/ViewTransition";
 
 const SettingsPanel = lazy(() => import("./components/SettingsPanel"));
 const DebugInfo = lazy(() => import("./components/DebugInfo"));
@@ -145,14 +145,40 @@ function App() {
             !isGalleryView &&
             !slideshowActive && <SideNavigation />}
 
-          <ViewTransition isSettingsOpen={isSettingsOpen}>
+          {/* Desktop renders SettingsPanel always (it handles its own slide).
+              Mobile wraps in a full-screen slide-up via AnimatePresence. */}
+          {isDesktop ? (
             <Suspense fallback={null}>
               <SettingsPanel
                 isOpen={isSettingsOpen}
                 onClose={handleCloseSettings}
               />
             </Suspense>
-          </ViewTransition>
+          ) : (
+            <AnimatePresence>
+              {isSettingsOpen && (
+                <motion.div
+                  className="fixed inset-0 z-50"
+                  initial={{ y: "100%", opacity: 0.8 }}
+                  animate={{ y: "0%", opacity: 1 }}
+                  exit={{ y: "100%", opacity: 0.8 }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 300,
+                    damping: 32,
+                    mass: 0.7,
+                  }}
+                >
+                  <Suspense fallback={null}>
+                    <SettingsPanel
+                      isOpen={isSettingsOpen}
+                      onClose={handleCloseSettings}
+                    />
+                  </Suspense>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          )}
         </div>
       </div>
 

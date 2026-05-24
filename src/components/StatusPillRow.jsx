@@ -12,21 +12,20 @@ const FILTER_COLORS = {
 };
 
 function findActiveVideoFallback() {
-  const activeContainer = document.querySelector(
-    '.media-item-container[style*="translate"]',
+  const activeCard = document.querySelector(
+    ".unified-feed-item.is-active .unified-feed-card",
   );
-  let activeVideo = activeContainer?.querySelector("video") || null;
-
+  const activeVideo = activeCard?.querySelector("video");
   if (activeVideo) return activeVideo;
 
-  const containers = document.querySelectorAll(".media-item-container");
+  const cards = document.querySelectorAll(".unified-feed-card");
   const viewportHeight = window.innerHeight;
 
-  for (const container of containers) {
-    const rect = container.getBoundingClientRect();
+  for (const card of cards) {
+    const rect = card.getBoundingClientRect();
     if (rect.top <= viewportHeight / 2 && rect.bottom >= viewportHeight / 2) {
-      activeVideo = container.querySelector("video");
-      if (activeVideo) return activeVideo;
+      const video = card.querySelector("video");
+      if (video) return video;
     }
   }
 

@@ -31,7 +31,6 @@ body {
   background-color: #000;
 }
 
-/* Fix for mobile viewport height issues */
 .container {
   height: 100vh;
   height: calc(var(--vh, 1vh) * 100);
@@ -42,7 +41,6 @@ body {
   background-color: #000;
 }
 
-/* Ensure media container takes full height */
 .media-container {
   height: 100%;
   width: 100%;
@@ -51,196 +49,10 @@ body {
   transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Enhanced Framer Motion optimizations for MediaViewer */
-.media-wrapper {
-  height: 100%;
-  width: 100%;
-  position: relative;
-  /* Hardware acceleration */
-  transform: translate3d(0, 0, 0);
-  -webkit-transform: translate3d(0, 0, 0);
-
-  /* Prevent overscroll bounce */
-  overscroll-behavior: contain;
-
-  /* Optimize for touch interactions */
-  touch-action: pan-y;
-
-  /* Better compositing layer */
-  will-change: transform;
-
-  /* Better mobile performance */
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-
-  /* Prevent text selection during drag */
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-}
-
-/* Performance optimizations for gallery view */
-.gallery-view {
-  transform: translate3d(0, 0, 0);
-  -webkit-transform: translate3d(0, 0, 0);
-  -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
-  contain: layout style paint;
-  will-change: scroll-position;
-}
-
-/* Optimize gallery items for better rendering */
-.gallery-item {
-  transform: translate3d(0, 0, 0);
-  -webkit-transform: translate3d(0, 0, 0);
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: optimize-contrast;
-  contain: layout style;
-  transition: transform 0.2s ease-out;
-}
-
-/* Unified feed/gallery prototype */
-.unified-media-browser {
-  position: relative;
-  height: 100%;
-  width: 100%;
-  overflow: hidden;
-  background: #000;
-  isolation: isolate;
-}
-
-.unified-feed-layer,
-.unified-gallery-layer {
-  position: absolute;
-  inset: 0;
-  height: 100%;
-  width: 100%;
-}
-
-.unified-feed-layer {
-  z-index: 1;
-}
-
-.unified-gallery-layer {
-  z-index: 2;
-  background: #000;
-}
-
-.unified-feed-scroll {
-  height: 100%;
-  width: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
-  overscroll-behavior: contain;
-  scroll-snap-type: y mandatory;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-.unified-feed-scroll::-webkit-scrollbar,
-.unified-gallery-scroll::-webkit-scrollbar {
-  display: none;
-}
-
-.unified-feed-item {
-  width: 100%;
-  scroll-snap-align: start;
-  /* `always` guarantees the scroll lands on exactly one item, so
-     Math.round(scrollTop / feedHeight) is always a valid index. */
-  scroll-snap-stop: always;
-}
-
-.unified-feed-card {
-  position: relative;
-  height: 100%;
-  width: 100%;
-  overflow: hidden;
-  background: #000;
-}
-
-.unified-gallery-scroll {
-  height: 100%;
-  width: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 14px;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-.unified-gallery-cell {
-  display: block;
-  width: 100%;
-  padding: 4px;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  text-align: left;
-}
-
-.unified-gallery-tile {
-  position: relative;
-  width: 100%;
-  overflow: hidden;
-  border: 2px solid transparent;
-  border-radius: 8px;
-  background: #101010;
-  transform: translate3d(0, 0, 0);
-}
-
-.unified-gallery-tile.is-selected {
-  border-color: #60a5fa;
-  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.35);
-}
-
-.unified-gallery-image {
-  display: block;
-  height: 100%;
-  width: 100%;
-  object-fit: cover;
-  pointer-events: none;
-}
-
-.unified-video-badge {
-  position: absolute;
-  right: 6px;
-  bottom: 6px;
-  display: flex;
-  height: 24px;
-  width: 24px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.62);
-  color: #fff;
-  pointer-events: none;
-}
-
-.unified-video-badge svg {
-  height: 15px;
-  width: 15px;
-}
-
-/* Shared-element transition between the gallery tile and the active feed
-   image. The `is-active` class is applied to exactly one element at any time
-   (gallery tile when in gallery view, feed image when in feed view), so the
-   browser pairs old→new by name and morphs the rect between them. */
-.unified-gallery-tile.is-active {
-  view-transition-name: media-active;
-}
-
-/* Establish a sizing container so .media-canvas can use 100cqw/100cqh in
-   its `min()` calc to fit-within-container while preserving aspect. */
-.unified-feed-card .media-item {
-  container-type: size;
-}
-
-.unified-feed-item.is-active .media-canvas {
-  view-transition-name: media-active;
-}
-
+/* View Transitions API: the .unified-feed-item.is-active media canvas and
+   the .unified-gallery-tile.is-active set view-transition-name inline
+   (see UnifiedMediaBrowser.jsx / MediaItem.jsx). These pseudo-elements
+   tune the shared-element morph timing. */
 ::view-transition-group(media-active) {
   animation-duration: 320ms;
   animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
@@ -271,85 +83,18 @@ video {
   content-visibility: auto;
 }
 
-/* Media items - properly centered */
-.media-item {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-/* Optimize media item containers for better performance */
-.media-item-container {
-  /* Hardware acceleration with 3D transform */
-  transform: translate3d(0, 0, 0);
-  -webkit-transform: translate3d(0, 0, 0);
-
-  /* Prevent subpixel rendering issues */
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-
-  /* Optimize for mobile */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* Ensure media elements are properly sized and centered */
-.media-item img,
-.media-item video {
-  max-height: 100%;
-  max-width: 100%;
-  object-fit: cover;
-}
-
-/* Hide scrollbars for horizontal tag scrolling */
+/* Reusable scrollbar-hiding utility */
 .scrollbar-hide {
-  -ms-overflow-style: none; /* Internet Explorer 10+ */
-  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 .scrollbar-hide::-webkit-scrollbar {
-  display: none; /* Safari and Chrome */
+  display: none;
 }
 
-/* Custom styles for black shades used in the original app */
-.bg-black-shades-500 {
-  background-color: rgba(64, 64, 64, 1);
-}
-
-.bg-black-shades-600 {
-  background-color: rgba(48, 48, 48, 1);
-}
-
-.bg-black-shades-700 {
-  background-color: rgba(32, 32, 32, 1);
-}
-
-.bg-black-shades-800 {
-  background-color: rgba(16, 16, 16, 1);
-}
-
-/* Video progress bar styles */
+/* Video progress bar transition */
 .video-progress-container {
   transition: bottom 0.3s ease;
-}
-
-/* Animation classes */
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
 }
 
 /* Prevent zoom on input focus (mobile) */
@@ -359,140 +104,8 @@ textarea {
   font-size: 16px;
 }
 
-/* Loading and error message positioning */
-.placeholder-message,
-.error-message {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 50;
-  text-align: center;
-  padding: 20px;
-  max-width: 90%;
-}
-
-/* Video overlay positioning */
-.video-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Transition animations for UI elements */
-.slide-enter {
-  transform: translateY(-100%);
-}
-
-.slide-enter-active {
-  transform: translateY(0);
-  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.slide-exit {
-  transform: translateY(0);
-}
-
-.slide-exit-active {
-  transform: translateY(-100%);
-  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.fade-enter {
-  opacity: 0;
-}
-
-.fade-enter-active {
-  opacity: 1;
-  transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.fade-exit {
-  opacity: 1;
-}
-
-.fade-exit-active {
-  opacity: 0;
-  transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.tag-animated {
-  transition: transform 300ms ease-in-out;
-}
-
-.tag-fade-enter {
-  opacity: 0;
-}
-
-.tag-fade-enter-active {
-  opacity: 1;
-  transition: opacity 300ms ease-in-out;
-}
-
-.tag-fade-exit {
-  opacity: 1;
-}
-
-.tag-fade-exit-active {
-  opacity: 0;
-  transition: opacity 300ms ease-in-out;
-}
-
-.fade-scale-enter {
-  opacity: 0;
-  transform: scale(0.9);
-}
-
-.fade-scale-enter-active {
-  opacity: 1;
-  transform: scale(1);
-  transition:
-    opacity 300ms ease-in-out,
-    transform 300ms ease-in-out;
-}
-
-.fade-scale-exit {
-  opacity: 1;
-  transform: scale(1);
-}
-
-.fade-scale-exit-active {
-  opacity: 0;
-  transform: scale(0.9);
-  transition:
-    opacity 300ms ease-in-out,
-    transform 300ms ease-in-out;
-}
-
-/* Media sizing based on orientation and screen size */
-@media (orientation: portrait) and (max-width: 768px) {
-  .media-item img,
-  .media-item video {
-    width: 100% !important;
-    height: auto !important;
-    max-height: 100% !important;
-    max-width: none !important;
-  }
-}
-
-@media (orientation: landscape) and (min-width: 769px) {
-  .media-item img,
-  .media-item video {
-    width: auto !important;
-    height: 100% !important;
-    max-width: 100% !important;
-    max-height: none !important;
-  }
-}
-
-/* Mobile-specific fixes */
+/* Mobile viewport height fixes */
 @media screen and (max-width: 768px) {
-  /* Ensure proper height on mobile */
   html,
   body,
   #root,
@@ -503,7 +116,6 @@ textarea {
     min-height: calc(var(--vh, 1vh) * 100);
   }
 
-  /* Fix for iOS Safari */
   @supports (-webkit-touch-callout: none) {
     html,
     body,
@@ -513,28 +125,8 @@ textarea {
       min-height: var(--actual-height, 100vh);
     }
   }
-
-  .media-wrapper {
-    /* Reduce scroll jank */
-    -webkit-transform: translateZ(0);
-    transform: translateZ(0);
-
-    /* Optimize for 60fps */
-    will-change: transform;
-  }
-
-  .media-item-container {
-    /* Mobile-specific optimizations */
-    -webkit-transform: translate3d(0, 0, 0);
-    transform: translate3d(0, 0, 0);
-
-    /* Better mobile rendering */
-    image-rendering: -webkit-optimize-contrast;
-    image-rendering: optimize-contrast;
-  }
 }
 
-/* Portrait orientation specific fixes */
 @media screen and (max-width: 768px) and (orientation: portrait) {
   .container {
     height: 100vh;
@@ -542,58 +134,6 @@ textarea {
     min-height: 100vh;
     min-height: calc(var(--vh, 1vh) * 100);
   }
-
-  /* Ensure media is properly centered and sized in portrait */
-  .media-item {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .media-item img,
-  .media-item video {
-    max-height: calc(100vh - 120px); /* Account for navigation */
-    max-height: calc(calc(var(--vh, 1vh) * 100) - 120px);
-    max-width: 100%;
-    object-fit: contain; /* Use contain for portrait to ensure full visibility */
-  }
-}
-
-/* Landscape orientation - use cover for better fill */
-@media screen and (orientation: landscape) {
-  .media-item img,
-  .media-item video {
-    object-fit: cover;
-  }
-}
-
-/* View transition optimizations */
-.view-transition-container {
-  /* Hardware acceleration for smooth transitions */
-  transform: translate3d(0, 0, 0);
-  -webkit-transform: translate3d(0, 0, 0);
-
-  /* Better compositing layer */
-  will-change: transform;
-
-  /* Prevent subpixel rendering issues */
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-
-  /* Smooth rendering */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* Optimize view transition children */
-.view-transition-container > div {
-  /* Hardware acceleration */
-  transform: translate3d(0, 0, 0);
-  -webkit-transform: translate3d(0, 0, 0);
-
-  /* Prevent rendering issues during animation */
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
 }
 
 /* PWA safe area handling for iOS notch/Dynamic Island */
@@ -604,22 +144,5 @@ textarea {
 
   .safe-area-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
-}
-
-/* iOS Safari specific optimizations */
-@supports (-webkit-touch-callout: none) {
-  .media-wrapper {
-    /* Better iOS performance */
-    -webkit-transform: translate3d(0, 0, 0);
-
-    /* Prevent iOS scroll bounce issues */
-    overscroll-behavior: contain;
-  }
-
-  .view-transition-container {
-    /* iOS-specific optimizations */
-    -webkit-transform: translateZ(0);
-    transform: translateZ(0);
   }
 }

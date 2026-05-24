@@ -32,7 +32,12 @@ const getColumnCount = (width) => {
   return 6;
 };
 
-const estimateGalleryOffset = (mediaFiles, index, columnCount, galleryWidth) => {
+const estimateGalleryOffset = (
+  mediaFiles,
+  index,
+  columnCount,
+  galleryWidth,
+) => {
   if (!mediaFiles.length || index <= 0 || !galleryWidth) return 0;
 
   const scrollerPadding = 14 * 2;
@@ -96,25 +101,39 @@ const GalleryItem = memo(function GalleryItem({ data, index, context }) {
   return (
     <button
       type="button"
-      className="unified-gallery-cell"
+      className="block w-full p-1 border-0 bg-transparent text-inherit text-left cursor-pointer"
       onClick={() => onSelectMedia(index)}
       aria-label={`Open ${data.displayName || `media ${index + 1}`}`}
     >
       <div
-        className={`unified-gallery-tile ${isSelected ? "is-selected" : ""} ${isActive ? "is-active" : ""}`}
-        style={{ aspectRatio }}
+        className={`relative w-full overflow-hidden rounded-lg bg-black-shades-800 border-2 ${
+          isSelected
+            ? "border-blue-400 ring-1 ring-blue-400/35"
+            : "border-transparent"
+        }`}
+        style={{
+          aspectRatio,
+          viewTransitionName: isActive ? "media-active" : undefined,
+        }}
       >
         <img
           src={`/thumbnails?hash=${data.file_hash}`}
           alt=""
-          className="unified-gallery-image"
+          className="block h-full w-full object-cover pointer-events-none"
           loading="lazy"
           decoding="async"
           draggable={false}
         />
         {data.media_type === "video" && (
-          <span className="unified-video-badge" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="currentColor">
+          <span
+            className="absolute right-1.5 bottom-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white pointer-events-none"
+            aria-hidden="true"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              className="h-[15px] w-[15px]"
+            >
               <path d="M8 5v14l11-7z" />
             </svg>
           </span>
@@ -341,9 +360,9 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
   );
 
   return (
-    <div className="unified-media-browser">
+    <div className="relative h-full w-full overflow-hidden bg-black isolate">
       <div
-        className="unified-feed-layer"
+        className="absolute inset-0 z-[1]"
         style={{
           opacity: isGalleryView ? 0 : 1,
           pointerEvents: isGalleryView ? "none" : "auto",
@@ -351,7 +370,7 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
       >
         <div
           ref={feedRef}
-          className="unified-feed-scroll"
+          className="h-full w-full overflow-y-auto overflow-x-hidden overscroll-contain snap-y snap-mandatory scrollbar-hide [-webkit-overflow-scrolling:touch]"
           onScroll={handleFeedScroll}
         >
           {mediaFiles.map((mediaFile, actualIndex) => {
@@ -364,12 +383,19 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
             return (
               <section
                 key={mediaFile.file_hash}
-                className={`unified-feed-item ${isActive ? "is-active" : ""}`}
+                // `unified-feed-item` + `is-active` are JS query hooks
+                // (Navigation.jsx, StatusPillRow.jsx) — not style hooks.
+                // `scroll-snap-stop: always` guarantees the scroller lands on
+                // exactly one item, so Math.round(scrollTop / feedHeight) is
+                // always a valid index.
+                className={`unified-feed-item w-full snap-start [scroll-snap-stop:always] ${
+                  isActive ? "is-active" : ""
+                }`}
                 data-feed-index={actualIndex}
                 style={{ height: `${itemHeight}px` }}
               >
                 {shouldRenderMedia && (
-                  <div className="unified-feed-card">
+                  <div className="unified-feed-card relative h-full w-full overflow-hidden bg-black">
                     <MediaItem
                       mediaFile={mediaFile}
                       index={actualIndex}
@@ -390,14 +416,15 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
 
       <div
         ref={galleryRef}
-        className="unified-gallery-layer"
+        className="absolute inset-0 z-[2] bg-black"
         style={{
           opacity: isGalleryView ? 1 : 0,
           pointerEvents: isGalleryView ? "auto" : "none",
         }}
       >
         <VirtuosoMasonry
-          className="unified-gallery-scroll"
+          // `unified-gallery-scroll` is a JS query hook for scroll restoration.
+          className="unified-gallery-scroll h-full w-full overflow-y-auto overflow-x-hidden p-3.5 scrollbar-hide [-webkit-overflow-scrolling:touch]"
           data={mediaFiles}
           columnCount={columnCount}
           context={masonryContext}
