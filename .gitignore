@@ -6,3 +6,4 @@ test-media/
 dist
 sample/
 .kiro/
+.cactus-cache/

@@ -356,10 +356,12 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
     [isGalleryView, selectMedia],
   );
 
-  const initialItemCount = Math.min(
-    mediaFiles.length,
-    Math.max(80, currentIndex + columnCount * 12),
-  );
+  // Keep this small regardless of currentIndex — Virtuoso renders all
+  // `initialItemCount` items eagerly (no virtualization), so scaling with
+  // currentIndex causes thousands of <img> tags to mount on deep links. The
+  // scroll-into-view effect below already handles landing on far-off items
+  // by setting scrollTop and retrying until Virtuoso mounts the target.
+  const initialItemCount = Math.min(mediaFiles.length, columnCount * 12);
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-black isolate">

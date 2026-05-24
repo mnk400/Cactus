@@ -46,6 +46,9 @@ class SbMediaProvider extends MediaSourceProvider {
     this.generatedThumbnails = new Map();
     this.thumbnailCache = new Map(); // Caches proxied thumbnail buffers + content-type
     this.contentTypeCache = new Map(); // Caches probeContentType results per URL
+    this.diskCacheDir = path.join(process.cwd(), ".cactus-cache", "thumbs");
+    this.diskCacheIndex = new Map(); // fileHash -> file extension on disk
+    this.inflightThumbnails = new Map(); // fileHash -> Promise<{buffer, contentType}>
   }
 
   static getConfigSchema() {
@@ -125,6 +128,7 @@ class SbMediaProvider extends MediaSourceProvider {
           error: `Failed to connect to sb server: ${connectionTest.error}`,
         };
       }
+      await this.initDiskCache();
       this.isInitialized = true;
       log.info("sbMediaProvider initialized successfully", {
         sbUrl: this.sbUrl,
@@ -914,22 +918,6 @@ class SbMediaProvider extends MediaSourceProvider {
     });
   }
 
-  async proxyFetch(url, res, errorLabel = "media") {
-    const headers = this.apiKey ? { ApiKey: this.apiKey } : {};
-    const response = await fetch(url, { headers });
-    if (!response.ok) {
-      log.error(`Server returned error for ${errorLabel}`, {
-        url,
-        status: response.status,
-      });
-      return res.status(404).send(`${errorLabel} not found on server`);
-    }
-    const contentType = response.headers.get("content-type");
-    if (contentType) res.set("Content-Type", contentType);
-    const buffer = await response.arrayBuffer();
-    res.send(Buffer.from(buffer));
-  }
-
   async serveMedia(filePath, req, res) {
     try {
       if (!filePath.startsWith("http"))
@@ -982,80 +970,181 @@ class SbMediaProvider extends MediaSourceProvider {
 
   async serveThumbnail(fileHash, res) {
     try {
-      // 1. Check in-memory caches (generated video thumbs + proxied image thumbs)
-      const generated = this.generatedThumbnails.get(fileHash);
-      if (generated) {
-        res.set("Content-Type", "image/jpeg");
-        return res.send(generated);
-      }
-
-      const cached = this.thumbnailCache.get(fileHash);
-      if (cached) {
-        if (cached.contentType) res.set("Content-Type", cached.contentType);
-        return res.send(cached.buffer);
-      }
-
-      // 2. Resolve upstream thumbnail URL
-      let thumbnailUrl = this.thumbnailMap.get(fileHash);
-      if (!thumbnailUrl) {
-        if (this.thumbnailMap.size === 0 && this.mediaCache.length === 0) {
-          await this.getMedia({});
-          thumbnailUrl = this.thumbnailMap.get(fileHash);
-        }
-        if (!thumbnailUrl) return res.status(404).send("Thumbnail not found");
-      }
-
-      // 3. Probe content-type (cached per URL to avoid repeated upstream calls)
-      let contentType = this.contentTypeCache.get(thumbnailUrl);
-      if (contentType === undefined) {
-        contentType = await this.probeContentType(thumbnailUrl);
-        this.contentTypeCache.set(thumbnailUrl, contentType);
-      }
-
-      // 4. If it's a video, generate thumbnail via ffmpeg
-      if (contentType.startsWith("video/")) {
-        log.info(
-          "Upstream returned video instead of thumbnail, generating locally",
-          { fileHash, contentType },
-        );
-
-        const thumbBuffer = await this.generateThumbnailFromVideo(
-          thumbnailUrl,
-          fileHash,
-        );
-        if (thumbBuffer) {
-          this.generatedThumbnails.set(fileHash, thumbBuffer);
-          res.set("Content-Type", "image/jpeg");
-          return res.send(thumbBuffer);
-        }
-        // Fallback: proxy the original content
-        await this.proxyFetch(thumbnailUrl, res, "Thumbnail fallback");
-        return;
-      }
-
-      // 5. For images, fetch once, cache, and serve
-      const headers = this.apiKey ? { ApiKey: this.apiKey } : {};
-      const response = await fetch(thumbnailUrl, { headers });
-      if (!response.ok) {
-        return res.status(404).send("Thumbnail not found on server");
-      }
-      const respContentType = response.headers.get("content-type");
-      const buffer = Buffer.from(await response.arrayBuffer());
-
-      // Cache for subsequent requests
-      this.thumbnailCache.set(fileHash, {
-        buffer,
-        contentType: respContentType,
-      });
-
-      if (respContentType) res.set("Content-Type", respContentType);
-      res.send(buffer);
+      const data = await this.getThumbnailData(fileHash);
+      if (!data) return res.status(404).send("Thumbnail not found");
+      if (data.contentType) res.set("Content-Type", data.contentType);
+      res.send(data.buffer);
     } catch (error) {
       log.error("Failed to serve thumbnail file", {
         fileHash,
         error: error.message,
       });
-      res.status(500).send("Failed to serve thumbnail file");
+      if (!res.headersSent) res.status(500).send("Failed to serve thumbnail file");
+    }
+  }
+
+  async getThumbnailData(fileHash) {
+    // 1. In-memory caches
+    const generated = this.generatedThumbnails.get(fileHash);
+    if (generated) return { buffer: generated, contentType: "image/jpeg" };
+
+    const cached = this.thumbnailCache.get(fileHash);
+    if (cached) return cached;
+
+    // 2. Disk cache
+    const fromDisk = await this.readDiskCache(fileHash);
+    if (fromDisk) {
+      this.thumbnailCache.set(fileHash, fromDisk);
+      return fromDisk;
+    }
+
+    // 3. Dedup concurrent fetches for the same hash — one ffmpeg/proxy job
+    //    per unique thumbnail, no matter how many requests pile up.
+    const inflight = this.inflightThumbnails.get(fileHash);
+    if (inflight) return inflight;
+
+    const promise = this.fetchThumbnailData(fileHash);
+    this.inflightThumbnails.set(fileHash, promise);
+    try {
+      return await promise;
+    } finally {
+      this.inflightThumbnails.delete(fileHash);
+    }
+  }
+
+  async fetchThumbnailData(fileHash) {
+    // Resolve upstream URL
+    let thumbnailUrl = this.thumbnailMap.get(fileHash);
+    if (!thumbnailUrl) {
+      if (this.thumbnailMap.size === 0 && this.mediaCache.length === 0) {
+        await this.getMedia({});
+        thumbnailUrl = this.thumbnailMap.get(fileHash);
+      }
+      if (!thumbnailUrl) return null;
+    }
+
+    // Probe content-type (cached per URL)
+    let contentType = this.contentTypeCache.get(thumbnailUrl);
+    if (contentType === undefined) {
+      contentType = await this.probeContentType(thumbnailUrl);
+      this.contentTypeCache.set(thumbnailUrl, contentType);
+    }
+
+    // Video: generate thumb via ffmpeg
+    if (contentType.startsWith("video/")) {
+      log.info(
+        "Upstream returned video instead of thumbnail, generating locally",
+        { fileHash, contentType },
+      );
+
+      const thumbBuffer = await this.generateThumbnailFromVideo(
+        thumbnailUrl,
+        fileHash,
+      );
+      if (thumbBuffer) {
+        const result = { buffer: thumbBuffer, contentType: "image/jpeg" };
+        this.generatedThumbnails.set(fileHash, thumbBuffer);
+        await this.writeDiskCache(fileHash, thumbBuffer, "image/jpeg");
+        return result;
+      }
+      // ffmpeg failed — proxy the raw upstream bytes but don't persist them
+      // (could be the entire video file; pointless to cache as a thumbnail).
+      return this.fetchBuffer(thumbnailUrl);
+    }
+
+    // Image: fetch + cache
+    const result = await this.fetchBuffer(thumbnailUrl);
+    if (!result) return null;
+    this.thumbnailCache.set(fileHash, result);
+    await this.writeDiskCache(fileHash, result.buffer, result.contentType);
+    return result;
+  }
+
+  async fetchBuffer(url) {
+    const headers = this.apiKey ? { ApiKey: this.apiKey } : {};
+    const response = await fetch(url, { headers });
+    if (!response.ok) return null;
+    const contentType = response.headers.get("content-type");
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return { buffer, contentType };
+  }
+
+  // ── Disk cache ─────────────────────────────────────────────────────
+
+  async initDiskCache() {
+    try {
+      await fs.promises.mkdir(this.diskCacheDir, { recursive: true });
+      const files = await fs.promises.readdir(this.diskCacheDir);
+      for (const file of files) {
+        const dotIdx = file.lastIndexOf(".");
+        if (dotIdx <= 0) continue;
+        this.diskCacheIndex.set(file.slice(0, dotIdx), file.slice(dotIdx + 1));
+      }
+      log.info("Disk thumbnail cache loaded", {
+        dir: this.diskCacheDir,
+        count: this.diskCacheIndex.size,
+      });
+    } catch (err) {
+      log.warn("Failed to initialize disk thumbnail cache", {
+        dir: this.diskCacheDir,
+        error: err.message,
+      });
+    }
+  }
+
+  async readDiskCache(fileHash) {
+    const ext = this.diskCacheIndex.get(fileHash);
+    if (!ext) return null;
+    try {
+      const filePath = path.join(this.diskCacheDir, `${fileHash}.${ext}`);
+      const buffer = await fs.promises.readFile(filePath);
+      return { buffer, contentType: this.contentTypeFromExt(ext) };
+    } catch {
+      this.diskCacheIndex.delete(fileHash);
+      return null;
+    }
+  }
+
+  async writeDiskCache(fileHash, buffer, contentType) {
+    const ext = this.extFromContentType(contentType);
+    const filePath = path.join(this.diskCacheDir, `${fileHash}.${ext}`);
+    try {
+      await fs.promises.writeFile(filePath, buffer);
+      this.diskCacheIndex.set(fileHash, ext);
+    } catch (err) {
+      log.warn("Failed to write disk thumbnail cache", {
+        fileHash,
+        error: err.message,
+      });
+    }
+  }
+
+  extFromContentType(ct) {
+    if (!ct) return "bin";
+    const t = ct.toLowerCase();
+    if (t.includes("jpeg") || t.includes("jpg")) return "jpg";
+    if (t.includes("png")) return "png";
+    if (t.includes("webp")) return "webp";
+    if (t.includes("gif")) return "gif";
+    if (t.includes("avif")) return "avif";
+    return "bin";
+  }
+
+  contentTypeFromExt(ext) {
+    switch (ext) {
+      case "jpg":
+      case "jpeg":
+        return "image/jpeg";
+      case "png":
+        return "image/png";
+      case "webp":
+        return "image/webp";
+      case "gif":
+        return "image/gif";
+      case "avif":
+        return "image/avif";
+      default:
+        return "application/octet-stream";
     }
   }
 
@@ -1438,6 +1527,8 @@ class SbMediaProvider extends MediaSourceProvider {
     this.generatedThumbnails.clear();
     this.thumbnailCache.clear();
     this.contentTypeCache.clear();
+    this.diskCacheIndex.clear();
+    this.inflightThumbnails.clear();
     await super.close();
     log.info("sbMediaProvider closed");
   }
