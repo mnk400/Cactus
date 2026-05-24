@@ -96,6 +96,32 @@ const MediaItem = memo(function MediaItem({
   if (!mediaFile) {
     return null;
   }
+  const thumbnailUrl = `/thumbnails?hash=${mediaFile.file_hash}`;
+  const aspectRatio =
+    mediaFile.width && mediaFile.height
+      ? mediaFile.width / mediaFile.height
+      : undefined;
+  // Container query units + min() pre-clamps width to whichever container
+  // dimension is the binding constraint, so aspect-ratio derives the other
+  // dim cleanly without the browser violating the ratio. Requires
+  // `container-type: size` on .media-item (see index.css).
+  const canvasStyle = aspectRatio
+    ? {
+        width: `min(100cqw, 100cqh * ${aspectRatio})`,
+        aspectRatio,
+        backgroundImage: `url(${thumbnailUrl})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }
+    : {
+        height: "100%",
+        width: "100%",
+        backgroundImage: `url(${thumbnailUrl})`,
+        backgroundSize: "contain",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      };
+
   if (mediaFile.media_type === "image") {
     const preloadedImg = getPreloadedMedia(index);
     const imgSrc = preloadedImg
@@ -107,23 +133,20 @@ const MediaItem = memo(function MediaItem({
         ref={mediaRef}
         className="media-item relative h-full w-full flex justify-center items-center"
       >
-        {isLoading && (
-          <div className="absolute inset-0 bg-black flex items-center justify-center z-10">
-            <div className="w-12 h-12 border-2 border-gray-600 border-t-gray-400 rounded-full animate-spin" />
-          </div>
-        )}
-        <img
-          ref={imgRef}
-          src={imgSrc}
-          alt="Media content"
-          className={`max-h-full max-w-full object-cover transition-opacity duration-300 ${isLoading ? "opacity-0" : "opacity-100"}`}
-          onLoad={() => setIsLoading(false)}
-          onError={(e) => {
-            console.error("Failed to load image:", mediaFile.file_path);
-            setIsLoading(false);
-            e.target.style.display = "none";
-          }}
-        />
+        <div className="media-canvas relative" style={canvasStyle}>
+          <img
+            ref={imgRef}
+            src={imgSrc}
+            alt="Media content"
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${isLoading ? "opacity-0" : "opacity-100"}`}
+            onLoad={() => setIsLoading(false)}
+            onError={(e) => {
+              console.error("Failed to load image:", mediaFile.file_path);
+              setIsLoading(false);
+              e.target.style.display = "none";
+            }}
+          />
+        </div>
       </div>
     );
   }
@@ -139,16 +162,18 @@ const MediaItem = memo(function MediaItem({
         ref={mediaRef}
         className="media-item relative h-full w-full flex justify-center items-center"
       >
-        <VideoPlayer
-          src={videoSrc}
-          mediaFile={mediaFile}
-          isActive={isActive}
-          onLoadingChange={handleLoadingChange}
-          isLoading={isLoading}
-          videoRef={videoRef}
-          slideshowStartTime={slideshowStartTime}
-          isSlideshow={isSlideshow}
-        />
+        <div className="media-canvas relative" style={canvasStyle}>
+          <VideoPlayer
+            src={videoSrc}
+            mediaFile={mediaFile}
+            isActive={isActive}
+            onLoadingChange={handleLoadingChange}
+            isLoading={isLoading}
+            videoRef={videoRef}
+            slideshowStartTime={slideshowStartTime}
+            isSlideshow={isSlideshow}
+          />
+        </div>
       </div>
     );
   }

@@ -6,14 +6,13 @@ import {
   lazy,
   Suspense,
 } from "react";
-import MediaViewer from "./components/MediaViewer";
+import UnifiedMediaBrowser from "./components/UnifiedMediaBrowser";
 import Navigation from "./components/Navigation";
 import SideNavigation from "./components/SideNavigation";
 import Message from "./components/Message";
 import ViewTransition from "./components/ViewTransition";
 
 const SettingsPanel = lazy(() => import("./components/SettingsPanel"));
-const GalleryView = lazy(() => import("./components/GalleryView"));
 const DebugInfo = lazy(() => import("./components/DebugInfo"));
 import { useKeyboardNavigation } from "./hooks/useKeyboardNavigation";
 import { useFavorite } from "./hooks/useFavorite";
@@ -27,7 +26,6 @@ import { isMobile } from "./utils/helpers";
 function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isTagPanelExpanded, setIsTagPanelExpanded] = useState(false);
-  const [galleryScrollPosition, setGalleryScrollPosition] = useState(0);
   const [isMobileView, setIsMobileView] = useState(isMobile());
   const settingsDrawerRef = useRef(null);
 
@@ -128,20 +126,7 @@ function App() {
           {error && <Message message={error} variant="error" />}
 
           {!loading && !error && mediaFiles.length > 0 && (
-            <ViewTransition isGalleryView={isGalleryView}>
-              <Suspense fallback={<Message message="Loading gallery..." />}>
-                <GalleryView
-                  scrollPosition={galleryScrollPosition}
-                  setScrollPosition={setGalleryScrollPosition}
-                  isVisible={isGalleryView}
-                  preload={true}
-                />
-              </Suspense>
-              <MediaViewer
-                showTagInput={isTagPanelExpanded}
-                onToggleTagInput={handleToggleTagPanel}
-              />
-            </ViewTransition>
+            <UnifiedMediaBrowser />
           )}
 
           {!loading && !error && mediaFiles.length === 0 && (

@@ -7,9 +7,11 @@ import React, {
   useMemo,
   useRef,
 } from "react";
+import { flushSync } from "react-dom";
 import { useURLSettings } from "../hooks/useURLSettings";
 
 import { URL_PARAMS, encodeSettingsToURL } from "../utils/urlParams";
+import { startViewTransition } from "../utils/viewTransition";
 
 // Split contexts for granular re-render control
 const CurrentMediaContext = createContext();
@@ -430,13 +432,22 @@ export const MediaProvider = ({ children }) => {
   );
 
   const toggleGallery = useCallback(() => {
-    updateSetting("galleryView", !galleryView);
+    startViewTransition(() => {
+      updateSetting("galleryView", !galleryView);
+    });
   }, [galleryView, updateSetting]);
 
   const selectMedia = useCallback(
     (index) => {
-      setCurrentIndex(index);
-      updateSetting("galleryView", false);
+      // Set currentIndex BEFORE startViewTransition so the clicked tile
+      // becomes `is-active` (and thus the morph source) in time for the
+      // browser's OLD snapshot. If we set both inside the transition, the
+      // OLD snapshot would still pair to whichever tile was active before
+      // the click, and the morph would start from the wrong location.
+      flushSync(() => setCurrentIndex(index));
+      startViewTransition(() => {
+        updateSetting("galleryView", false);
+      });
     },
     [updateSetting],
   );
