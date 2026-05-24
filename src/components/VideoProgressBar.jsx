@@ -155,7 +155,7 @@ function VideoProgressBar({ videoElement, variant = "bar" }) {
     <div
       className={
         isPill
-          ? "flex h-8 w-full items-center gap-2 rounded-xl bg-black-shades-700 px-3 text-white shadow-sm"
+          ? "flex h-8 w-full items-center gap-2 rounded-xl bg-black/60 px-3 text-white shadow-sm backdrop-blur-md"
           : "video-progress-wrapper w-full flex items-center gap-3"
       }
     >
@@ -165,7 +165,7 @@ function VideoProgressBar({ videoElement, variant = "bar" }) {
         {formatTime(currentTime)}
       </span>
       <div
-        className={`${isPill ? "h-2" : "h-3"} video-progress-container flex-1 bg-black-shades-600 rounded-full overflow-hidden cursor-pointer`}
+        className={`${isPill ? "h-2" : "h-3"} video-progress-container flex-1 bg-white/20 rounded-full overflow-hidden cursor-pointer`}
         onMouseDown={handleStart}
         onTouchStart={handleStart}
       >

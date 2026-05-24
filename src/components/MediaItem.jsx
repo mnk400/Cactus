@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from "react";
 import { useAudio } from "../context/MediaContext";
+import VideoChrome from "./VideoChrome";
 
 const MediaItem = memo(function MediaItem({
   mediaFile,
@@ -8,6 +9,7 @@ const MediaItem = memo(function MediaItem({
   getPreloadedMedia,
   slideshowStartTime = 0,
   isSlideshow = false,
+  containerAR = null,
 }) {
   const mediaRef = useRef(null);
   const videoRef = useRef(null);
@@ -101,32 +103,27 @@ const MediaItem = memo(function MediaItem({
     mediaFile.width && mediaFile.height
       ? mediaFile.width / mediaFile.height
       : undefined;
-  // Container query units + min() pre-clamps width to whichever container
-  // dimension is the binding constraint, so aspect-ratio derives the other
-  // dim cleanly without the browser violating the ratio. Requires
-  // `container-type: size` on the wrapping .media-item (set inline below).
-  const canvasStyle = aspectRatio
-    ? {
-        width: `min(100cqw, 100cqh * ${aspectRatio})`,
-        aspectRatio,
-        backgroundImage: `url(${thumbnailUrl})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        viewTransitionName: isActive ? "media-active" : undefined,
-      }
-    : {
-        height: "100%",
-        width: "100%",
-        backgroundImage: `url(${thumbnailUrl})`,
-        backgroundSize: "contain",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-        viewTransitionName: isActive ? "media-active" : undefined,
-      };
-  // `media-item` is retained as a JS query hook (Navigation.jsx queries
-  // `.unified-feed-card video`, but other tooling may still rely on the class).
-  const wrapperClass =
-    "media-item absolute inset-0 flex justify-center items-center [container-type:size]";
+  // Cover when media's elongation matches the container's orientation more
+  // extremely than the container itself — i.e. media that "matches the
+  // surface" gets cropped to fill, media that "fights the surface" gets
+  // letterboxed. On portrait containers (mobile): cover for narrower-than-
+  // container media. On landscape containers (desktop): cover for wider-than-
+  // container media. Fall back to contain when we don't yet know either AR.
+  const useCover =
+    aspectRatio && containerAR
+      ? containerAR < 1
+        ? aspectRatio < containerAR
+        : aspectRatio > containerAR
+      : false;
+  const objectFitClass = useCover ? "object-cover" : "object-contain";
+  const canvasStyle = {
+    backgroundImage: `url(${thumbnailUrl})`,
+    backgroundSize: useCover ? "cover" : "contain",
+    backgroundPosition: "center",
+    backgroundRepeat: "no-repeat",
+    viewTransitionName: isActive ? "media-active" : undefined,
+  };
+  const wrapperClass = "media-item absolute inset-0";
 
   if (mediaFile.media_type === "image") {
     const preloadedImg = getPreloadedMedia(index);
@@ -136,12 +133,12 @@ const MediaItem = memo(function MediaItem({
 
     return (
       <div ref={mediaRef} className={wrapperClass}>
-        <div className="relative" style={canvasStyle}>
+        <div className="relative h-full w-full" style={canvasStyle}>
           <img
             ref={imgRef}
             src={imgSrc}
             alt="Media content"
-            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${isLoading ? "opacity-0" : "opacity-100"}`}
+            className={`absolute inset-0 h-full w-full ${objectFitClass} transition-opacity duration-300 ${isLoading ? "opacity-0" : "opacity-100"}`}
             onLoad={() => setIsLoading(false)}
             onError={(e) => {
               console.error("Failed to load image:", mediaFile.file_path);
@@ -162,7 +159,7 @@ const MediaItem = memo(function MediaItem({
 
     return (
       <div ref={mediaRef} className={wrapperClass}>
-        <div className="relative" style={canvasStyle}>
+        <div className="relative h-full w-full" style={canvasStyle}>
           <VideoPlayer
             src={videoSrc}
             mediaFile={mediaFile}
@@ -172,8 +169,10 @@ const MediaItem = memo(function MediaItem({
             videoRef={videoRef}
             slideshowStartTime={slideshowStartTime}
             isSlideshow={isSlideshow}
+            objectFitClass={objectFitClass}
           />
         </div>
+        {!isLoading && !isSlideshow && <VideoChrome videoRef={videoRef} />}
       </div>
     );
   }
@@ -199,6 +198,7 @@ const VideoPlayer = memo(function VideoPlayer({
   videoRef,
   slideshowStartTime = 0,
   isSlideshow = false,
+  objectFitClass = "object-contain",
 }) {
   const [isPaused, setIsPaused] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
@@ -392,7 +392,7 @@ const VideoPlayer = memo(function VideoPlayer({
         muted={isMuted}
         playsInline
         preload="auto"
-        className={`max-h-full max-w-full object-cover ${isSlideshow ? "" : "cursor-pointer"} ${isPaused && !isSlideshow ? "filter brightness-50" : ""} ${isLoading ? "opacity-0" : "opacity-100"} transition-opacity duration-300`}
+        className={`h-full w-full ${objectFitClass} ${isSlideshow ? "" : "cursor-pointer"} ${isPaused && !isSlideshow ? "filter brightness-50" : ""} ${isLoading ? "opacity-0" : "opacity-100"} transition-opacity duration-300`}
         onClick={isSlideshow ? undefined : togglePlayPause}
         onError={() => console.error("Video load error:", mediaFile.file_path)}
       />

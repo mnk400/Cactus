@@ -164,6 +164,7 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
   const isProgrammaticScrollRef = useRef(false);
   const didUpdateIndexFromFeedRef = useRef(false);
   const [feedHeight, setFeedHeight] = useState(0);
+  const [feedWidth, setFeedWidth] = useState(0);
   const [galleryWidth, setGalleryWidth] = useState(0);
   const columnCount = getColumnCount(galleryWidth);
 
@@ -182,6 +183,7 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
 
     const updateSize = () => {
       setFeedHeight(feed.clientHeight || window.innerHeight);
+      setFeedWidth(feed.clientWidth || window.innerWidth);
     };
 
     const observer = new ResizeObserver(updateSize);
@@ -383,8 +385,6 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
             return (
               <section
                 key={mediaFile.file_hash}
-                // `unified-feed-item` + `is-active` are JS query hooks
-                // (Navigation.jsx, StatusPillRow.jsx) — not style hooks.
                 // `scroll-snap-stop: always` guarantees the scroller lands on
                 // exactly one item, so Math.round(scrollTop / feedHeight) is
                 // always a valid index.
@@ -405,6 +405,9 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
                         actualIndex === currentIndex ? slideshowStartTime : 0
                       }
                       isSlideshow={slideshowActive}
+                      containerAR={
+                        feedWidth && feedHeight ? feedWidth / feedHeight : null
+                      }
                     />
                   </div>
                 )}

@@ -11,6 +11,7 @@ import UnifiedMediaBrowser from "./components/UnifiedMediaBrowser";
 import Navigation from "./components/Navigation";
 import SideNavigation from "./components/SideNavigation";
 import Message from "./components/Message";
+import MediaSourceBadge from "./components/MediaSourceBadge";
 
 const SettingsPanel = lazy(() => import("./components/SettingsPanel"));
 const DebugInfo = lazy(() => import("./components/DebugInfo"));
@@ -25,7 +26,7 @@ import { isMobile } from "./utils/helpers";
 
 function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isTagPanelExpanded, setIsTagPanelExpanded] = useState(false);
+  const [expandedPanel, setExpandedPanel] = useState("none"); // 'none' | 'filters' | 'tags'
   const [isMobileView, setIsMobileView] = useState(isMobile());
   const settingsDrawerRef = useRef(null);
 
@@ -39,18 +40,14 @@ function App() {
   useKeyboardNavigation(
     useCallback(
       (direction) => {
-        if (mediaFiles.length > 0 && !isTagPanelExpanded) {
+        if (mediaFiles.length > 0 && expandedPanel === "none") {
           navigate(direction);
         }
       },
-      [mediaFiles.length, isTagPanelExpanded, navigate],
+      [mediaFiles.length, expandedPanel, navigate],
     ),
     { onToggleSlideshow: toggleSlideshow },
   );
-
-  const handleToggleTagPanel = useCallback((show) => {
-    setIsTagPanelExpanded((prev) => (typeof show === "boolean" ? show : !prev));
-  }, []);
 
   const handleToggleSettings = useCallback(() => {
     setIsSettingsOpen((prev) => !prev);
@@ -101,21 +98,32 @@ function App() {
     }
   }, [isSettingsOpen, isMobileView]);
 
+  // Nav clearance — so absolutely-positioned media wrappers (and video chrome
+  // inside them) sit above the fixed bottom nav. Inlined into the container's
+  // style so it's correct on first paint, before UnifiedMediaBrowser measures
+  // feedHeight; otherwise the first measurement uses the unset (0) fallback
+  // and the ResizeObserver doesn't reliably fire on CSS-variable changes.
+  const navVisible = !slideshowActive && (!isSettingsOpen || !isMobileView);
+  const navClearance = navVisible
+    ? "calc(4rem + env(safe-area-inset-bottom, 0px))"
+    : "0px";
+
   const isDesktop = !isMobileView;
 
   return (
     <>
-      <div className="container flex flex-col h-screen w-full max-w-full shadow-2xl overflow-hidden bg-black text-gray-200">
+      <div
+        className="container flex flex-col w-full max-w-full shadow-2xl overflow-hidden bg-black text-gray-200"
+        style={{ "--nav-clearance": navClearance, height: "100dvh" }}
+      >
         <Suspense fallback={null}>
           <DebugInfo show={debugMode} />
         </Suspense>
 
         <div
-          className={`media-container flex-1 relative overflow-hidden bg-black`}
+          className={`media-container relative overflow-hidden bg-black`}
           style={{
-            paddingBottom: slideshowActive
-              ? undefined
-              : "calc(4rem + env(safe-area-inset-bottom, 0px))",
+            height: "calc(100% - var(--nav-clearance, 0px))",
             width:
               isSettingsOpen && isDesktop
                 ? "calc(100% - var(--settings-drawer-width, 0px))"
@@ -144,6 +152,8 @@ function App() {
           {(!isSettingsOpen || !isMobileView) &&
             !isGalleryView &&
             !slideshowActive && <SideNavigation />}
+
+          {!isGalleryView && !slideshowActive && <MediaSourceBadge />}
 
           {/* Desktop renders SettingsPanel always (it handles its own slide).
               Mobile wraps in a full-screen slide-up via AnimatePresence. */}
@@ -194,8 +204,8 @@ function App() {
         >
           <Navigation
             onToggleSettings={handleToggleSettings}
-            onToggleTagPanel={handleToggleTagPanel}
-            isTagPanelExpanded={isTagPanelExpanded}
+            expandedPanel={expandedPanel}
+            onSetExpandedPanel={setExpandedPanel}
             isFavorited={isFavorited}
             onToggleFavorite={toggleFavorite}
           />
