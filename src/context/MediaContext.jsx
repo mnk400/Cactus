@@ -18,6 +18,7 @@ const CurrentMediaContext = createContext();
 const AudioContext = createContext();
 const MediaDataContext = createContext();
 const SlideshowContext = createContext();
+const VideoElementContext = createContext();
 
 export const MediaProvider = ({ children }) => {
   const [mediaFiles, setMediaFiles] = useState([]);
@@ -51,6 +52,10 @@ export const MediaProvider = ({ children }) => {
   const [hasUserInteracted, setHasUserInteracted] = useState(() => {
     return localStorage.getItem("cactus-user-audio-interaction") === "true";
   });
+
+  // Active video element — set by MediaItem when a video mounts. Consumed by
+  // the hairline progress bar and top-right controls pill rendered in App.
+  const [videoElement, setVideoElement] = useState(null);
 
   // Tags state
   const [tags, setTags] = useState([]);
@@ -529,6 +534,11 @@ export const MediaProvider = ({ children }) => {
     [currentIndex, currentMediaFile],
   );
 
+  const videoElementValue = useMemo(
+    () => ({ videoElement, setVideoElement }),
+    [videoElement],
+  );
+
   // Changes only on mute/interaction toggle
   const audioValue = useMemo(
     () => ({
@@ -622,9 +632,11 @@ export const MediaProvider = ({ children }) => {
     <MediaDataContext.Provider value={mediaDataValue}>
       <CurrentMediaContext.Provider value={currentMediaValue}>
         <AudioContext.Provider value={audioValue}>
-          <SlideshowContext.Provider value={slideshowValue}>
-            {children}
-          </SlideshowContext.Provider>
+          <VideoElementContext.Provider value={videoElementValue}>
+            <SlideshowContext.Provider value={slideshowValue}>
+              {children}
+            </SlideshowContext.Provider>
+          </VideoElementContext.Provider>
         </AudioContext.Provider>
       </CurrentMediaContext.Provider>
     </MediaDataContext.Provider>
@@ -653,6 +665,14 @@ export const useCurrentMedia = () => {
 export const useAudio = () => {
   const context = useContext(AudioContext);
   if (!context) throw new Error("useAudio must be used within MediaProvider");
+  return context;
+};
+
+/** Active <video> element + setter — used by hairline progress bar and controls pill */
+export const useVideoElement = () => {
+  const context = useContext(VideoElementContext);
+  if (!context)
+    throw new Error("useVideoElement must be used within MediaProvider");
   return context;
 };
 

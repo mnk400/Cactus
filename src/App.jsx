@@ -12,6 +12,8 @@ import Navigation from "./components/Navigation";
 import SideNavigation from "./components/SideNavigation";
 import Message from "./components/Message";
 import MediaSourceBadge from "./components/MediaSourceBadge";
+import VideoChrome from "./components/VideoChrome";
+import VideoProgressBar from "./components/VideoProgressBar";
 
 const SettingsPanel = lazy(() => import("./components/SettingsPanel"));
 const DebugInfo = lazy(() => import("./components/DebugInfo"));
@@ -154,6 +156,7 @@ function App() {
             !slideshowActive && <SideNavigation />}
 
           {!isGalleryView && !slideshowActive && <MediaSourceBadge />}
+          {!isGalleryView && !slideshowActive && <VideoChrome />}
 
           {/* Desktop renders SettingsPanel always (it handles its own slide).
               Mobile wraps in a full-screen slide-up via AnimatePresence. */}
@@ -202,6 +205,7 @@ function App() {
             viewTransitionName: "nav-bar",
           }}
         >
+          <VideoProgressBar />
           <Navigation
             onToggleSettings={handleToggleSettings}
             expandedPanel={expandedPanel}

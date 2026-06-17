@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from "react";
-import { useAudio } from "../context/MediaContext";
-import VideoChrome from "./VideoChrome";
+import { useAudio, useVideoElement } from "../context/MediaContext";
 
 const MediaItem = memo(function MediaItem({
   mediaFile,
@@ -27,6 +26,20 @@ const MediaItem = memo(function MediaItem({
   const handleLoadingChange = useCallback((loading) => {
     setIsLoading(loading);
   }, []);
+
+  // Publish the active video element to context so the hairline progress bar
+  // and top-right controls pill (rendered in App) can reach it.
+  const { setVideoElement } = useVideoElement();
+  const isVideoActive =
+    isActive && !isLoading && !isSlideshow && mediaFile?.media_type === "video";
+  useEffect(() => {
+    if (!isVideoActive) return;
+    const el = videoRef.current;
+    setVideoElement(el);
+    return () => {
+      setVideoElement((curr) => (curr === el ? null : curr));
+    };
+  }, [isVideoActive, setVideoElement]);
 
   // Check if media is already preloaded when component becomes active
   useEffect(() => {
@@ -172,7 +185,6 @@ const MediaItem = memo(function MediaItem({
             objectFitClass={objectFitClass}
           />
         </div>
-        {!isLoading && !isSlideshow && <VideoChrome videoRef={videoRef} />}
       </div>
     );
   }
