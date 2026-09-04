@@ -1,5 +1,4 @@
 import { useState, useCallback, lazy, Suspense } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import UnifiedMediaBrowser from "./components/UnifiedMediaBrowser";
 import ControlRail from "./components/ControlRail";
 import Message from "./components/Message";
@@ -149,48 +148,6 @@ function App() {
               </div>
             </div>
           )}
-
-          {/* Settings: desktop right drawer (with scrim) / mobile slide-up */}
-          {isDesktop ? (
-            <>
-              {isSettingsOpen && (
-                <div
-                  className="fixed inset-0 z-40 bg-black/40"
-                  onClick={handleCloseSettings}
-                />
-              )}
-              <Suspense fallback={null}>
-                <SettingsPanel
-                  isOpen={isSettingsOpen}
-                  onClose={handleCloseSettings}
-                />
-              </Suspense>
-            </>
-          ) : (
-            <AnimatePresence>
-              {isSettingsOpen && (
-                <motion.div
-                  className="fixed inset-0 z-50"
-                  initial={{ y: "100%", opacity: 0.8 }}
-                  animate={{ y: "0%", opacity: 1 }}
-                  exit={{ y: "100%", opacity: 0.8 }}
-                  transition={{
-                    type: "spring",
-                    stiffness: 300,
-                    damping: 32,
-                    mass: 0.7,
-                  }}
-                >
-                  <Suspense fallback={null}>
-                    <SettingsPanel
-                      isOpen={isSettingsOpen}
-                      onClose={handleCloseSettings}
-                    />
-                  </Suspense>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          )}
         </div>
       </div>
 
@@ -216,6 +173,10 @@ function App() {
           />
         </div>
       )}
+
+      <Suspense fallback={null}>
+        <SettingsPanel isOpen={isSettingsOpen} onClose={handleCloseSettings} />
+      </Suspense>
 
       <FilterPanel
         isOpen={isFilterOpen}

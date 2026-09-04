@@ -1,16 +1,24 @@
-import { useState, useEffect, memo } from "react";
+import { memo, useState } from "react";
 import TagManager from "./TagManager";
+import {
+  PanelButton,
+  PanelSection,
+  ResponsivePanel,
+  SegmentedControl,
+} from "./ui/Panel";
 import { useMediaData, useSlideshowState } from "../context/MediaContext";
-import { isMobile } from "../utils/helpers";
+
+const SLIDESHOW_SPEEDS = [
+  { value: "slow", label: "Slow" },
+  { value: "normal", label: "Normal" },
+  { value: "fast", label: "Fast" },
+];
 
 const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
-  const [showTagManager, setShowTagManager] = useState(false);
-  const [shouldAnimate, setShouldAnimate] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
-
+  const [showTagManager, setShowTagManager] = useState(false);
   const { slideshowSpeed, startSlideshow, setSlideshowSpeed } =
     useSlideshowState();
-
   const {
     settings,
     allMediaFiles,
@@ -31,9 +39,19 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
     deleteTag,
   } = useMediaData();
 
-  const { selectedTags, excludedTags } = settings;
+  const closeSettings = () => {
+    setShowTagManager(false);
+    onClose();
+  };
 
-  // Statistics
+  const handleDeleteTag = async (id) => {
+    await deleteTag(id);
+    setFilters({
+      selectedTags: settings.selectedTags.filter((tag) => tag.id !== id),
+      excludedTags: settings.excludedTags.filter((tag) => tag.id !== id),
+    });
+  };
+
   const totalFiles = allMediaFiles.length;
   const totalPhotos = allMediaFiles.filter(
     (file) => file.media_type === "image",
@@ -41,272 +59,192 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
   const totalVideos = allMediaFiles.filter(
     (file) => file.media_type === "video",
   ).length;
-  const photoPercentage =
-    totalFiles > 0 ? Math.round((totalPhotos / totalFiles) * 100) : 0;
-  const videoPercentage =
-    totalFiles > 0 ? Math.round((totalVideos / totalFiles) * 100) : 0;
-
-  const getToggleClass = (isActive) => {
-    const base =
-      "flex-1 border-none py-2 px-3 rounded-xl cursor-pointer text-sm font-medium transition-colors duration-200 ease-in-out active:scale-95";
-    return isActive
-      ? `${base} bg-white bg-opacity-20 text-white shadow-lg`
-      : `${base} bg-black bg-opacity-50 hover:bg-white hover:bg-opacity-20 text-gray-300`;
-  };
-
-  const handleCreateTag = async (name, color) => {
-    try {
-      await createTag(name, color);
-    } catch (error) {
-      console.error("Failed to create tag:", error);
-    }
-  };
-
-  const handleUpdateTag = async (id, name, color) => {
-    try {
-      await updateTag(id, name, color);
-    } catch (error) {
-      console.error("Failed to update tag:", error);
-    }
-  };
-
-  const handleDeleteTag = async (id) => {
-    try {
-      await deleteTag(id);
-      setFilters({
-        selectedTags: selectedTags.filter((tag) => tag.id !== id),
-        excludedTags: excludedTags.filter((tag) => tag.id !== id),
-      });
-    } catch (error) {
-      console.error("Failed to delete tag:", error);
-    }
-  };
-
-  const directoryName =
+  const photoPercentage = totalFiles
+    ? Math.round((totalPhotos / totalFiles) * 100)
+    : 0;
+  const videoPercentage = totalFiles
+    ? Math.round((totalVideos / totalFiles) * 100)
+    : 0;
+  const sourceName =
     config?.provider?.config?.directoryPath ||
     config?.provider?.config?.sbUrl ||
     "";
 
-  const isDesktop = !isMobile();
-
-  // Handle animation timing for desktop drawer
-  useEffect(() => {
-    if (isDesktop && isOpen) {
-      queueMicrotask(() => setShouldAnimate(false));
-      requestAnimationFrame(() => {
-        setShouldAnimate(true);
-      });
-    } else if (isDesktop && !isOpen) {
-      queueMicrotask(() => setShouldAnimate(false));
-    }
-  }, [isOpen, isDesktop]);
-
-  if (!isOpen && !isDesktop) return null;
+  const title = showTagManager ? "Manage tags" : "Settings";
 
   return (
-    <div
-      className={`fixed bg-black-shades-900 px-4 py-4 md:p-6 text-gray-200 z-50 overflow-y-auto safe-area-top safe-area-bottom ${
-        isDesktop ? "top-0 right-0 bottom-0 w-[420px] lg:w-[450px]" : "inset-0"
-      }`}
-      style={
-        isDesktop
-          ? {
-              paddingTop: "1rem",
-              transform: shouldAnimate ? "translateX(0)" : "translateX(100%)",
-              transition: "transform 300ms cubic-bezier(0.4, 0, 0.2, 1)",
-              pointerEvents: isOpen ? "auto" : "none",
-            }
-          : {}
-      }
+    <ResponsivePanel
+      isOpen={isOpen}
+      onClose={closeSettings}
+      onBack={showTagManager ? () => setShowTagManager(false) : undefined}
+      title={title}
     >
-      {/* Header */}
-      <div className="flex justify-between items-center mb-4 max-w-4xl mx-auto">
-        <h3 className="text-lg font-semibold text-white m-0">Settings</h3>
-        <button
-          onClick={() => onClose()}
-          className="rounded-xl bg-black-shades-700 px-3 py-1.5 text-sm font-medium text-gray-200 transition-colors duration-150 hover:bg-white/20"
-          aria-label="Close settings"
-        >
-          Close
-        </button>
-      </div>
-
-      <div className="max-w-4xl mx-auto">
-        {/* Library Overview — collapsible */}
-        <div className="mb-4 p-3 bg-black-shades-800 rounded-2xl">
-          <button
-            onClick={() => setShowLibrary((prev) => !prev)}
-            className="w-full flex items-center justify-between text-left"
-          >
-            <h4 className="text-base font-medium text-white m-0">
-              Library Overview
-            </h4>
-            <svg
-              className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${showLibrary ? "rotate-180" : ""}`}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
-          </button>
-
-          {showLibrary && (
-            <div className="mt-3">
-              {ui.showDirectoryInfo && directoryName && (
-                <div className="mb-3 p-2 bg-black-shades-700 rounded-lg">
-                  <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">
-                    {ui.directoryLabel || "Directory"}
-                  </div>
-                  <div className="text-xs font-mono text-gray-200 break-all leading-tight">
-                    {directoryName}
-                  </div>
-                  {ui.showConnectionStatus && (
-                    <div className="text-xs text-green-400 mt-1">
-                      ✓ Connected
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="grid grid-cols-3 gap-2 text-center mb-3">
-                <div className="p-2 bg-black-shades-700 rounded-lg">
-                  <div className="text-base font-bold text-white">
-                    {totalFiles}
-                  </div>
-                  <div className="text-xs text-gray-400 uppercase tracking-wide">
-                    Total
-                  </div>
-                </div>
-                <div className="p-2 bg-black-shades-700 rounded-lg">
-                  <div className="text-base font-bold text-gray-200">
-                    {totalPhotos}
-                  </div>
-                  <div className="text-xs text-gray-300 uppercase tracking-wide">
-                    Photos
-                  </div>
-                </div>
-                <div className="p-2 bg-black-shades-700 rounded-lg">
-                  <div className="text-base font-bold text-gray-200">
-                    {totalVideos}
-                  </div>
-                  <div className="text-xs text-gray-300 uppercase tracking-wide">
-                    Videos
-                  </div>
-                </div>
-              </div>
-
-              {totalFiles > 0 && (
-                <div>
-                  <div className="flex h-1.5 bg-black-shades-600 rounded-full overflow-hidden">
-                    <div
-                      className="bg-white bg-opacity-60"
-                      style={{ width: `${photoPercentage}%` }}
-                    />
-                    <div
-                      className="bg-black-shades-400 bg-opacity-80"
-                      style={{ width: `${videoPercentage}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-xs text-gray-400 mt-1">
-                    <span>Photos {photoPercentage}%</span>
-                    <span>Videos {videoPercentage}%</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Slideshow */}
-        <div className="mb-4 p-3 bg-black-shades-800 rounded-2xl">
-          <h4 className="text-base font-medium text-white mb-3">Slideshow</h4>
-          <div className="space-y-3">
-            <div>
-              <div className="text-xs text-gray-400 uppercase tracking-wide mb-2">
-                Speed
-              </div>
-              <div className="flex gap-2">
-                {["slow", "normal", "fast"].map((speed) => (
-                  <button
-                    key={speed}
-                    onClick={() => setSlideshowSpeed(speed)}
-                    className={getToggleClass(slideshowSpeed === speed)}
-                  >
-                    {speed.charAt(0).toUpperCase() + speed.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <button
-              onClick={() => {
-                onClose();
-                setTimeout(() => startSlideshow(), 300);
-              }}
-              className="w-full py-2.5 rounded-xl bg-white bg-opacity-15 text-white hover:bg-opacity-25 transition-colors duration-200 font-medium"
-            >
-              Start Slideshow
-            </button>
-            <div className="text-xs text-gray-500 text-center">
-              Press S to toggle slideshow
-            </div>
-          </div>
-        </div>
-
-        {/* Actions */}
-        {!configLoading &&
-          (canManageTags || canRescan || canRegenerateThumbnails) && (
-            <div className="mb-6">
-              <h4 className="text-base font-medium text-white mb-3">Actions</h4>
-              <div className="space-y-2">
-                {canManageTags && (
-                  <button
-                    onClick={() => setShowTagManager(true)}
-                    className="w-full py-2.5 rounded-xl bg-black bg-opacity-50 text-white hover:bg-opacity-20 transition-colors duration-200"
-                  >
-                    Manage Tags
-                  </button>
-                )}
-                {canRescan && (
-                  <button
-                    onClick={rescan}
-                    disabled={isScanning}
-                    className="w-full py-2.5 rounded-xl bg-black bg-opacity-50 text-white hover:bg-opacity-20 transition-colors duration-200"
-                  >
-                    {isScanning ? "Scanning..." : "Rescan Directory"}
-                  </button>
-                )}
-                {canRegenerateThumbnails && (
-                  <button
-                    onClick={regenerateThumbnails}
-                    disabled={isRegeneratingThumbnails}
-                    className="w-full py-2.5 rounded-xl bg-black bg-opacity-50 text-white hover:bg-opacity-20 transition-colors duration-200"
-                  >
-                    {isRegeneratingThumbnails
-                      ? "Generating..."
-                      : "Regenerate All Thumbnails"}
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-      </div>
-
-      {showTagManager && canManageTags && (
+      {showTagManager ? (
         <TagManager
           tags={tags}
-          onCreateTag={handleCreateTag}
-          onUpdateTag={handleUpdateTag}
+          onCreateTag={createTag}
+          onUpdateTag={updateTag}
           onDeleteTag={handleDeleteTag}
-          onClose={() => setShowTagManager(false)}
         />
+      ) : (
+        <div className="space-y-4">
+          <PanelSection
+            title="Library overview"
+            actions={
+              <button
+                type="button"
+                aria-expanded={showLibrary}
+                aria-label={
+                  showLibrary
+                    ? "Collapse library overview"
+                    : "Expand library overview"
+                }
+                onClick={() => setShowLibrary((visible) => !visible)}
+                className="-m-2 flex h-9 w-9 items-center justify-center rounded-xl text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                <svg
+                  aria-hidden="true"
+                  className={`h-4 w-4 transition-transform ${showLibrary ? "rotate-180" : ""}`}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="m19 9-7 7-7-7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            }
+          >
+            {showLibrary ? (
+              <div className="space-y-3">
+                {ui.showDirectoryInfo && sourceName && (
+                  <div className="rounded-xl bg-black/30 p-3">
+                    <div className="mb-1 text-xs uppercase tracking-wide text-gray-500">
+                      {ui.directoryLabel || "Source"}
+                    </div>
+                    <div className="break-all font-mono text-xs leading-5 text-gray-300">
+                      {sourceName}
+                    </div>
+                    {ui.showConnectionStatus && (
+                      <div className="mt-1 text-xs text-green-400">
+                        Connected
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  {[
+                    ["Total", totalFiles],
+                    ["Photos", totalPhotos],
+                    ["Videos", totalVideos],
+                  ].map(([label, count]) => (
+                    <div key={label} className="rounded-xl bg-black/30 p-2.5">
+                      <div className="text-base font-semibold text-white">
+                        {count}
+                      </div>
+                      <div className="text-xs uppercase tracking-wide text-gray-500">
+                        {label}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {totalFiles > 0 && (
+                  <div>
+                    <div
+                      className="flex h-1.5 overflow-hidden rounded-full bg-black/40"
+                      aria-label={`${photoPercentage}% photos and ${videoPercentage}% videos`}
+                    >
+                      <div
+                        className="bg-white/60"
+                        style={{ width: `${photoPercentage}%` }}
+                      />
+                      <div
+                        className="bg-white/20"
+                        style={{ width: `${videoPercentage}%` }}
+                      />
+                    </div>
+                    <div className="mt-1 flex justify-between text-xs text-gray-500">
+                      <span>Photos {photoPercentage}%</span>
+                      <span>Videos {videoPercentage}%</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="m-0 text-sm text-gray-500">
+                {totalFiles} items in this library
+              </p>
+            )}
+          </PanelSection>
+
+          <PanelSection title="Slideshow">
+            <div className="space-y-3">
+              <SegmentedControl
+                ariaLabel="Slideshow speed"
+                value={slideshowSpeed}
+                options={SLIDESHOW_SPEEDS}
+                onChange={setSlideshowSpeed}
+              />
+              <PanelButton
+                variant="primary"
+                className="w-full"
+                onClick={() => {
+                  closeSettings();
+                  startSlideshow();
+                }}
+              >
+                Start slideshow
+              </PanelButton>
+              <p className="m-0 text-center text-xs text-gray-500">
+                Press S to toggle slideshow
+              </p>
+            </div>
+          </PanelSection>
+
+          {!configLoading &&
+            (canManageTags || canRescan || canRegenerateThumbnails) && (
+              <PanelSection title="Library actions">
+                <div className="space-y-2">
+                  {canManageTags && (
+                    <PanelButton
+                      className="w-full"
+                      onClick={() => setShowTagManager(true)}
+                    >
+                      Manage tags
+                    </PanelButton>
+                  )}
+                  {canRescan && (
+                    <PanelButton
+                      className="w-full"
+                      disabled={isScanning}
+                      onClick={rescan}
+                    >
+                      {isScanning ? "Scanning…" : "Rescan directory"}
+                    </PanelButton>
+                  )}
+                  {canRegenerateThumbnails && (
+                    <PanelButton
+                      className="w-full"
+                      disabled={isRegeneratingThumbnails}
+                      onClick={regenerateThumbnails}
+                    >
+                      {isRegeneratingThumbnails
+                        ? "Generating…"
+                        : "Regenerate thumbnails"}
+                    </PanelButton>
+                  )}
+                </div>
+              </PanelSection>
+            )}
+        </div>
       )}
-    </div>
+    </ResponsivePanel>
   );
 });
 

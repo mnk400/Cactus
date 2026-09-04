@@ -1,226 +1,167 @@
-import React, { useState } from "react";
+import { useState } from "react";
+import { PanelButton, PanelSection } from "./ui/Panel";
 
-const TagManager = ({
-  tags = [],
-  onCreateTag,
-  onUpdateTag,
-  onDeleteTag,
-  onClose,
-}) => {
+const FIELD_CLASS =
+  "min-w-0 rounded-xl bg-black/35 px-3 py-2 text-sm text-white outline-none ring-white/30 placeholder:text-gray-500 focus:ring-2";
+
+function TagManager({ tags = [], onCreateTag, onUpdateTag, onDeleteTag }) {
   const [newTagName, setNewTagName] = useState("");
-  const [newTagColor, setNewTagColor] = useState("#3B82F6");
+  const [newTagColor, setNewTagColor] = useState("#3b82f6");
   const [editingTag, setEditingTag] = useState(null);
   const [editName, setEditName] = useState("");
-  const [editColor, setEditColor] = useState("#3B82F6");
+  const [editColor, setEditColor] = useState("#3b82f6");
 
-  const handleCreateTag = (e) => {
-    e.preventDefault();
-    if (newTagName.trim() && onCreateTag) {
-      onCreateTag(newTagName.trim(), newTagColor);
+  const createTag = async (event) => {
+    event.preventDefault();
+    const name = newTagName.trim();
+    if (!name) return;
+
+    try {
+      await onCreateTag?.(name, newTagColor);
       setNewTagName("");
-      setNewTagColor("#3B82F6");
+    } catch (error) {
+      console.error("Failed to create tag:", error);
     }
   };
 
-  const handleEditTag = (tag) => {
+  const startEditing = (tag) => {
     setEditingTag(tag.id);
     setEditName(tag.name);
-    setEditColor(tag.color);
+    setEditColor(tag.color || "#3b82f6");
   };
 
-  const handleUpdateTag = (e) => {
-    e.preventDefault();
-    if (editName.trim() && onUpdateTag && editingTag) {
-      onUpdateTag(editingTag, editName.trim(), editColor);
-      setEditingTag(null);
-      setEditName("");
-      setEditColor("#3B82F6");
-    }
-  };
-
-  const handleCancelEdit = () => {
+  const stopEditing = () => {
     setEditingTag(null);
     setEditName("");
-    setEditColor("#3B82F6");
   };
 
-  const handleDeleteTag = (tagId) => {
-    if (
-      window.confirm(
-        "Are you sure you want to delete this tag? It will be removed from all media files.",
-      )
-    ) {
-      onDeleteTag(tagId);
+  const updateTag = async (event) => {
+    event.preventDefault();
+    const name = editName.trim();
+    if (!name || !editingTag) return;
+
+    try {
+      await onUpdateTag?.(editingTag, name, editColor);
+      stopEditing();
+    } catch (error) {
+      console.error("Failed to update tag:", error);
     }
   };
 
-  const colorOptions = [
-    "#3B82F6", // Blue
-    "#22C55E", // Green
-    "#EF4444", // Red
-    "#F59E0B", // Yellow
-    "#8B5CF6", // Purple
-    "#EC4899", // Pink
-    "#06B6D4", // Cyan
-    "#84CC16", // Lime
-    "#F97316", // Orange
-    "#6B7280", // Gray
-  ];
+  const deleteTag = async (tagId) => {
+    const confirmed = window.confirm(
+      "Delete this tag from every media item? This cannot be undone.",
+    );
+    if (!confirmed) return;
+
+    try {
+      await onDeleteTag?.(tagId);
+    } catch (error) {
+      console.error("Failed to delete tag:", error);
+    }
+  };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-black-shades-900 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-white">Manage Tags</h2>
-            <button
-              onClick={onClose}
-              className="px-3 py-1 bg-red-400 text-white rounded-lg hover:bg-red-500 transition-colors duration-200"
-            >
-              Close
-            </button>
-          </div>
+    <div className="space-y-4">
+      <PanelSection title="Create a tag">
+        <form className="flex items-center gap-2" onSubmit={createTag}>
+          <input
+            data-panel-autofocus
+            type="text"
+            value={newTagName}
+            onChange={(event) => setNewTagName(event.target.value)}
+            placeholder="Tag name"
+            aria-label="Tag name"
+            className={`${FIELD_CLASS} flex-1`}
+          />
+          <input
+            type="color"
+            value={newTagColor}
+            onChange={(event) => setNewTagColor(event.target.value)}
+            aria-label="Tag color"
+            className="h-10 w-10 shrink-0 cursor-pointer rounded-xl border-0 bg-transparent p-0"
+          />
+          <PanelButton type="submit" variant="primary">
+            Create
+          </PanelButton>
+        </form>
+      </PanelSection>
 
-          {/* Create New Tag */}
-          <div className="mb-6 p-4 bg-black bg-opacity-40 backdrop-blur-sm rounded-2xl">
-            <h3 className="text-lg font-medium text-white mb-3">
-              Create New Tag
-            </h3>
-            <form onSubmit={handleCreateTag} className="flex gap-3">
-              <input
-                type="text"
-                value={newTagName}
-                onChange={(e) => setNewTagName(e.target.value)}
-                placeholder="Tag name"
-                className="flex-1 px-3 py-2 bg-black bg-opacity-50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
-              />
-              <select
-                value={newTagColor}
-                onChange={(e) => setNewTagColor(e.target.value)}
-                className="px-3 py-2 bg-black bg-opacity-50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
-              >
-                {colorOptions.map((color) => (
-                  <option
-                    key={color}
-                    value={color}
-                    className="bg-black-shades-800"
-                  >
-                    {color}
-                  </option>
-                ))}
-              </select>
-              <div
-                className="w-10 h-10 rounded-xl"
-                style={{ backgroundColor: newTagColor }}
-              ></div>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-              >
-                Create
-              </button>
-            </form>
-          </div>
-
-          {/* Existing Tags */}
-          <div>
-            <h3 className="text-lg font-medium text-white mb-3">
-              Existing Tags ({tags.length})
-            </h3>
-            {tags.length === 0 ? (
-              <p className="text-gray-400 text-center py-8">
-                No tags created yet
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {tags.map((tag) => (
-                  <div
-                    key={tag.id}
-                    className="flex items-center justify-between p-3 bg-black bg-opacity-30 backdrop-blur-sm rounded-xl"
-                  >
-                    {editingTag === tag.id ? (
-                      <form
-                        onSubmit={handleUpdateTag}
-                        className="flex-1 flex gap-3"
-                      >
-                        <input
-                          type="text"
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          className="flex-1 px-3 py-1 bg-black bg-opacity-50 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
-                        />
-                        <select
-                          value={editColor}
-                          onChange={(e) => setEditColor(e.target.value)}
-                          className="px-2 py-1 bg-black bg-opacity-50 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
-                        >
-                          {colorOptions.map((color) => (
-                            <option
-                              key={color}
-                              value={color}
-                              className="bg-black-shades-800"
-                            >
-                              {color}
-                            </option>
-                          ))}
-                        </select>
-                        <div
-                          className="w-8 h-8 rounded"
-                          style={{ backgroundColor: editColor }}
-                        ></div>
-                        <button
-                          type="submit"
-                          className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-colors duration-200 text-sm"
-                        >
-                          Save
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleCancelEdit}
-                          className="px-3 py-1 bg-black-shades-600 hover:bg-black-shades-700 text-white rounded-xl transition-colors duration-200 text-sm"
-                        >
-                          Cancel
-                        </button>
-                      </form>
-                    ) : (
-                      <>
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="w-4 h-4 rounded"
-                            style={{ backgroundColor: tag.color }}
-                          ></div>
-                          <span className="font-medium text-white">
-                            {tag.name}
-                          </span>
-                          <span className="text-sm text-gray-400">
-                            ({tag.usage_count} files)
-                          </span>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleEditTag(tag)}
-                            className="px-3 py-1 text-sm text-blue-400 hover:text-blue-300 focus:outline-none transition-colors duration-200"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDeleteTag(tag.id)}
-                            className="px-3 py-1 bg-red-400 hover:bg-red-500 text-white rounded-lg transition-colors duration-200 text-sm"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </>
-                    )}
+      <PanelSection title={`Existing tags · ${tags.length}`}>
+        {tags.length === 0 ? (
+          <p className="m-0 py-6 text-center text-sm text-gray-500">
+            No tags created yet
+          </p>
+        ) : (
+          <div className="divide-y divide-white/5">
+            {tags.map((tag) =>
+              editingTag === tag.id ? (
+                <form
+                  key={tag.id}
+                  className="space-y-2 py-3 first:pt-0 last:pb-0"
+                  onSubmit={updateTag}
+                >
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(event) => setEditName(event.target.value)}
+                      aria-label={`Rename ${tag.name}`}
+                      className={`${FIELD_CLASS} flex-1`}
+                    />
+                    <input
+                      type="color"
+                      value={editColor}
+                      onChange={(event) => setEditColor(event.target.value)}
+                      aria-label={`${tag.name} color`}
+                      className="h-10 w-10 shrink-0 cursor-pointer rounded-xl border-0 bg-transparent p-0"
+                    />
                   </div>
-                ))}
-              </div>
+                  <div className="flex justify-end gap-2">
+                    <PanelButton onClick={stopEditing}>Cancel</PanelButton>
+                    <PanelButton type="submit" variant="primary">
+                      Save
+                    </PanelButton>
+                  </div>
+                </form>
+              ) : (
+                <div
+                  key={tag.id}
+                  className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="h-3.5 w-3.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: tag.color }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium text-white">
+                      {tag.name}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {tag.usage_count || 0} items
+                    </div>
+                  </div>
+                  <PanelButton
+                    variant="ghost"
+                    onClick={() => startEditing(tag)}
+                  >
+                    Edit
+                  </PanelButton>
+                  <PanelButton
+                    variant="danger"
+                    onClick={() => deleteTag(tag.id)}
+                  >
+                    Delete
+                  </PanelButton>
+                </div>
+              ),
             )}
           </div>
-        </div>
-      </div>
+        )}
+      </PanelSection>
     </div>
   );
-};
+}
 
 export default TagManager;
