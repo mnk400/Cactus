@@ -653,7 +653,7 @@ class MediaDatabase {
       );
       const result = stmt.get("version");
       return result ? result.value : "unknown";
-    } catch (error) {
+    } catch {
       return "unknown";
     }
   }

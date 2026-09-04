@@ -86,33 +86,36 @@ function FieldRenderer({ field }) {
 
 const MediaInfo = memo(function MediaInfo() {
   const { currentMediaFile } = useCurrentMedia();
-  const [info, setInfo] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [result, setResult] = useState({ hash: null, info: null, error: null });
   const [isExpanded, setIsExpanded] = useState(false);
+  const currentHash = currentMediaFile?.file_hash;
 
   useEffect(() => {
-    if (!isExpanded || !currentMediaFile?.file_hash) {
-      return;
-    }
+    if (!isExpanded || !currentHash) return undefined;
 
-    setLoading(true);
-    setError(null);
-
-    fetch(`/api/media/${encodeURIComponent(currentMediaFile.file_hash)}/info`)
+    const controller = new AbortController();
+    fetch(`/api/media/${encodeURIComponent(currentHash)}/info`, {
+      signal: controller.signal,
+    })
       .then((res) => {
         if (!res.ok) throw new Error("Failed to fetch media info");
         return res.json();
       })
-      .then((data) => {
-        setInfo(data);
-        setLoading(false);
-      })
+      .then((info) => setResult({ hash: currentHash, info, error: null }))
       .catch((err) => {
-        setError(err.message);
-        setLoading(false);
+        if (err.name !== "AbortError") {
+          setResult({ hash: currentHash, info: null, error: err.message });
+        }
       });
-  }, [currentMediaFile?.file_hash, isExpanded]);
+
+    return () => controller.abort();
+  }, [currentHash, isExpanded]);
+
+  const loading = Boolean(
+    isExpanded && currentHash && result.hash !== currentHash,
+  );
+  const info = result.hash === currentHash ? result.info : null;
+  const error = result.hash === currentHash ? result.error : null;
 
   return (
     <div className="media-info-section mb-4 p-3 bg-black bg-opacity-40 rounded-2xl">

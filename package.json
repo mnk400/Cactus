@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "start": "bun run build && bun src/server.js $@",
     "start:dev": "./dev-server.sh",
-    "test": "echo \"No tests specified\" && exit 0",
+    "test": "bun test",
     "format": "prettier --write .",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"

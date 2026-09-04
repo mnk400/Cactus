@@ -1,38 +1,38 @@
 import { useState, useEffect, useRef, useCallback, memo } from "react";
-import { isMobile } from "../utils/helpers";
+import { useIsDesktop } from "../hooks/useIsDesktop";
 
 const SlideshowOverlay = memo(function SlideshowOverlay({ onExit }) {
   const [showControls, setShowControls] = useState(true);
   const hideTimerRef = useRef(null);
-  const mobile = isMobile();
+  const isDesktop = useIsDesktop();
 
   const resetHideTimer = useCallback(() => {
-    if (mobile) return; // Always show on mobile
+    if (!isDesktop) return;
     setShowControls(true);
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     hideTimerRef.current = setTimeout(() => {
       setShowControls(false);
     }, 2000);
-  }, [mobile]);
+  }, [isDesktop]);
 
   // Start the auto-hide timer on mount (desktop only)
   useEffect(() => {
-    if (mobile) return;
-    resetHideTimer();
+    if (!isDesktop) return undefined;
+    hideTimerRef.current = setTimeout(() => setShowControls(false), 2000);
     return () => {
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     };
-  }, [resetHideTimer, mobile]);
+  }, [isDesktop]);
 
   // Show controls on mouse movement (desktop only)
   useEffect(() => {
-    if (mobile) return;
+    if (!isDesktop) return undefined;
     const handleInteraction = () => resetHideTimer();
     document.addEventListener("mousemove", handleInteraction);
     return () => {
       document.removeEventListener("mousemove", handleInteraction);
     };
-  }, [resetHideTimer, mobile]);
+  }, [resetHideTimer, isDesktop]);
 
   // Exit slideshow on Escape key
   useEffect(() => {

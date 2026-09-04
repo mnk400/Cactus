@@ -23,7 +23,7 @@ class MediaSourceProvider {
    * @param {Object} args - Command line arguments
    * @returns {Object} Validation result with success status and error message
    */
-  static validateConfig(args) {
+  static validateConfig(_args) {
     throw new Error("Method validateConfig() must be implemented by subclass");
   }
 
@@ -60,7 +60,7 @@ class MediaSourceProvider {
    * @param {string} filters.search - Substring match on file paths
    * @returns {Promise<Array>} Array of media items
    */
-  async getMedia(filters = {}) {
+  async getMedia(_filters = {}) {
     throw new Error("Method getMedia() must be implemented by subclass");
   }
 
@@ -93,7 +93,7 @@ class MediaSourceProvider {
    * @param {string} color - Tag color (hex code)
    * @returns {Promise<Object>} Created tag
    */
-  async createTag(name, color) {
+  async createTag(_name, _color) {
     throw new Error("Method createTag() must be implemented by subclass");
   }
 
@@ -104,7 +104,7 @@ class MediaSourceProvider {
    * @param {string} color - New tag color (hex code)
    * @returns {Promise<Object>} Updated tag
    */
-  async updateTag(id, name, color) {
+  async updateTag(_id, _name, _color) {
     throw new Error("Method updateTag() must be implemented by subclass");
   }
 
@@ -113,7 +113,7 @@ class MediaSourceProvider {
    * @param {string|number} id - Tag ID
    * @returns {Promise<boolean>} Success status
    */
-  async deleteTag(id) {
+  async deleteTag(_id) {
     throw new Error("Method deleteTag() must be implemented by subclass");
   }
 
@@ -122,7 +122,7 @@ class MediaSourceProvider {
    * @param {string|number} mediaId - Media item ID
    * @returns {Promise<Array>} Array of tags
    */
-  async getMediaTags(mediaId) {
+  async getMediaTags(_mediaId) {
     throw new Error("Method getMediaTags() must be implemented by subclass");
   }
 
@@ -132,7 +132,7 @@ class MediaSourceProvider {
    * @param {string|number} tagId - Tag ID
    * @returns {Promise<boolean>} Success status
    */
-  async addTagToMedia(mediaId, tagId) {
+  async addTagToMedia(_mediaId, _tagId) {
     throw new Error("Method addTagToMedia() must be implemented by subclass");
   }
 
@@ -142,7 +142,7 @@ class MediaSourceProvider {
    * @param {string|number} tagId - Tag ID
    * @returns {Promise<boolean>} Success status
    */
-  async removeTagFromMedia(mediaId, tagId) {
+  async removeTagFromMedia(_mediaId, _tagId) {
     throw new Error(
       "Method removeTagFromMedia() must be implemented by subclass",
     );
@@ -181,7 +181,7 @@ class MediaSourceProvider {
    * @param {string} filePath - Path to the file
    * @returns {string} File hash or throws error if not supported
    */
-  getFileHashForPath(filePath) {
+  getFileHashForPath(_filePath) {
     throw new Error(
       `File hash lookup not supported for ${this.providerType} provider`,
     );
@@ -194,7 +194,7 @@ class MediaSourceProvider {
    * @param {Object} res - Express response object
    * @returns {Promise<void>} Handles the response
    */
-  async serveMedia(filePath, req, res) {
+  async serveMedia(_filePath, _req, _res) {
     throw new Error("Method serveMedia() must be implemented by subclass");
   }
 
@@ -204,7 +204,7 @@ class MediaSourceProvider {
    * @param {Object} res - Express response object
    * @returns {Promise<void>} Handles the response
    */
-  async serveThumbnail(fileHash, res) {
+  async serveThumbnail(_fileHash, _res) {
     throw new Error("Method serveThumbnail() must be implemented by subclass");
   }
 

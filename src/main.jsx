@@ -26,7 +26,7 @@ function Root() {
           authenticated: data.authenticated,
           error: null,
         });
-      } catch (err) {
+      } catch {
         setAuthState({
           checking: false,
           authRequired: false,

@@ -616,13 +616,13 @@ class SbMediaProvider extends MediaSourceProvider {
     }
   }
 
-  async updateTag(id, name, color) {
+  async updateTag(_id, _name, _color) {
     throw new Error(
       "Tag updates not supported by sbMediaProvider - use sb interface to manage tags",
     );
   }
 
-  async deleteTag(id) {
+  async deleteTag(_id) {
     throw new Error(
       "Tag deletion not supported by sbMediaProvider - use sb interface to manage tags",
     );
@@ -979,7 +979,8 @@ class SbMediaProvider extends MediaSourceProvider {
         fileHash,
         error: error.message,
       });
-      if (!res.headersSent) res.status(500).send("Failed to serve thumbnail file");
+      if (!res.headersSent)
+        res.status(500).send("Failed to serve thumbnail file");
     }
   }
 
@@ -1176,12 +1177,8 @@ class SbMediaProvider extends MediaSourceProvider {
 
     return new Promise((resolve) => {
       const cleanup = () => {
-        try {
-          fs.unlinkSync(tempVideoPath);
-        } catch {}
-        try {
-          fs.unlinkSync(tempThumbPath);
-        } catch {}
+        fs.rmSync(tempVideoPath, { force: true });
+        fs.rmSync(tempThumbPath, { force: true });
       };
 
       ffmpeg.ffprobe(tempVideoPath, (err, metadata) => {
@@ -1299,7 +1296,7 @@ class SbMediaProvider extends MediaSourceProvider {
     };
   }
 
-  computeDisplayName(mediaFile, directoryPath) {
+  computeDisplayName(mediaFile, _directoryPath) {
     if (!mediaFile) return "";
 
     if (mediaFile.sb_type === "marker") {

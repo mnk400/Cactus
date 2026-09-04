@@ -214,7 +214,7 @@ const VideoPlayer = memo(function VideoPlayer({
 }) {
   const [isPaused, setIsPaused] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
-  const { isMuted, hasUserInteracted, toggleMute, setMuted } = useAudio();
+  const { isMuted, hasUserInteracted, setMuted } = useAudio();
   const [autoplayFailed, setAutoplayFailed] = useState(false);
 
   // Memoized event handlers
@@ -258,17 +258,6 @@ const VideoPlayer = memo(function VideoPlayer({
       video.pause();
     }
   }, [videoRef]);
-
-  // Handle mute toggle with immediate video element update
-  const handleToggleMute = useCallback(() => {
-    const isEffectivelyMuted = isMuted || autoplayFailed;
-    if (isEffectivelyMuted) {
-      setMuted(false);
-      setAutoplayFailed(false);
-    } else {
-      setMuted(true);
-    }
-  }, [isMuted, autoplayFailed, setMuted]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -355,7 +344,7 @@ const VideoPlayer = memo(function VideoPlayer({
     } else {
       video.pause();
     }
-  }, [isActive, videoRef, isMuted, hasUserInteracted]);
+  }, [isActive, videoRef, isMuted, hasUserInteracted, setMuted]);
 
   // Seek to slideshow start time when entering a new item in slideshow mode
   useEffect(() => {
@@ -385,13 +374,7 @@ const VideoPlayer = memo(function VideoPlayer({
     // The video element should be muted if the global setting is muted,
     // OR if we're active and autoplay failed (meaning the browser forced it to be muted).
     video.muted = isMuted || (isActive && autoplayFailed);
-
-    // If user explicitly unmuted, we can try to reset autoplay failure if it was set
-    if (!isMuted && autoplayFailed) {
-      // We don't reset it here because if it failed, it failed.
-      // Only user interaction (toggleMute) should reset it.
-    }
-  }, [isMuted, isActive, autoplayFailed]);
+  }, [isMuted, isActive, autoplayFailed, videoRef]);
 
   return (
     <>

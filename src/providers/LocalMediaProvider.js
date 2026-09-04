@@ -707,7 +707,7 @@ class LocalMediaProvider extends MediaSourceProvider {
                       );
                     } else {
                       // New file, insert and generate thumbnail
-                      const result = provider.mediaDatabase.insertMediaFile(
+                      provider.mediaDatabase.insertMediaFile(
                         filePath,
                         mediaType,
                         fileHash,

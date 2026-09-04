@@ -25,7 +25,7 @@ function LoginPage({ onLoginSuccess }) {
         const data = await response.json();
         setError(data.error || "Invalid keyphrase");
       }
-    } catch (err) {
+    } catch {
       setError("Failed to connect to server");
     } finally {
       setIsLoading(false);

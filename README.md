@@ -37,11 +37,13 @@ Open http://localhost:3000 in your browser.
 
 ## Navigation & Controls
 
-- **Keyboard**: Arrow keys or WASD to navigate
+- **Keyboard**: Arrow keys to navigate; S toggles the slideshow
 - **Touch**: Swipe up/down on mobile devices
 - **Gallery**: Click any thumbnail to jump to that media
 
-Access settings via the menu button (⋯) to filter media types, manage tags, or rescan directories.
+The control rail provides gallery, filter, settings, favorite, tag, and video
+actions. Filters and settings use the same right drawer on desktop and bottom
+sheet on mobile.
 
 ## Screenshots
 
@@ -58,6 +60,11 @@ bun run dev
 
 # Backend with test data
 bun run start:dev
+
+# Checks
+bun run test
+bun run lint
+bun run build
 ```
 
 The development setup includes hot reloading and sample media files for testing.

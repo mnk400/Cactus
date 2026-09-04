@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 
 // Fetches the tags applied to a single media file (by path) and keeps them in
-// sync with the global "tags-updated" event. Extracted from Navigation so the
-// ActionRail (tag-count badge) and FilterPanel (item-tags section) can share it.
+// sync with the global "tags-updated" event so the control rail and filter
+// panel share one source of item-tag state.
 export function useMediaTags(filePath) {
   const [mediaTags, setMediaTags] = useState([]);
 

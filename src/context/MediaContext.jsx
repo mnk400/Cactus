@@ -56,9 +56,15 @@ export const MediaProvider = ({ children }) => {
     return localStorage.getItem("cactus-user-audio-interaction") === "true";
   });
 
-  // Active video element — set by MediaItem when a video mounts. Consumed by
-  // the hairline progress bar and top-right controls pill rendered in App.
+  // Active video element — set by MediaItem and consumed by the shared rail
+  // controls and progress bar.
   const [videoElement, setVideoElement] = useState(null);
+  const seekVideo = useCallback(
+    (time) => {
+      if (videoElement) videoElement.currentTime = time;
+    },
+    [videoElement],
+  );
 
   // Tags state
   const [tags, setTags] = useState([]);
@@ -550,8 +556,8 @@ export const MediaProvider = ({ children }) => {
   );
 
   const videoElementValue = useMemo(
-    () => ({ videoElement, setVideoElement }),
-    [videoElement],
+    () => ({ videoElement, setVideoElement, seekVideo }),
+    [videoElement, seekVideo],
   );
 
   // Changes only on mute/interaction toggle

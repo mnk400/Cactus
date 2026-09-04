@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback, useMemo } from "react";
 
 // Timing presets in milliseconds
 const SPEED_PRESETS = {
@@ -58,7 +58,13 @@ export function computeSlideshowTiming(mediaFile, speed = "normal") {
  */
 export function useSlideshow({ isActive, speed, currentMediaFile, navigate }) {
   const timerRef = useRef(null);
-  const [startTime, setStartTime] = useState(0);
+  const timing = useMemo(
+    () =>
+      currentMediaFile
+        ? computeSlideshowTiming(currentMediaFile, speed)
+        : { startTime: 0, duration: 0 },
+    [currentMediaFile, speed],
+  );
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -74,18 +80,12 @@ export function useSlideshow({ isActive, speed, currentMediaFile, navigate }) {
       return;
     }
 
-    const { startTime: computedStart, duration } = computeSlideshowTiming(
-      currentMediaFile,
-      speed,
-    );
-    setStartTime(computedStart);
-
     timerRef.current = setTimeout(() => {
       navigate(1);
-    }, duration);
+    }, timing.duration);
 
     return clearTimer;
-  }, [isActive, currentMediaFile, speed, navigate, clearTimer]);
+  }, [isActive, currentMediaFile, navigate, clearTimer, timing.duration]);
 
   // Pause on tab visibility change
   useEffect(() => {
@@ -105,5 +105,5 @@ export function useSlideshow({ isActive, speed, currentMediaFile, navigate }) {
       document.removeEventListener("visibilitychange", handleVisibility);
   }, [isActive, clearTimer]);
 
-  return { startTime: isActive ? startTime : 0 };
+  return { startTime: isActive ? timing.startTime : 0 };
 }

@@ -6,7 +6,7 @@ import { useVideoElement } from "../context/MediaContext";
 const TOUCH_SEEK_THRESHOLD_PX = 4;
 
 function VideoProgressBar() {
-  const { videoElement } = useVideoElement();
+  const { videoElement, seekVideo } = useVideoElement();
   const [duration, setDuration] = useState(0);
   const [isActive, setIsActive] = useState(false);
 
@@ -38,20 +38,18 @@ function VideoProgressBar() {
   }, [videoElement]);
 
   useEffect(() => {
-    if (!videoElement) {
-      setDuration(0);
-      return;
-    }
+    if (!videoElement) return undefined;
     const syncDuration = () => setDuration(videoElement.duration || 0);
     const reset = () => {
       if (fillRef.current) fillRef.current.style.width = "0%";
       setDuration(0);
     };
-    syncDuration();
+    const syncFrame = requestAnimationFrame(syncDuration);
     videoElement.addEventListener("loadedmetadata", syncDuration);
     videoElement.addEventListener("durationchange", syncDuration);
     videoElement.addEventListener("loadstart", reset);
     return () => {
+      cancelAnimationFrame(syncFrame);
       videoElement.removeEventListener("loadedmetadata", syncDuration);
       videoElement.removeEventListener("durationchange", syncDuration);
       videoElement.removeEventListener("loadstart", reset);
@@ -65,10 +63,10 @@ function VideoProgressBar() {
       if (!video?.duration || !track) return;
       const rect = track.getBoundingClientRect();
       const pos = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-      video.currentTime = pos * video.duration;
+      seekVideo(pos * video.duration);
       if (fillRef.current) fillRef.current.style.width = `${pos * 100}%`;
     },
-    [videoElement],
+    [seekVideo, videoElement],
   );
 
   const handlePointerDown = useCallback(
@@ -76,7 +74,9 @@ function VideoProgressBar() {
       if (!videoElement?.duration) return;
       try {
         e.currentTarget.setPointerCapture(e.pointerId);
-      } catch {}
+      } catch {
+        // Pointer capture is optional on older browsers.
+      }
       const isTouch = e.pointerType === "touch";
       gestureRef.current = {
         startX: e.clientX,
@@ -107,7 +107,9 @@ function VideoProgressBar() {
     setIsActive(false);
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {}
+    } catch {
+      // The pointer may already have been released.
+    }
   }, []);
 
   if (!videoElement || !duration) return null;
@@ -127,7 +129,11 @@ function VideoProgressBar() {
           isActive ? "h-[5px]" : "h-[2px]"
         }`}
       >
-        <div ref={fillRef} className="h-full bg-white" style={{ width: "0%" }} />
+        <div
+          ref={fillRef}
+          className="h-full bg-white"
+          style={{ width: "0%" }}
+        />
       </div>
     </div>
   );

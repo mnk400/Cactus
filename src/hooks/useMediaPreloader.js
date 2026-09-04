@@ -286,12 +286,15 @@ export function useMediaPreloader(mediaFiles, currentIndex) {
   }, [mediaFiles]);
 
   useEffect(() => {
+    const controllers = abortControllers.current;
+    const mediaElements = preloadedMedia.current;
+
     return () => {
-      for (const abortController of abortControllers.current.values()) {
+      for (const abortController of controllers.values()) {
         abortController.abort();
       }
 
-      for (const [, element] of preloadedMedia.current.entries()) {
+      for (const element of mediaElements.values()) {
         if (element.tagName === "VIDEO") {
           element.src = "";
           element.load();

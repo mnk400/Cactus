@@ -91,7 +91,7 @@ function AppZone({
       <RailButton
         onClick={toggleGallery}
         active={galleryView}
-        title="Gallery view (G)"
+        title="Gallery view"
       >
         <Icon>
           <path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -202,10 +202,7 @@ function ItemZone({ vertical, onOpenTags, showNavigation }) {
 
       {isVideo && (
         <>
-          <RailButton
-            onClick={handleMute}
-            title={isMuted ? "Unmute (M)" : "Mute (M)"}
-          >
+          <RailButton onClick={handleMute} title={isMuted ? "Unmute" : "Mute"}>
             {isMuted ? (
               <Icon>
                 <path d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
@@ -217,7 +214,7 @@ function ItemZone({ vertical, onOpenTags, showNavigation }) {
             )}
           </RailButton>
 
-          <RailButton onClick={handleFullscreen} title="Fullscreen (F)">
+          <RailButton onClick={handleFullscreen} title="Fullscreen">
             <Icon>
               <path d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
             </Icon>

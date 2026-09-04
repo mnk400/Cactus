@@ -42,7 +42,7 @@ bun run format
 - **Entry**: `src/main.jsx` → `src/App.jsx`
 - **State Management**: `src/context/MediaContext.jsx` - central state for media files, filters, tags, and settings
 - **Custom Hooks**: `src/hooks/` - keyboard navigation, favorites, media preloading, tags, URL sync
-- **Components**: `src/components/` - MediaViewer, GalleryView, Navigation, SettingsPanel, TagManager
+- **Components**: `src/components/` - unified media browser, responsive control rail, shared panels, settings, and tagging
 
 ### Backend (Express on Bun)
 

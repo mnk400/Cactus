@@ -216,7 +216,7 @@ const requestCache = new NodeCache({
 });
 
 // Cache event listeners for monitoring
-requestCache.on("expired", (key, value) => {
+requestCache.on("expired", (key) => {
   log.info("Cache entry expired", { key });
 });
 
@@ -470,7 +470,7 @@ app.delete("/api/tags/:id", async (req, res) => {
   const { id } = req.params;
 
   try {
-    const deleted = await mediaProvider.deleteTag(id);
+    await mediaProvider.deleteTag(id);
     log.info("Tag deleted", { tagId: id });
     res.json({ message: "Tag deleted successfully" });
   } catch (error) {
@@ -773,7 +773,6 @@ app.get("/api/auto-tag/status", (req, res) => {
 // Determine how many frames to extract based on video duration.
 // Each image uses ~729 fixed tokens in the vision encoder regardless of
 // resolution. With 8192 context: 729×3 + ~33 text + 256 output = ~2476.
-const MAX_FRAMES = 3;
 const FRAME_TIERS = [
   { maxDuration: 4, timestamps: ["25%"] },
   { maxDuration: 10, timestamps: ["20%", "60%"] },
@@ -820,14 +819,14 @@ function extractVideoFrames(videoPath, timestamps) {
         ffmpegProcesses.forEach((proc) => {
           try {
             proc.kill("SIGKILL");
-          } catch {}
+          } catch {
+            // The process may have already exited.
+          }
         });
         // Remove any temp files
         timestamps.forEach((_, j) => {
           const f = path.join(tmpDir, `cactus_frame_${id}_${j}.jpg`);
-          try {
-            fs.unlinkSync(f);
-          } catch {}
+          fs.rmSync(f, { force: true });
         });
       };
 
@@ -1042,9 +1041,7 @@ app.post("/api/media-path/auto-tag/generate", async (req, res) => {
       } finally {
         // Clean up temp video file
         if (tempVideoPath) {
-          try {
-            fs.unlinkSync(tempVideoPath);
-          } catch {}
+          fs.rmSync(tempVideoPath, { force: true });
         }
       }
     } else {
