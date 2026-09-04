@@ -131,7 +131,7 @@ export function ResponsivePanel({
             exit={panelMotion.exit}
             transition={motionTransition}
           >
-            <header className="flex shrink-0 items-center gap-2 border-b border-white/10 px-4 py-3 safe-area-top">
+            <header className="flex shrink-0 items-center gap-2 border-b border-white/10 px-4 py-3">
               {onBack && (
                 <button
                   type="button"

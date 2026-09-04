@@ -153,12 +153,8 @@ textarea {
 }
 
 /* PWA safe area handling for iOS notch/Dynamic Island */
-@supports (padding-top: env(safe-area-inset-top)) {
-  .safe-area-top {
-    padding-top: env(safe-area-inset-top, 0px);
-  }
-
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
   .safe-area-bottom {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
   }
 }

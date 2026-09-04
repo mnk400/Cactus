@@ -50,7 +50,7 @@ function App() {
   const handleClosePanel = useCallback(() => setActivePanel(null), []);
 
   // Bottom-bar clearance is a mobile-only concern (desktop nav is the left rail).
-  const mobileNavVisible = !isDesktop && !slideshowActive && !isPanelOpen;
+  const mobileNavVisible = !isDesktop && !slideshowActive;
   const navClearance = mobileNavVisible
     ? "calc(4rem + env(safe-area-inset-bottom, 0px))"
     : "0px";
