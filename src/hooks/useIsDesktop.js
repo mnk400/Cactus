@@ -1,15 +1,17 @@
 import { useState, useEffect } from "react";
-import { isMobile } from "../utils/helpers";
 
-// Single source of truth for the mobile/desktop breakpoint. Wraps isMobile()
-// plus a resize listener so components don't each re-implement the check.
+const DESKTOP_QUERY = "(min-width: 768px)";
+
 export function useIsDesktop() {
-  const [isDesktop, setIsDesktop] = useState(() => !isMobile());
+  const [isDesktop, setIsDesktop] = useState(
+    () => window.matchMedia(DESKTOP_QUERY).matches,
+  );
 
   useEffect(() => {
-    const update = () => setIsDesktop(!isMobile());
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
+    const query = window.matchMedia(DESKTOP_QUERY);
+    const update = (event) => setIsDesktop(event.matches);
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
   }, []);
 
   return isDesktop;

@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, memo, useRef } from "react";
 import TagInput from "./TagInput";
 import useTags from "../hooks/useTags";
-import { isMobile } from "../utils/helpers";
 
 const InlineTagPanel = memo(function InlineTagPanel({
   currentMediaFile,
@@ -52,24 +51,6 @@ const InlineTagPanel = memo(function InlineTagPanel({
       clearInterval(interval);
     };
   }, [isExpanded]);
-
-  // Handle Escape to collapse
-  useEffect(() => {
-    if (!isExpanded) return;
-
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape") {
-        // Don't close if TagInput handles it (input is focused)
-        if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")
-          return;
-        e.preventDefault();
-        onToggleExpanded(false);
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isExpanded, onToggleExpanded]);
 
   // Add tags immediately (no staging)
   const handleAddTags = useCallback(
@@ -162,8 +143,6 @@ const InlineTagPanel = memo(function InlineTagPanel({
   const isLoading = aiState === "loading";
   const isApplying = aiState === "applying";
   const busy = isLoading || isApplying;
-  const shouldAutoFocusInput = !isMobile() && isExpanded;
-
   // Sparkle button title
   let sparkleTitle = "Auto-tag with AI";
   if (!serviceReady) sparkleTitle = "Auto-tag service starting...";
@@ -183,7 +162,6 @@ const InlineTagPanel = memo(function InlineTagPanel({
             onClose={() => onToggleExpanded(false)}
             placeholder="Add tags..."
             className="flex-1"
-            autoFocus={shouldAutoFocusInput}
           />
 
           {currentMediaFile && (

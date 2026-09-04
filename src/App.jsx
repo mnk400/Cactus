@@ -13,8 +13,7 @@ import { useMediaData, useSlideshowState } from "./context/MediaContext";
 import { useIsDesktop } from "./hooks/useIsDesktop";
 
 function App() {
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [filterSection, setFilterSection] = useState(null); // null | 'filters' | 'tags'
+  const [activePanel, setActivePanel] = useState(null);
 
   const isDesktop = useIsDesktop();
   const { mediaFiles, loading, error, settings, navigate } = useMediaData();
@@ -22,34 +21,36 @@ function App() {
 
   const { galleryView: isGalleryView, debug: debugMode } = settings;
 
+  const isSettingsOpen = activePanel === "settings";
+  const filterSection =
+    activePanel === "filters" || activePanel === "tags" ? activePanel : null;
   const isFilterOpen = filterSection !== null;
+  const isPanelOpen = activePanel !== null;
   const showChrome = !isGalleryView && !slideshowActive;
 
-  // Keyboard navigation — suspended while the filter panel is open.
   useKeyboardNavigation(
     useCallback(
       (direction) => {
-        if (mediaFiles.length > 0 && !isFilterOpen) {
-          navigate(direction);
-        }
+        if (mediaFiles.length > 0) navigate(direction);
       },
-      [mediaFiles.length, isFilterOpen, navigate],
+      [mediaFiles.length, navigate],
     ),
-    { onToggleSlideshow: toggleSlideshow },
+    { enabled: !isPanelOpen, onToggleSlideshow: toggleSlideshow },
   );
 
   const handleToggleSettings = useCallback(() => {
-    setIsSettingsOpen((prev) => !prev);
+    setActivePanel((current) => (current === "settings" ? null : "settings"));
   }, []);
-  const handleCloseSettings = useCallback(() => setIsSettingsOpen(false), []);
   const handleToggleFilter = useCallback(() => {
-    setFilterSection((prev) => (prev === null ? "filters" : null));
+    setActivePanel((current) =>
+      current === "filters" || current === "tags" ? null : "filters",
+    );
   }, []);
-  const handleOpenTags = useCallback(() => setFilterSection("tags"), []);
-  const handleCloseFilter = useCallback(() => setFilterSection(null), []);
+  const handleOpenTags = useCallback(() => setActivePanel("tags"), []);
+  const handleClosePanel = useCallback(() => setActivePanel(null), []);
 
   // Bottom-bar clearance is a mobile-only concern (desktop nav is the left rail).
-  const mobileNavVisible = !isDesktop && !slideshowActive && !isSettingsOpen;
+  const mobileNavVisible = !isDesktop && !slideshowActive && !isPanelOpen;
   const navClearance = mobileNavVisible
     ? "calc(4rem + env(safe-area-inset-bottom, 0px))"
     : "0px";
@@ -175,13 +176,13 @@ function App() {
       )}
 
       <Suspense fallback={null}>
-        <SettingsPanel isOpen={isSettingsOpen} onClose={handleCloseSettings} />
+        <SettingsPanel isOpen={isSettingsOpen} onClose={handleClosePanel} />
       </Suspense>
 
       <FilterPanel
         isOpen={isFilterOpen}
         section={filterSection || "filters"}
-        onClose={handleCloseFilter}
+        onClose={handleClosePanel}
       />
     </>
   );

@@ -70,7 +70,11 @@ export function ResponsivePanel({
 
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
+      const activeElement = document.activeElement;
+      if (
+        event.shiftKey &&
+        (activeElement === first || activeElement === panelRef.current)
+      ) {
         event.preventDefault();
         last.focus();
       } else if (!event.shiftKey && document.activeElement === last) {
