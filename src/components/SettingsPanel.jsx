@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, memo } from "react";
+import { useState, useEffect, memo } from "react";
 import TagManager from "./TagManager";
 import { useMediaData, useSlideshowState } from "../context/MediaContext";
 import { isMobile } from "../utils/helpers";
@@ -14,7 +14,6 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
   const {
     settings,
     allMediaFiles,
-    mediaFiles: currentMediaFiles,
     isScanning,
     isRegeneratingThumbnails,
     setFilters,
@@ -32,13 +31,7 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
     deleteTag,
   } = useMediaData();
 
-  const {
-    mediaType: currentMediaType,
-    selectedTags,
-    excludedTags,
-    search,
-    sortBy,
-  } = settings;
+  const { selectedTags, excludedTags } = settings;
 
   // Statistics
   const totalFiles = allMediaFiles.length;
@@ -48,18 +41,10 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
   const totalVideos = allMediaFiles.filter(
     (file) => file.media_type === "video",
   ).length;
-  const currentCount = currentMediaFiles.length;
   const photoPercentage =
     totalFiles > 0 ? Math.round((totalPhotos / totalFiles) * 100) : 0;
   const videoPercentage =
     totalFiles > 0 ? Math.round((totalVideos / totalFiles) * 100) : 0;
-
-  const hasActiveFilters =
-    currentMediaType !== "all" ||
-    sortBy !== "random" ||
-    selectedTags.length > 0 ||
-    excludedTags.length > 0 ||
-    (search && search.length > 0);
 
   const getToggleClass = (isActive) => {
     const base =
@@ -96,16 +81,6 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
       console.error("Failed to delete tag:", error);
     }
   };
-
-  const handleClearAllFilters = useCallback(() => {
-    setFilters({
-      mediaType: "all",
-      sortBy: "random",
-      selectedTags: [],
-      excludedTags: [],
-      search: "",
-    });
-  }, [setFilters]);
 
   const directoryName =
     config?.provider?.config?.directoryPath ||
@@ -149,7 +124,7 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
         <h3 className="text-lg font-semibold text-white m-0">Settings</h3>
         <button
           onClick={() => onClose()}
-          className="px-3 py-1 bg-red-400 text-white rounded-xl hover:bg-red-500 transition-colors duration-200"
+          className="rounded-xl bg-black-shades-700 px-3 py-1.5 text-sm font-medium text-gray-200 transition-colors duration-150 hover:bg-white/20"
           aria-label="Close settings"
         >
           Close
@@ -245,80 +220,6 @@ const SettingsPanel = memo(function SettingsPanel({ isOpen, onClose }) {
                 </div>
               )}
             </div>
-          )}
-        </div>
-
-        {/* Filters */}
-        <div className="mb-4 p-3 bg-black-shades-800 rounded-2xl">
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="text-base font-medium text-white m-0">Filters</h4>
-            <span className="text-xs text-gray-400">
-              Viewing {currentCount} of {totalFiles}
-            </span>
-          </div>
-
-          {/* Media Type */}
-          <div className="mb-4">
-            <div className="text-xs text-gray-400 uppercase tracking-wide mb-2">
-              Media Type
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setFilters({ mediaType: "all" })}
-                className={getToggleClass(currentMediaType === "all")}
-              >
-                All
-              </button>
-              <button
-                onClick={() => setFilters({ mediaType: "photos" })}
-                className={getToggleClass(currentMediaType === "photos")}
-              >
-                Photos
-              </button>
-              <button
-                onClick={() => setFilters({ mediaType: "videos" })}
-                className={getToggleClass(currentMediaType === "videos")}
-              >
-                Videos
-              </button>
-            </div>
-          </div>
-
-          {/* Sort By */}
-          <div className="mb-4">
-            <div className="text-xs text-gray-400 uppercase tracking-wide mb-2">
-              Sort By
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setFilters({ sortBy: "random" })}
-                className={getToggleClass(sortBy === "random")}
-              >
-                Random
-              </button>
-              <button
-                onClick={() => setFilters({ sortBy: "date_added" })}
-                className={getToggleClass(sortBy === "date_added")}
-              >
-                Date Added
-              </button>
-              <button
-                onClick={() => setFilters({ sortBy: "date_created" })}
-                className={getToggleClass(sortBy === "date_created")}
-              >
-                Date Created
-              </button>
-            </div>
-          </div>
-
-          {/* Clear All */}
-          {hasActiveFilters && (
-            <button
-              onClick={handleClearAllFilters}
-              className="w-full px-3 py-2 text-sm bg-black-shades-700 hover:bg-white hover:bg-opacity-20 text-gray-200 rounded-xl transition-all duration-200 ease-in-out"
-            >
-              Clear All Filters
-            </button>
           )}
         </div>
 

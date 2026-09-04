@@ -151,8 +151,14 @@ const GalleryItemContent = ({ data, index, context }) => (
 
 const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
   const { currentIndex, currentMediaFile } = useCurrentMedia();
-  const { mediaFiles, navigate, selectMedia, setCurrentIndex, settings } =
-    useMediaData();
+  const {
+    mediaFiles,
+    navigate,
+    selectMedia,
+    setCurrentIndex,
+    settings,
+    galleryScrollFnRef,
+  } = useMediaData();
   const { slideshowActive, slideshowSpeed, stopSlideshow } =
     useSlideshowState();
   const isGalleryView = settings.galleryView;
@@ -169,6 +175,63 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
   const columnCount = getColumnCount(galleryWidth);
 
   const { getPreloadedMedia } = useMediaPreloader(mediaFiles, currentIndex);
+
+  // Scroll the gallery so `index`'s tile is mounted and centered, resolving
+  // once it's in place. Registered on a context ref so the gallery-open view
+  // transition can pre-mount its morph target before snapshotting. Uses the
+  // aspect-ratio estimate (not scrollHeight, which is unreliable for
+  // not-yet-rendered rows) to reach far tiles.
+  const scrollGalleryToIndex = useCallback(
+    (index) =>
+      new Promise((resolve) => {
+        const gallery = galleryRef.current;
+        if (!gallery) {
+          resolve();
+          return;
+        }
+        const targetOffset = estimateGalleryOffset(
+          mediaFiles,
+          index,
+          columnCount,
+          galleryWidth,
+        );
+        let attempts = 0;
+        const run = () => {
+          attempts += 1;
+          const scroller = gallery.querySelector(".unified-gallery-scroll");
+          const selected = gallery.querySelector(
+            `[data-gallery-index="${index}"]`,
+          );
+          if (selected) {
+            selected.scrollIntoView({
+              block: "center",
+              inline: "nearest",
+              behavior: "auto",
+            });
+            requestAnimationFrame(() => resolve());
+            return;
+          }
+          if (scroller) {
+            scroller.scrollTop = Math.min(
+              targetOffset,
+              Math.max(0, scroller.scrollHeight - scroller.clientHeight),
+            );
+          }
+          if (attempts < 40) requestAnimationFrame(run);
+          else resolve();
+        };
+        requestAnimationFrame(run);
+      }),
+    [mediaFiles, columnCount, galleryWidth],
+  );
+
+  useEffect(() => {
+    if (!galleryScrollFnRef) return;
+    galleryScrollFnRef.current = scrollGalleryToIndex;
+    return () => {
+      galleryScrollFnRef.current = null;
+    };
+  }, [galleryScrollFnRef, scrollGalleryToIndex]);
 
   const { startTime: slideshowStartTime } = useSlideshow({
     isActive: slideshowActive && !isGalleryView,
@@ -374,7 +437,7 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
       >
         <div
           ref={feedRef}
-          className="h-full w-full overflow-y-auto overflow-x-hidden overscroll-contain snap-y snap-mandatory scrollbar-hide [-webkit-overflow-scrolling:touch]"
+          className="mx-auto h-full w-full max-w-[var(--feed-col,100%)] overflow-y-auto overflow-x-hidden overscroll-contain snap-y snap-mandatory scrollbar-hide [-webkit-overflow-scrolling:touch]"
           onScroll={handleFeedScroll}
         >
           {mediaFiles.map((mediaFile, actualIndex) => {

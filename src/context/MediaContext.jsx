@@ -10,7 +10,7 @@ import React, {
 import { flushSync } from "react-dom";
 import { useURLSettings } from "../hooks/useURLSettings";
 
-import { URL_PARAMS, encodeSettingsToURL } from "../utils/urlParams";
+import { URL_PARAMS } from "../utils/urlParams";
 import { startViewTransition } from "../utils/viewTransition";
 
 // Split contexts for granular re-render control
@@ -43,6 +43,9 @@ export const MediaProvider = ({ children }) => {
   const browsingSnapshot = useRef(null);
   // Ref to read currentIndex without adding it as a dependency
   const currentIndexRef = useRef(0);
+  // UnifiedMediaBrowser registers a (index) => Promise scroller here so the
+  // gallery-open transition can pre-mount the morph target before snapshotting.
+  const galleryScrollFnRef = useRef(null);
 
   // Audio state
   const [isMuted, setIsMuted] = useState(() => {
@@ -437,9 +440,21 @@ export const MediaProvider = ({ children }) => {
   );
 
   const toggleGallery = useCallback(() => {
-    startViewTransition(() => {
-      updateSetting("galleryView", !galleryView);
-    });
+    // Closing (gallery -> feed): the target feed item is always mounted around
+    // currentIndex, so a plain transition morphs correctly.
+    if (galleryView) {
+      startViewTransition(() => updateSetting("galleryView", false));
+      return;
+    }
+    // Opening (feed -> gallery) is a "zoom-out" whose destination is a
+    // virtualized tile that may not be mounted. Pre-scroll it into place FIRST
+    // (rAF works here, outside the transition), THEN run the transition so the
+    // new snapshot already contains the morph target.
+    Promise.resolve(galleryScrollFnRef.current?.(currentIndexRef.current)).then(
+      () => {
+        startViewTransition(() => updateSetting("galleryView", true));
+      },
+    );
   }, [galleryView, updateSetting]);
 
   const selectMedia = useCallback(
@@ -584,6 +599,7 @@ export const MediaProvider = ({ children }) => {
       setFilters,
       toggleGallery,
       selectMedia,
+      galleryScrollFnRef,
       rescan,
       regenerateThumbnails,
       setCurrentIndex,

@@ -16,7 +16,7 @@ const MediaSourceBadge = memo(function MediaSourceBadge() {
 
   return (
     <div
-      className="pointer-events-none fixed left-0 right-0 top-0 z-20 flex justify-start px-4"
+      className="pointer-events-none absolute left-0 right-0 top-0 z-20 flex justify-start px-4"
       style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top, 0.75rem))" }}
     >
       <button

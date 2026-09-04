@@ -1,52 +1,40 @@
-import {
-  useState,
-  useCallback,
-  useEffect,
-  useRef,
-  lazy,
-  Suspense,
-} from "react";
+import { useState, useCallback, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import UnifiedMediaBrowser from "./components/UnifiedMediaBrowser";
-import Navigation from "./components/Navigation";
-import SideNavigation from "./components/SideNavigation";
+import ControlRail from "./components/ControlRail";
 import Message from "./components/Message";
 import MediaSourceBadge from "./components/MediaSourceBadge";
-import VideoChrome from "./components/VideoChrome";
+import FilterPanel from "./components/FilterPanel";
 import VideoProgressBar from "./components/VideoProgressBar";
 
 const SettingsPanel = lazy(() => import("./components/SettingsPanel"));
 const DebugInfo = lazy(() => import("./components/DebugInfo"));
 import { useKeyboardNavigation } from "./hooks/useKeyboardNavigation";
-import { useFavorite } from "./hooks/useFavorite";
-import {
-  useCurrentMedia,
-  useMediaData,
-  useSlideshowState,
-} from "./context/MediaContext";
-import { isMobile } from "./utils/helpers";
+import { useMediaData, useSlideshowState } from "./context/MediaContext";
+import { useIsDesktop } from "./hooks/useIsDesktop";
 
 function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [expandedPanel, setExpandedPanel] = useState("none"); // 'none' | 'filters' | 'tags'
-  const [isMobileView, setIsMobileView] = useState(isMobile());
-  const settingsDrawerRef = useRef(null);
+  const [filterSection, setFilterSection] = useState(null); // null | 'filters' | 'tags'
 
-  const { currentMediaFile } = useCurrentMedia();
+  const isDesktop = useIsDesktop();
   const { mediaFiles, loading, error, settings, navigate } = useMediaData();
   const { slideshowActive, toggleSlideshow } = useSlideshowState();
 
   const { galleryView: isGalleryView, debug: debugMode } = settings;
 
-  // Keyboard navigation
+  const isFilterOpen = filterSection !== null;
+  const showChrome = !isGalleryView && !slideshowActive;
+
+  // Keyboard navigation — suspended while the filter panel is open.
   useKeyboardNavigation(
     useCallback(
       (direction) => {
-        if (mediaFiles.length > 0 && expandedPanel === "none") {
+        if (mediaFiles.length > 0 && !isFilterOpen) {
           navigate(direction);
         }
       },
-      [mediaFiles.length, expandedPanel, navigate],
+      [mediaFiles.length, isFilterOpen, navigate],
     ),
     { onToggleSlideshow: toggleSlideshow },
   );
@@ -54,95 +42,106 @@ function App() {
   const handleToggleSettings = useCallback(() => {
     setIsSettingsOpen((prev) => !prev);
   }, []);
-
-  const handleCloseSettings = useCallback(() => {
-    setIsSettingsOpen(false);
+  const handleCloseSettings = useCallback(() => setIsSettingsOpen(false), []);
+  const handleToggleFilter = useCallback(() => {
+    setFilterSection((prev) => (prev === null ? "filters" : null));
   }, []);
+  const handleOpenTags = useCallback(() => setFilterSection("tags"), []);
+  const handleCloseFilter = useCallback(() => setFilterSection(null), []);
 
-  const { isFavorited, toggleFavorite } = useFavorite(
-    currentMediaFile?.file_path,
-  );
-
-  // Track window resize — only re-render when mobile/desktop threshold changes
-  useEffect(() => {
-    const handleResize = () => {
-      const mobile = isMobile();
-      setIsMobileView(mobile);
-
-      // Update CSS variable for settings drawer width
-      const root = document.documentElement;
-      if (settingsDrawerRef.current && !mobile) {
-        const isLargeScreen = window.matchMedia("(min-width: 1024px)").matches;
-        root.style.setProperty(
-          "--settings-drawer-width",
-          isLargeScreen ? "450px" : "420px",
-        );
-      }
-    };
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  // Manage CSS variable for settings drawer width on open/close
-  useEffect(() => {
-    const root = document.documentElement;
-    if (isSettingsOpen && !isMobileView) {
-      settingsDrawerRef.current = true;
-      const isLargeScreen = window.matchMedia("(min-width: 1024px)").matches;
-      root.style.setProperty(
-        "--settings-drawer-width",
-        isLargeScreen ? "450px" : "420px",
-      );
-    } else {
-      settingsDrawerRef.current = false;
-      root.style.setProperty("--settings-drawer-width", "0px");
-    }
-  }, [isSettingsOpen, isMobileView]);
-
-  // Nav clearance — so absolutely-positioned media wrappers (and video chrome
-  // inside them) sit above the fixed bottom nav. Inlined into the container's
-  // style so it's correct on first paint, before UnifiedMediaBrowser measures
-  // feedHeight; otherwise the first measurement uses the unset (0) fallback
-  // and the ResizeObserver doesn't reliably fire on CSS-variable changes.
-  const navVisible = !slideshowActive && (!isSettingsOpen || !isMobileView);
-  const navClearance = navVisible
+  // Bottom-bar clearance is a mobile-only concern (desktop nav is the left rail).
+  const mobileNavVisible = !isDesktop && !slideshowActive && !isSettingsOpen;
+  const navClearance = mobileNavVisible
     ? "calc(4rem + env(safe-area-inset-bottom, 0px))"
     : "0px";
 
-  const isDesktop = !isMobileView;
+  const feedReady = !loading && !error && mediaFiles.length > 0;
 
   return (
     <>
       <div
-        className="container flex flex-col w-full max-w-full shadow-2xl overflow-hidden bg-black text-gray-200"
-        style={{ "--nav-clearance": navClearance, height: "100dvh" }}
+        className={`container flex w-full max-w-full overflow-hidden bg-black text-gray-200 ${
+          isDesktop ? "flex-row" : "flex-col"
+        }`}
+        style={{
+          "--nav-clearance": navClearance,
+          // Feed column width — the feed is capped/centered to this; the gallery
+          // and chrome alignment share it. Full-width on mobile.
+          "--feed-col": isDesktop ? "min(100%, 62vh, 760px)" : "100%",
+          height: "100dvh",
+        }}
       >
         <Suspense fallback={null}>
           <DebugInfo show={debugMode} />
         </Suspense>
 
+        {/* Desktop: slim left icon rail replaces the bottom bar. A brand mark
+            anchors the top so the rail reads as an intentional edge, not a
+            stray cluster of icons. */}
+        {isDesktop && (
+          <div
+            className="flex h-full w-16 shrink-0 flex-col items-center gap-6 border-r border-white/5 bg-black-shades-1000 py-4"
+            style={{ viewTransitionName: "nav-bar" }}
+          >
+            <div
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 text-green-400"
+              title="Cactus"
+            >
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
+              >
+                <path d="M12 21V6" />
+                <path d="M12 13H9.5A1.5 1.5 0 0 1 8 11.5V10" />
+                <path d="M12 11h2.5A1.5 1.5 0 0 0 16 9.5V8" />
+              </svg>
+            </div>
+            <ControlRail
+              orientation="vertical"
+              showItemActions={showChrome}
+              onOpenFilter={handleToggleFilter}
+              onOpenSettings={handleToggleSettings}
+              onOpenTags={handleOpenTags}
+              isFilterOpen={isFilterOpen}
+              isSettingsOpen={isSettingsOpen}
+            />
+          </div>
+        )}
+
         <div
-          className={`media-container relative overflow-hidden bg-black`}
-          style={{
-            height: "calc(100% - var(--nav-clearance, 0px))",
-            width:
-              isSettingsOpen && isDesktop
-                ? "calc(100% - var(--settings-drawer-width, 0px))"
-                : "100%",
-          }}
+          className={`media-container relative overflow-hidden bg-black ${
+            isDesktop ? "flex-1 min-w-0" : "w-full"
+          }`}
+          style={{ height: "calc(100% - var(--nav-clearance, 0px))" }}
         >
           {loading && <Message message={loading} />}
           {error && <Message message={error} variant="error" />}
 
-          {!loading && !error && mediaFiles.length > 0 && (
-            <UnifiedMediaBrowser />
+          {feedReady && <UnifiedMediaBrowser />}
+
+          {/* Chrome overlay aligned to the centered feed column: source badge +
+              progress bar. Per-item actions now live in the ControlRail, so the
+              overlay stays out of the content. Hidden in gallery view. */}
+          {feedReady && showChrome && (
+            <div className="pointer-events-none absolute inset-0 z-20 flex justify-center">
+              <div className="relative h-full w-full max-w-[var(--feed-col)]">
+                <MediaSourceBadge />
+                <div className="pointer-events-auto absolute inset-x-0 bottom-0">
+                  <VideoProgressBar />
+                </div>
+              </div>
+            </div>
           )}
 
           {!loading && !error && mediaFiles.length === 0 && (
-            <div className="h-full w-full flex justify-center items-center text-gray-500 text-center p-5">
+            <div className="flex h-full w-full items-center justify-center p-5 text-center text-gray-500">
               <div>
-                <p className="text-lg mb-2">No media files found</p>
+                <p className="mb-2 text-lg">No media files found</p>
                 <p className="text-sm">
                   Try adjusting your filters or check if the directory contains
                   supported media files.
@@ -151,22 +150,22 @@ function App() {
             </div>
           )}
 
-          {(!isSettingsOpen || !isMobileView) &&
-            !isGalleryView &&
-            !slideshowActive && <SideNavigation />}
-
-          {!isGalleryView && !slideshowActive && <MediaSourceBadge />}
-          {!isGalleryView && !slideshowActive && <VideoChrome />}
-
-          {/* Desktop renders SettingsPanel always (it handles its own slide).
-              Mobile wraps in a full-screen slide-up via AnimatePresence. */}
+          {/* Settings: desktop right drawer (with scrim) / mobile slide-up */}
           {isDesktop ? (
-            <Suspense fallback={null}>
-              <SettingsPanel
-                isOpen={isSettingsOpen}
-                onClose={handleCloseSettings}
-              />
-            </Suspense>
+            <>
+              {isSettingsOpen && (
+                <div
+                  className="fixed inset-0 z-40 bg-black/40"
+                  onClick={handleCloseSettings}
+                />
+              )}
+              <Suspense fallback={null}>
+                <SettingsPanel
+                  isOpen={isSettingsOpen}
+                  onClose={handleCloseSettings}
+                />
+              </Suspense>
+            </>
           ) : (
             <AnimatePresence>
               {isSettingsOpen && (
@@ -195,26 +194,34 @@ function App() {
         </div>
       </div>
 
-      {/* Bottom chrome: outside overflow-hidden container for proper fixed positioning on iOS */}
-      {(!isSettingsOpen || !isMobileView) && !slideshowActive && (
+      {/* Mobile bottom chrome: one bar carrying both zones — app modes hug the
+          left, this-item actions hug the right (progress bar lives in the
+          stage). */}
+      {mobileNavVisible && (
         <div
-          className="fixed bottom-0 left-0 z-20 flex flex-col transition-all duration-300"
+          className="fixed bottom-0 left-0 right-0 z-20 flex items-center bg-black-shades-1000 px-4 pt-3"
           style={{
-            right: "var(--settings-drawer-width, 0px)",
-            width: "calc(100% - var(--settings-drawer-width, 0px))",
+            paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))",
             viewTransitionName: "nav-bar",
           }}
         >
-          <VideoProgressBar />
-          <Navigation
-            onToggleSettings={handleToggleSettings}
-            expandedPanel={expandedPanel}
-            onSetExpandedPanel={setExpandedPanel}
-            isFavorited={isFavorited}
-            onToggleFavorite={toggleFavorite}
+          <ControlRail
+            orientation="horizontal"
+            showItemActions={showChrome}
+            onOpenFilter={handleToggleFilter}
+            onOpenSettings={handleToggleSettings}
+            onOpenTags={handleOpenTags}
+            isFilterOpen={isFilterOpen}
+            isSettingsOpen={isSettingsOpen}
           />
         </div>
       )}
+
+      <FilterPanel
+        isOpen={isFilterOpen}
+        section={filterSection || "filters"}
+        onClose={handleCloseFilter}
+      />
     </>
   );
 }

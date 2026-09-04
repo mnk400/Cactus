@@ -6,7 +6,6 @@
 :root {
   --vh: 1vh;
   --actual-height: 100vh;
-  --settings-drawer-width: 0px;
 }
 
 /* Mobile viewport fix */
@@ -43,10 +42,8 @@ body {
 
 .media-container {
   height: 100%;
-  width: 100%;
   position: relative;
   background-color: #000;
-  transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* View Transitions API: the .unified-feed-item.is-active media canvas and
