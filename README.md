@@ -37,13 +37,15 @@ Open http://localhost:3000 in your browser.
 
 ## Navigation & Controls
 
-- **Keyboard**: Arrow keys to navigate; S toggles the slideshow
+- **Keyboard**: Arrow keys to navigate; Escape closes the open panel
 - **Touch**: Swipe up/down on mobile devices
 - **Gallery**: Click any thumbnail to jump to that media
 
-The control rail provides gallery, filter, settings, favorite, tag, and video
-actions. Filters and settings use the same right drawer on desktop and bottom
-sheet on mobile.
+A floating dock holds favorite, tags, gallery, filters and settings. Tapping
+tags, filters or settings grows the dock into that panel in place; drag it
+back down (or tap the lit button) to close it. Sound and fullscreen sit at
+the top right of videos. The look can be switched between Soft and Matte in
+settings.
 
 ## Screenshots
 

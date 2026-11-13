@@ -2,54 +2,344 @@
 @tailwind components;
 @tailwind utilities;
 
-/* CSS Custom Properties for viewport */
-:root {
-  --vh: 1vh;
-  --actual-height: 100vh;
-}
-
-/* Mobile viewport fix */
 html,
-body {
+body,
+#root {
   height: 100%;
-  height: calc(var(--vh, 1vh) * 100);
   width: 100%;
   margin: 0;
-  padding: 0;
   overflow: hidden;
   background-color: #000;
 }
 
-#root {
-  height: 100%;
-  height: calc(var(--vh, 1vh) * 100);
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: #000;
+/* ── Finish ──────────────────────────────────────────────────────────────
+   Everything that floats is painted from these tokens, so a finish is just
+   a set of values. "Soft" (default): matte black pillows with quiet depth
+   and one glossy accent. "Matte": the same shapes, flat. Chosen in Settings
+   and stored as data-skin on <html> (see utils/skin.js). */
+:root {
+  --surface: linear-gradient(#1b1c1e, #111213);
+  --surface-edge: rgb(0 0 0 / 0.7);
+  --surface-shadow:
+    inset 0 1px 0.5px rgb(255 255 255 / 0.14),
+    inset 0 -9px 12px -9px rgb(0 0 0 / 0.75), 0 1px 1px rgb(0 0 0 / 0.5),
+    0 12px 28px rgb(0 0 0 / 0.5);
+  --well: #0a0a0b;
+  --well-shadow:
+    inset 0 1px 2px rgb(0 0 0 / 0.9), 0 1px 0 rgb(255 255 255 / 0.07);
+  --pill: linear-gradient(#2b2c30, #1e1f22);
+  --pill-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.11),
+    inset 0 -4px 5px -4px rgb(0 0 0 / 0.6), 0 1px 2px rgb(0 0 0 / 0.55);
+  --pill-on: linear-gradient(#fff, #dde0e6);
+  --pill-on-shadow:
+    inset 0 -3px 4px -2px rgb(0 0 0 / 0.2), 0 1px 3px rgb(0 0 0 / 0.6);
+  --thumb: linear-gradient(#35363b, #26272b);
+  --thumb-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.15), 0 1px 3px rgb(0 0 0 / 0.65);
+  --lit: radial-gradient(
+    130% 120% at 50% 6%,
+    #a6c8ff 0%,
+    #4f88ff 30%,
+    #2457ee 66%,
+    #1a3cc0 100%
+  );
+  --lit-shadow:
+    inset 0 1px 1px rgb(255 255 255 / 0.65),
+    inset 0 -4px 7px rgb(8 24 110 / 0.55), 0 0 0 0.5px rgb(4 12 60 / 0.85),
+    0 3px 9px rgb(36 87 238 / 0.5);
+  --icon: rgb(255 255 255 / 0.55);
+  --heart: url(#heart-gradient);
+  --heart-glow: drop-shadow(0 1px 1px rgb(0 0 0 / 0.6))
+    drop-shadow(0 0 4px rgb(255 84 112 / 0.3));
+}
+[data-skin="matte"] {
+  --surface: #151617;
+  --surface-edge: rgb(255 255 255 / 0.07);
+  --surface-shadow: none;
+  --well: rgb(255 255 255 / 0.06);
+  --well-shadow: none;
+  --pill: rgb(255 255 255 / 0.08);
+  --pill-shadow: none;
+  --pill-on: #f4f6f4;
+  --pill-on-shadow: none;
+  --thumb: rgb(255 255 255 / 0.14);
+  --thumb-shadow: none;
+  --lit: rgb(255 255 255 / 0.16);
+  --lit-shadow: none;
+  --icon: rgb(255 255 255 / 0.9);
+  --heart: #ff5d73;
+  --heart-glow: none;
 }
 
-.container {
-  height: 100vh;
-  height: calc(var(--vh, 1vh) * 100);
-  min-height: 100vh;
-  min-height: calc(var(--vh, 1vh) * 100);
-  width: 100%;
-  max-width: 100%;
-  background-color: #000;
+/* Floating surfaces: sheet, source label, video buttons. */
+.surface {
+  background: var(--surface);
+  border: 0.5px solid var(--surface-edge);
+  box-shadow: var(--surface-shadow);
+}
+/* Sunken: text fields and segmented tracks. */
+.well {
+  background: var(--well);
+  box-shadow: var(--well-shadow);
+}
+/* Raised: chips and buttons. */
+.pill {
+  background: var(--pill);
+  box-shadow: var(--pill-shadow);
+}
+.pill-on {
+  background: var(--pill-on);
+  box-shadow: var(--pill-on-shadow);
+  color: #111311;
+}
+.pill-add {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.13);
+  color: rgb(255 255 255 / 0.62);
+}
+.thumb {
+  background: var(--thumb);
+  box-shadow: var(--thumb-shadow);
+  color: #fff;
+}
+/* The one glossy thing: the dock button whose panel is open. */
+.lit {
+  background: var(--lit);
+  box-shadow: var(--lit-shadow);
+  color: #fff;
+}
+.fav svg {
+  fill: var(--heart);
+  stroke: rgb(120 10 35 / 0.6);
+  stroke-width: 0.75;
+  filter: var(--heart-glow);
 }
 
-.media-container {
-  height: 100%;
+/* ── Layout ──────────────────────────────────────────────────────────────
+   All responsive layout lives here, and shape alone picks it. Components
+   never ask what kind of device they are on.
+
+   The shell holds three layers: the ambient blur (still), the stage (the
+   feed or gallery), and the sheet. Closed, the sheet is the dock; open, the
+   same object has grown into the panel. Either way it floats over the
+   media: the stage never resizes for it. Sheet.jsx drives the motion with
+   one progress value. */
+.shell {
   position: relative;
+  width: 100%;
+  /* --app-height follows the on-screen keyboard (see App.jsx). */
+  height: var(--app-height, 100dvh);
+  overflow: hidden;
   background-color: #000;
+  font-size: 13px;
 }
 
-/* View Transitions API: the .unified-feed-item.is-active media canvas and
-   the .unified-gallery-tile.is-active set view-transition-name inline
-   (see UnifiedMediaBrowser.jsx / MediaItem.jsx). These pseudo-elements
-   tune the shared-element morph timing. */
+/* The blur belongs to the screen, not to an item: it stays put and
+   cross-fades while items slide over it. */
+.ambient div {
+  position: absolute;
+  inset: -20%;
+  background-size: cover;
+  background-position: center;
+  filter: blur(60px) saturate(1.1) brightness(0.24);
+}
+.ambient-in {
+  animation: ambient-in 500ms ease both;
+}
+@keyframes ambient-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* The canvas is the photo's own shape, fitted and centered in the stage,
+   so it is exactly what you see (and what morphs into its gallery tile).
+   It fills the whole stage instead when that crops under 8% of the item
+   (UnifiedMediaBrowser toggles .fills). Items without known dimensions fall
+   back to a full-stage canvas that letterboxes. */
+.media-item {
+  container-type: size;
+}
+.media-canvas {
+  position: absolute;
+  inset: 0;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.media-canvas img,
+.media-canvas video {
+  object-fit: contain;
+}
+.media-item[data-ar] .media-canvas {
+  inset: auto;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  width: min(100cqw, 100cqh * var(--ar));
+  aspect-ratio: var(--ar);
+  background-size: cover;
+}
+.media-item.fills .media-canvas {
+  inset: 0;
+  translate: none;
+  width: auto;
+  aspect-ratio: auto;
+}
+.media-item[data-ar] img,
+.media-item[data-ar] video {
+  object-fit: cover;
+}
+
+/* Tall viewport: the sheet sits bottom-center and grows upward. */
+.sheet {
+  position: absolute;
+  z-index: 30;
+  left: 50%;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  translate: -50% 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 22px;
+}
+.sheet-body {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+/* Content keeps its open size and position while the sheet's edge sweeps
+   past it, so nothing reflows mid-animation. */
+.sheet-inner {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  translate: -50% 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.sheet-content {
+  padding: 0 14px 10px;
+}
+/* Switching panels while open: the new content settles in. */
+.sheet-content-in {
+  animation: sheet-content-in 160ms ease-out both;
+}
+@keyframes sheet-content-in {
+  from {
+    opacity: 0;
+  }
+}
+.sheet-grab {
+  height: 22px;
+  cursor: grab;
+  touch-action: none;
+}
+.sheet-grab::after {
+  content: "";
+  display: block;
+  width: 32px;
+  height: 4px;
+  margin: 8px auto 0;
+  border-radius: 2px;
+  background: var(--well);
+  box-shadow: var(--well-shadow);
+}
+.dock-row {
+  flex: none;
+  align-self: center;
+  width: max-content;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  touch-action: none;
+}
+.dock-sep {
+  flex: none;
+  width: 1px;
+  height: 18px;
+  margin: 0 4px;
+  background-color: rgb(255 255 255 / 0.14);
+}
+
+/* Wide viewport: the sheet sits right-center, under the thumb, and grows
+   leftward to its content's height. */
+@media (orientation: landscape) {
+  .sheet {
+    flex-direction: row;
+    left: auto;
+    bottom: auto;
+    right: calc(10px + env(safe-area-inset-right, 0px));
+    top: 50%;
+    translate: 0 -50%;
+  }
+  .sheet-inner {
+    left: auto;
+    bottom: auto;
+    right: 0;
+    top: 50%;
+    translate: 0 -50%;
+  }
+  .sheet-content {
+    padding: 14px 6px 14px 14px;
+  }
+  .sheet-grab {
+    display: none;
+  }
+  .dock-row {
+    width: 44px;
+    height: max-content;
+    flex-direction: column;
+  }
+  .dock-sep {
+    width: 18px;
+    height: 1px;
+    margin: 4px 0;
+  }
+}
+
+/* Previous/next arrows are for mice; touch swipes. */
+.mouse-only {
+  display: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .mouse-only {
+    display: flex;
+  }
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  /* Room for focus rings, which the scrolling row would otherwise clip. */
+  padding-block: 3px;
+  margin-block: -3px;
+}
+@media (orientation: portrait) {
+  /* Chip rows scroll sideways instead of eating the sheet's height. */
+  .chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+}
+
+/* View Transitions API: the active feed item and the selected gallery tile
+   set view-transition-name inline (see UnifiedMediaBrowser.jsx /
+   MediaItem.jsx). These pseudo-elements tune the shared-element morph. */
 ::view-transition-group(media-active) {
   animation-duration: 320ms;
   animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
@@ -57,7 +347,6 @@ body {
 
 ::view-transition-image-pair(media-active) {
   animation-duration: 320ms;
-  isolation: auto;
 }
 
 ::view-transition-old(media-active),
@@ -71,30 +360,37 @@ body {
   animation-duration: 220ms;
 }
 
-/* Keep the bottom nav above the morphing media snapshot so tall images
-   don't render over the nav mid-animation. We snapshot the nav purely
-   for z-index isolation — step-start makes every nav animation snap to
-   its end state instantly, so the nav doesn't visually morph when its
-   height changes (pills/progress bar appearing). The group still lives
-   for the full duration, keeping it stacked above media-active. */
+/* Keep the sheet above the morphing media snapshot. We snapshot it purely for
+   z-index isolation — step-start makes it snap to its end state instantly
+   instead of morphing. */
 ::view-transition-group(nav-bar),
 ::view-transition-old(nav-bar),
 ::view-transition-new(nav-bar) {
   animation-timing-function: step-start;
   animation-duration: 320ms;
 }
-::view-transition-group(nav-bar) {
+::view-transition-group(nav-bar),
+::view-transition-group(chrome-badge),
+::view-transition-group(chrome-video),
+::view-transition-group(chrome-scrub) {
   z-index: 100;
 }
 ::view-transition-group(media-active) {
   z-index: 1;
 }
+/* The source label changes text and width between feed and gallery; a quick
+   cross-fade in place reads better than stretching one label into the other. */
+::view-transition-group(chrome-badge) {
+  animation: none;
+}
+::view-transition-old(chrome-badge),
+::view-transition-new(chrome-badge) {
+  height: 100%;
+  animation-duration: 150ms;
+}
 
-/* Optimize images for better performance */
 img,
 video {
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: optimize-contrast;
   contain: layout;
   content-visibility: auto;
 }
@@ -104,52 +400,27 @@ video {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-.scrollbar-hide::-webkit-scrollbar {
+.scrollbar-hide::-webkit-scrollbar,
+.sheet-inner::-webkit-scrollbar,
+.chips::-webkit-scrollbar {
   display: none;
 }
 
-/* Video progress bar transition */
-.video-progress-container {
-  transition: bottom 0.3s ease;
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+.shell :focus-visible {
+  outline: 2px solid rgb(255 255 255 / 0.7);
+  outline-offset: 2px;
 }
 
-/* Prevent zoom on input focus (mobile) */
+/* Fields match the 13px controls around them but stay a touch larger for
+   reading what you type. Below 16px iOS would zoom on focus, which the
+   viewport's maximum-scale=1 (index.html) prevents. */
 input,
 select,
 textarea {
-  font-size: 16px;
-}
-
-/* Mobile viewport height fixes */
-@media screen and (max-width: 768px) {
-  html,
-  body,
-  #root,
-  .container {
-    height: 100vh;
-    height: calc(var(--vh, 1vh) * 100);
-    min-height: 100vh;
-    min-height: calc(var(--vh, 1vh) * 100);
-  }
-
-  @supports (-webkit-touch-callout: none) {
-    html,
-    body,
-    #root,
-    .container {
-      height: var(--actual-height, 100vh);
-      min-height: var(--actual-height, 100vh);
-    }
-  }
-}
-
-@media screen and (max-width: 768px) and (orientation: portrait) {
-  .container {
-    height: 100vh;
-    height: calc(var(--vh, 1vh) * 100);
-    min-height: 100vh;
-    min-height: calc(var(--vh, 1vh) * 100);
-  }
+  font-size: 14px;
 }
 
 /* PWA safe area handling for iOS notch/Dynamic Island */

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { FIELD } from "./ui/Panel";
 
 function LoginPage({ onLoginSuccess }) {
   const [keyphrase, setKeyphrase] = useState("");
@@ -23,47 +24,41 @@ function LoginPage({ onLoginSuccess }) {
         onLoginSuccess();
       } else {
         const data = await response.json();
-        setError(data.error || "Invalid keyphrase");
+        setError(data.error || "that keyphrase didn't work");
       }
     } catch {
-      setError("Failed to connect to server");
+      setError("can't reach the server. check that cactus is running.");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="h-full w-full flex items-center justify-center bg-black">
-      <div className="w-full max-w-sm mx-4 p-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">
-          Cactus
-        </h1>
-        <p className="text-sm text-gray-400 mb-6">
-          Enter keyphrase to continue
+    <div className="flex h-full w-full items-center justify-center bg-black text-[13px]">
+      <div className="surface mx-4 w-full max-w-xs rounded-[22px] p-5">
+        <h1 className="m-0 text-lg font-semibold text-white">cactus</h1>
+        <p className="mb-4 mt-0.5 text-white/45">
+          enter the keyphrase to continue
         </p>
 
-        {error && (
-          <div className="mb-4 p-2.5 bg-red-500 bg-opacity-20 border border-red-500 border-opacity-50 rounded-xl text-red-400 text-sm">
-            {error}
-          </div>
-        )}
+        {error && <p className="mb-3 mt-0 px-1 text-red-300">{error}</p>}
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-2">
           <input
             type="password"
             value={keyphrase}
             onChange={(e) => setKeyphrase(e.target.value)}
-            placeholder="Keyphrase"
+            placeholder="keyphrase"
             autoFocus
             required
-            className="w-full px-3 py-2.5 bg-black bg-opacity-50 border border-white border-opacity-20 rounded-xl text-white text-sm placeholder-gray-500 outline-none focus:border-opacity-40 transition-colors"
+            className={`${FIELD} w-full`}
           />
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-2.5 bg-white bg-opacity-20 text-white font-medium rounded-xl hover:bg-opacity-30 active:scale-98 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="pill-on h-9 w-full rounded-full font-medium active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isLoading ? "Unlocking..." : "Unlock"}
+            {isLoading ? "unlocking…" : "unlock"}
           </button>
         </form>
       </div>

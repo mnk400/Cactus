@@ -6,8 +6,8 @@ const UnifiedSearchBar = ({
   excludedTags = [],
   search = "",
   onTagsChange,
+  onExcludedChange,
   onSearchChange,
-  dropdownPosition = "bottom", // "bottom" | "top"
 }) => {
   const [inputValue, setInputValue] = useState(search);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -20,15 +20,22 @@ const UnifiedSearchBar = ({
     setInputValue(search);
   }, [search]);
 
+  // A leading minus excludes: "-screens" offers tags to leave out.
+  const excluding = inputValue.startsWith("-");
+  const query = inputValue
+    .slice(excluding ? 1 : 0)
+    .trim()
+    .toLowerCase();
+
   const matchingTags = useMemo(() => {
-    if (!inputValue.trim()) return [];
+    if (!query) return [];
     return tags.filter(
       (tag) =>
         !selectedTags.find((t) => t.id === tag.id) &&
         !excludedTags.find((t) => t.id === tag.id) &&
-        tag.name.toLowerCase().includes(inputValue.toLowerCase()),
+        tag.name.toLowerCase().includes(query),
     );
-  }, [inputValue, tags, selectedTags, excludedTags]);
+  }, [query, tags, selectedTags, excludedTags]);
 
   // Update dropdown visibility when matches change
   useEffect(() => {
@@ -49,7 +56,8 @@ const UnifiedSearchBar = ({
   }, [showDropdown]);
 
   const addTag = (tag) => {
-    onTagsChange([...selectedTags, tag]);
+    if (excluding) onExcludedChange([...excludedTags, tag]);
+    else onTagsChange([...selectedTags, tag]);
     setInputValue("");
     setShowDropdown(false);
     setHighlightedIndex(-1);
@@ -85,16 +93,21 @@ const UnifiedSearchBar = ({
 
     if (e.key === "Enter") {
       e.preventDefault();
-      if (highlightedIndex >= 0 && matchingTags[highlightedIndex]) {
-        addTag(matchingTags[highlightedIndex]);
-      } else {
+      const match =
+        matchingTags[highlightedIndex] ||
+        (excluding && matchingTags.find((t) => t.name.toLowerCase() === query));
+      if (match) {
+        addTag(match);
+      } else if (!excluding) {
         onSearchChange(inputValue.trim());
         setShowDropdown(false);
       }
       return;
     }
 
-    if (e.key === "Escape") {
+    if (e.key === "Escape" && showDropdown) {
+      // First Escape closes the suggestions; the next one closes the sheet.
+      e.preventDefault();
       setShowDropdown(false);
       setHighlightedIndex(-1);
     }
@@ -114,11 +127,11 @@ const UnifiedSearchBar = ({
     <div className="relative" ref={containerRef}>
       <div
         onClick={() => inputRef.current?.focus()}
-        className="flex flex-wrap items-center gap-2 w-full px-3 py-2 bg-black-shades-700 hover:bg-white hover:bg-opacity-10 rounded-xl cursor-text focus-within:ring-2 focus-within:ring-white focus-within:ring-opacity-30"
+        className="well flex min-h-9 w-full cursor-text flex-wrap items-center gap-1.5 rounded-[18px] px-3.5 py-1 focus-within:ring-1 focus-within:ring-white/25"
       >
         {/* Search icon */}
         <svg
-          className="w-4 h-4 text-gray-500 pointer-events-none flex-shrink-0"
+          className="pointer-events-none h-[15px] w-[15px] flex-shrink-0 text-white/40"
           fill="none"
           stroke="currentColor"
           strokeWidth={2}
@@ -135,8 +148,7 @@ const UnifiedSearchBar = ({
         {selectedTags.map((tag) => (
           <span
             key={tag.id}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-medium text-white whitespace-nowrap"
-            style={{ backgroundColor: tag.color }}
+            className="pill-on inline-flex h-6 items-center gap-1 whitespace-nowrap rounded-full pl-2.5 pr-1.5 font-medium"
           >
             {tag.name}
             <button
@@ -144,7 +156,7 @@ const UnifiedSearchBar = ({
                 e.stopPropagation();
                 removeTag(tag.id);
               }}
-              className="text-white hover:text-gray-200 focus:outline-none leading-none"
+              className="leading-none opacity-60 hover:opacity-100 focus:outline-none"
               aria-label={`Remove ${tag.name} tag`}
             >
               &times;
@@ -161,10 +173,10 @@ const UnifiedSearchBar = ({
           onKeyDown={handleKeyDown}
           placeholder={
             selectedTags.length === 0 && !isSearchActive
-              ? "Search by name, folder, or tag..."
+              ? "search name, folder or tag"
               : ""
           }
-          className="flex-1 min-w-[80px] bg-transparent text-gray-200 text-sm focus:outline-none placeholder-gray-500"
+          className="h-7 min-w-[80px] flex-1 bg-transparent text-white placeholder:text-white/40 focus:outline-none"
         />
 
         {/* Clear all button */}
@@ -174,7 +186,7 @@ const UnifiedSearchBar = ({
               e.stopPropagation();
               handleClearAll();
             }}
-            className="text-gray-400 hover:text-white transition-colors duration-150 flex-shrink-0"
+            className="flex-shrink-0 text-white/40 hover:text-white"
             aria-label="Clear all filters"
           >
             <svg
@@ -196,31 +208,25 @@ const UnifiedSearchBar = ({
 
       {/* Tag suggestions dropdown */}
       {showDropdown && (
-        <div
-          className={`absolute z-50 w-full bg-black-shades-700 backdrop-blur-sm rounded-lg shadow-lg max-h-48 overflow-y-auto ${
-            dropdownPosition === "top" ? "bottom-full mb-1" : "mt-1"
-          }`}
-        >
-          <div className="px-3 py-1.5 text-xs text-gray-500 uppercase tracking-wide">
-            Tags
+        <div className="well mt-1.5 max-h-48 w-full overflow-y-auto rounded-2xl py-1">
+          <div className="px-3.5 py-1 text-xs text-white/40">
+            {excluding ? "exclude tag" : "tags"}
           </div>
           {matchingTags.map((tag, index) => (
             <button
               key={tag.id}
               onClick={() => addTag(tag)}
-              className={`w-full px-3 py-2 text-left flex items-center text-gray-200 transition-colors duration-150 ${
-                index === highlightedIndex
-                  ? "bg-white bg-opacity-15"
-                  : "hover:bg-white hover:bg-opacity-10"
+              className={`flex h-9 w-full items-center px-3.5 text-left text-gray-100 ${
+                index === highlightedIndex ? "bg-white/10" : "hover:bg-white/5"
               }`}
             >
               <span
-                className="inline-block w-3 h-3 rounded-full mr-2 flex-shrink-0"
+                className="mr-2 inline-block h-2 w-2 flex-shrink-0 rounded-full"
                 style={{ backgroundColor: tag.color }}
               />
-              <span className="text-sm">{tag.name}</span>
+              <span>{tag.name}</span>
               {tag.usage_count > 0 && (
-                <span className="text-gray-500 text-xs ml-auto">
+                <span className="ml-auto text-xs text-white/40">
                   {tag.usage_count}
                 </span>
               )}

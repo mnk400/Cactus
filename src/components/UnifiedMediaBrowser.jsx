@@ -10,14 +10,8 @@ import React, {
 } from "react";
 import { VirtuosoMasonry } from "@virtuoso.dev/masonry";
 import MediaItem from "./MediaItem";
-import SlideshowOverlay from "./SlideshowOverlay";
 import { useMediaPreloader } from "../hooks/useMediaPreloader";
-import { useSlideshow } from "../hooks/useSlideshow";
-import {
-  useCurrentMedia,
-  useMediaData,
-  useSlideshowState,
-} from "../context/MediaContext";
+import { useCurrentMedia, useMediaData } from "../context/MediaContext";
 
 const getAspectRatio = (file) => {
   if (file?.width && file?.height) return file.width / file.height;
@@ -66,6 +60,20 @@ const estimateGalleryOffset = (
   return Math.max(0, selectedTop - window.innerHeight * 0.35);
 };
 
+// Fill the stage when that crops under 8% of the item; otherwise show all of
+// it. Written straight to the DOM (classes on each item) so a resize does not
+// re-render the feed.
+const applyFit = (feed) => {
+  const stage = feed.clientWidth / feed.clientHeight;
+  feed.querySelectorAll("[data-ar]").forEach((item) => {
+    const ar = Number(item.dataset.ar);
+    item.classList.toggle(
+      "fills",
+      Math.min(ar, stage) / Math.max(ar, stage) > 0.92,
+    );
+  });
+};
+
 const createCurrentIndexStore = (initial) => {
   const listeners = new Set();
   let value = initial;
@@ -101,16 +109,14 @@ const GalleryItem = memo(function GalleryItem({ data, index, context }) {
   return (
     <button
       type="button"
-      className="block w-full p-1 border-0 bg-transparent text-inherit text-left cursor-pointer"
+      className={`block w-full cursor-pointer rounded-[12px] border-0 bg-transparent p-1 text-left text-inherit outline-offset-[-2px] ${
+        isSelected ? "outline outline-2 outline-white/90" : ""
+      }`}
       onClick={() => onSelectMedia(index)}
       aria-label={`Open ${data.displayName || `media ${index + 1}`}`}
     >
       <div
-        className={`relative w-full overflow-hidden rounded-lg bg-black-shades-800 border-2 ${
-          isSelected
-            ? "border-blue-400 ring-1 ring-blue-400/35"
-            : "border-transparent"
-        }`}
+        className="relative w-full overflow-hidden rounded-lg bg-white/[0.04]"
         style={{
           aspectRatio,
           viewTransitionName: isActive ? "media-active" : undefined,
@@ -123,6 +129,9 @@ const GalleryItem = memo(function GalleryItem({ data, index, context }) {
           loading="lazy"
           decoding="async"
           draggable={false}
+          onError={(e) => {
+            e.currentTarget.style.visibility = "hidden";
+          }}
         />
         {data.media_type === "video" && (
           <span
@@ -150,17 +159,14 @@ const GalleryItemContent = ({ data, index, context }) => (
 );
 
 const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
-  const { currentIndex, currentMediaFile } = useCurrentMedia();
+  const { currentIndex } = useCurrentMedia();
   const {
     mediaFiles,
-    navigate,
     selectMedia,
     setCurrentIndex,
     settings,
     galleryScrollFnRef,
   } = useMediaData();
-  const { slideshowActive, slideshowSpeed, stopSlideshow } =
-    useSlideshowState();
   const isGalleryView = settings.galleryView;
   const feedRef = useRef(null);
   const galleryRef = useRef(null);
@@ -169,8 +175,8 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
   const previousGalleryViewRef = useRef(null);
   const isProgrammaticScrollRef = useRef(false);
   const didUpdateIndexFromFeedRef = useRef(false);
-  const [feedHeight, setFeedHeight] = useState(0);
-  const [feedWidth, setFeedWidth] = useState(0);
+  const currentIndexRef = useRef(currentIndex);
+  currentIndexRef.current = currentIndex;
   const [galleryWidth, setGalleryWidth] = useState(0);
   const columnCount = getColumnCount(galleryWidth);
 
@@ -217,7 +223,7 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
               Math.max(0, scroller.scrollHeight - scroller.clientHeight),
             );
           }
-          if (attempts < 40) requestAnimationFrame(run);
+          if (attempts < 12) requestAnimationFrame(run);
           else resolve();
         };
         requestAnimationFrame(run);
@@ -233,25 +239,21 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
     };
   }, [galleryScrollFnRef, scrollGalleryToIndex]);
 
-  const { startTime: slideshowStartTime } = useSlideshow({
-    isActive: slideshowActive && !isGalleryView,
-    speed: slideshowSpeed,
-    currentMediaFile,
-    navigate,
-  });
-
   useEffect(() => {
     const feed = feedRef.current;
     if (!feed) return;
 
-    const updateSize = () => {
-      setFeedHeight(feed.clientHeight || window.innerHeight);
-      setFeedWidth(feed.clientWidth || window.innerWidth);
+    // Feed items are sized in CSS (100% of the stage). When the stage
+    // changes shape (fold, rotate, sheet moving) we put the current item back
+    // in place and redo the fit, before the browser paints.
+    const sync = () => {
+      if (!feed.clientHeight) return;
+      feed.scrollTop = currentIndexRef.current * feed.clientHeight;
+      applyFit(feed);
     };
 
-    const observer = new ResizeObserver(updateSize);
+    const observer = new ResizeObserver(sync);
     observer.observe(feed);
-    updateSize();
 
     return () => observer.disconnect();
   }, []);
@@ -273,7 +275,8 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
   // state during a view transition — otherwise the morph lands at the wrong
   // position.
   useLayoutEffect(() => {
-    if (isGalleryView || !feedRef.current || !feedHeight) return;
+    const feedHeight = feedRef.current?.clientHeight;
+    if (isGalleryView || !feedHeight) return;
 
     if (didUpdateIndexFromFeedRef.current) {
       didUpdateIndexFromFeedRef.current = false;
@@ -295,7 +298,7 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
     }, 350);
 
     return () => clearTimeout(timer);
-  }, [currentIndex, feedHeight, isGalleryView]);
+  }, [currentIndex, isGalleryView]);
 
   useLayoutEffect(() => {
     if (!isGalleryView || !galleryRef.current) return;
@@ -359,13 +362,18 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
     previousGalleryViewRef.current = isGalleryView;
   }, [isGalleryView]);
 
+  // Newly mounted items need their fit too.
+  useLayoutEffect(() => {
+    if (feedRef.current?.clientHeight) applyFit(feedRef.current);
+  }, [currentIndex, mediaFiles]);
+
   const handleFeedScroll = useCallback(() => {
-    if (isGalleryView || !feedRef.current || !feedHeight) return;
-    if (scrollFrameRef.current) return;
+    if (isGalleryView || scrollFrameRef.current) return;
 
     scrollFrameRef.current = requestAnimationFrame(() => {
       scrollFrameRef.current = null;
-      if (isProgrammaticScrollRef.current || !feedRef.current) return;
+      const feedHeight = feedRef.current?.clientHeight;
+      if (isProgrammaticScrollRef.current || !feedHeight) return;
 
       const nextIndex = Math.round(feedRef.current.scrollTop / feedHeight);
       const boundedIndex = Math.max(
@@ -378,13 +386,7 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
         setCurrentIndex(boundedIndex);
       }
     });
-  }, [
-    currentIndex,
-    feedHeight,
-    isGalleryView,
-    mediaFiles.length,
-    setCurrentIndex,
-  ]);
+  }, [currentIndex, isGalleryView, mediaFiles.length, setCurrentIndex]);
 
   useEffect(() => {
     return () => {
@@ -427,7 +429,7 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
   const initialItemCount = Math.min(mediaFiles.length, columnCount * 12);
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-black isolate">
+    <div className="relative h-full w-full overflow-hidden isolate">
       <div
         className="absolute inset-0 z-[1]"
         style={{
@@ -437,11 +439,10 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
       >
         <div
           ref={feedRef}
-          className="mx-auto h-full w-full max-w-[var(--feed-col,100%)] overflow-y-auto overflow-x-hidden overscroll-contain snap-y snap-mandatory scrollbar-hide [-webkit-overflow-scrolling:touch]"
+          className="h-full w-full overflow-y-auto overflow-x-hidden overscroll-contain snap-y snap-mandatory scrollbar-hide [-webkit-overflow-scrolling:touch]"
           onScroll={handleFeedScroll}
         >
           {mediaFiles.map((mediaFile, actualIndex) => {
-            const itemHeight = feedHeight || window.innerHeight;
             const shouldRenderMedia =
               actualIndex >= visibleRange.start &&
               actualIndex < visibleRange.end;
@@ -453,26 +454,18 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
                 // `scroll-snap-stop: always` guarantees the scroller lands on
                 // exactly one item, so Math.round(scrollTop / feedHeight) is
                 // always a valid index.
-                className={`unified-feed-item w-full snap-start [scroll-snap-stop:always] ${
+                className={`unified-feed-item h-full w-full snap-start [scroll-snap-stop:always] ${
                   isActive ? "is-active" : ""
                 }`}
                 data-feed-index={actualIndex}
-                style={{ height: `${itemHeight}px` }}
               >
                 {shouldRenderMedia && (
-                  <div className="unified-feed-card relative h-full w-full overflow-hidden bg-black">
+                  <div className="unified-feed-card relative h-full w-full overflow-hidden">
                     <MediaItem
                       mediaFile={mediaFile}
                       index={actualIndex}
                       isActive={isActive}
                       getPreloadedMedia={getPreloadedMedia}
-                      slideshowStartTime={
-                        actualIndex === currentIndex ? slideshowStartTime : 0
-                      }
-                      isSlideshow={slideshowActive}
-                      containerAR={
-                        feedWidth && feedHeight ? feedWidth / feedHeight : null
-                      }
                     />
                   </div>
                 )}
@@ -492,7 +485,10 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
       >
         <VirtuosoMasonry
           // `unified-gallery-scroll` is a JS query hook for scroll restoration.
-          className="unified-gallery-scroll h-full w-full overflow-y-auto overflow-x-hidden p-3.5 scrollbar-hide [-webkit-overflow-scrolling:touch]"
+          // Room below the last row for the dock goes on the columns, not the
+          // scroller: the masonry sizes its visible window from the scroller's
+          // content box, so scroller padding hides tiles near the edges.
+          className="unified-gallery-scroll h-full w-full overflow-y-auto overflow-x-hidden px-3.5 scrollbar-hide [-webkit-overflow-scrolling:touch] [&>[data-testid=virtuoso-list]]:mb-24"
           data={mediaFiles}
           columnCount={columnCount}
           context={masonryContext}
@@ -500,10 +496,6 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
           ItemContent={GalleryItemContent}
         />
       </div>
-
-      {slideshowActive && !isGalleryView && (
-        <SlideshowOverlay onExit={stopSlideshow} />
-      )}
     </div>
   );
 });

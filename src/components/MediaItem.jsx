@@ -6,9 +6,6 @@ const MediaItem = memo(function MediaItem({
   index,
   isActive,
   getPreloadedMedia,
-  slideshowStartTime = 0,
-  isSlideshow = false,
-  containerAR = null,
 }) {
   const mediaRef = useRef(null);
   const videoRef = useRef(null);
@@ -31,7 +28,7 @@ const MediaItem = memo(function MediaItem({
   // and top-right controls pill (rendered in App) can reach it.
   const { setVideoElement } = useVideoElement();
   const isVideoActive =
-    isActive && !isLoading && !isSlideshow && mediaFile?.media_type === "video";
+    isActive && !isLoading && mediaFile?.media_type === "video";
   useEffect(() => {
     if (!isVideoActive) return;
     const el = videoRef.current;
@@ -116,42 +113,37 @@ const MediaItem = memo(function MediaItem({
     mediaFile.width && mediaFile.height
       ? mediaFile.width / mediaFile.height
       : undefined;
-  // Cover when media's elongation matches the container's orientation more
-  // extremely than the container itself — i.e. media that "matches the
-  // surface" gets cropped to fill, media that "fights the surface" gets
-  // letterboxed. On portrait containers (mobile): cover for narrower-than-
-  // container media. On landscape containers (desktop): cover for wider-than-
-  // container media. Fall back to contain when we don't yet know either AR.
-  const useCover =
-    aspectRatio && containerAR
-      ? containerAR < 1
-        ? aspectRatio < containerAR
-        : aspectRatio > containerAR
-      : false;
-  const objectFitClass = useCover ? "object-cover" : "object-contain";
+  // Whether the item fills the stage or shows whole is a CSS class the feed
+  // toggles on this wrapper from data-ar (see index.css and applyFit).
   const canvasStyle = {
     backgroundImage: `url(${thumbnailUrl})`,
-    backgroundSize: useCover ? "cover" : "contain",
-    backgroundPosition: "center",
-    backgroundRepeat: "no-repeat",
     viewTransitionName: isActive ? "media-active" : undefined,
   };
   const wrapperClass = "media-item absolute inset-0";
+  const wrapperStyle = aspectRatio ? { "--ar": aspectRatio } : undefined;
 
   if (mediaFile.media_type === "image") {
     const preloadedImg = getPreloadedMedia(index);
     const imgSrc = preloadedImg
       ? preloadedImg.src
       : `/media?path=${encodeURIComponent(mediaFile.file_path)}`;
+    // Already decoded by the preloader: show it at once, so a gallery-to-feed
+    // morph lands on the sharp photo rather than its thumbnail.
+    const hidden = isLoading && !preloadedImg?.complete;
 
     return (
-      <div ref={mediaRef} className={wrapperClass}>
-        <div className="relative h-full w-full" style={canvasStyle}>
+      <div
+        ref={mediaRef}
+        className={wrapperClass}
+        data-ar={aspectRatio}
+        style={wrapperStyle}
+      >
+        <div className="media-canvas" style={canvasStyle}>
           <img
             ref={imgRef}
             src={imgSrc}
             alt="Media content"
-            className={`absolute inset-0 h-full w-full ${objectFitClass} transition-opacity duration-300 ${isLoading ? "opacity-0" : "opacity-100"}`}
+            className={`absolute inset-0 h-full w-full transition-opacity duration-300 ${hidden ? "opacity-0" : "opacity-100"}`}
             onLoad={() => setIsLoading(false)}
             onError={(e) => {
               console.error("Failed to load image:", mediaFile.file_path);
@@ -171,8 +163,13 @@ const MediaItem = memo(function MediaItem({
       : `/media?path=${encodeURIComponent(mediaFile.file_path)}`;
 
     return (
-      <div ref={mediaRef} className={wrapperClass}>
-        <div className="relative h-full w-full" style={canvasStyle}>
+      <div
+        ref={mediaRef}
+        className={wrapperClass}
+        data-ar={aspectRatio}
+        style={wrapperStyle}
+      >
+        <div className="media-canvas" style={canvasStyle}>
           <VideoPlayer
             src={videoSrc}
             mediaFile={mediaFile}
@@ -180,9 +177,6 @@ const MediaItem = memo(function MediaItem({
             onLoadingChange={handleLoadingChange}
             isLoading={isLoading}
             videoRef={videoRef}
-            slideshowStartTime={slideshowStartTime}
-            isSlideshow={isSlideshow}
-            objectFitClass={objectFitClass}
           />
         </div>
       </div>
@@ -192,10 +186,13 @@ const MediaItem = memo(function MediaItem({
   // Fallback for unknown media types
   return (
     <div ref={mediaRef} className={wrapperClass}>
-      <div className="text-gray-500 text-center">
-        <p>Unsupported media type</p>
-        <p className="text-sm">{mediaFile.file_path}</p>
-        <p className="text-sm">{mediaFile.media_type}</p>
+      <div className="flex h-full items-center justify-center p-6 text-center text-[13px] text-white/45">
+        <div>
+          <p className="m-0">can&rsquo;t show this file</p>
+          <p className="m-0 mt-1 break-all text-xs text-white/30">
+            {mediaFile.file_path}
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -208,23 +205,17 @@ const VideoPlayer = memo(function VideoPlayer({
   onLoadingChange,
   isLoading,
   videoRef,
-  slideshowStartTime = 0,
-  isSlideshow = false,
-  objectFitClass = "object-contain",
 }) {
-  const [isPaused, setIsPaused] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
   const { isMuted, hasUserInteracted, setMuted } = useAudio();
   const [autoplayFailed, setAutoplayFailed] = useState(false);
 
   // Memoized event handlers
   const handlePlay = useCallback(() => {
-    setIsPaused(false);
     setShowOverlay(false);
   }, []);
 
   const handlePause = useCallback(() => {
-    setIsPaused(true);
     setShowOverlay(true);
   }, []);
 
@@ -346,26 +337,6 @@ const VideoPlayer = memo(function VideoPlayer({
     }
   }, [isActive, videoRef, isMuted, hasUserInteracted, setMuted]);
 
-  // Seek to slideshow start time when entering a new item in slideshow mode
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video || !isActive || !isSlideshow || !slideshowStartTime) return;
-
-    const seekToStart = () => {
-      if (video.duration && slideshowStartTime < video.duration) {
-        video.currentTime = slideshowStartTime;
-      }
-    };
-
-    // If metadata is already loaded, seek immediately
-    if (video.readyState >= 1) {
-      seekToStart();
-    } else {
-      video.addEventListener("loadedmetadata", seekToStart, { once: true });
-      return () => video.removeEventListener("loadedmetadata", seekToStart);
-    }
-  }, [isActive, isSlideshow, slideshowStartTime, videoRef]);
-
   // Sync mute state when user toggles it or when component starts
   useEffect(() => {
     const video = videoRef.current;
@@ -383,22 +354,22 @@ const VideoPlayer = memo(function VideoPlayer({
         src={src}
         controls={false}
         autoPlay={false} // We handle autoplay manually for better control
-        loop={!isSlideshow}
+        loop
         muted={isMuted}
         playsInline
         preload="auto"
-        className={`h-full w-full ${objectFitClass} ${isSlideshow ? "" : "cursor-pointer"} ${isPaused && !isSlideshow ? "filter brightness-50" : ""} ${isLoading ? "opacity-0" : "opacity-100"} transition-opacity duration-300`}
-        onClick={isSlideshow ? undefined : togglePlayPause}
+        className={`h-full w-full cursor-pointer ${isLoading ? "opacity-0" : "opacity-100"} transition-opacity duration-300`}
+        onClick={togglePlayPause}
         onError={() => console.error("Video load error:", mediaFile.file_path)}
       />
 
-      {showOverlay && !isLoading && !isSlideshow && (
-        <div
-          className="video-overlay absolute top-0 left-0 w-full h-full bg-black bg-opacity-30 flex justify-center items-center z-10 cursor-pointer"
-          onClick={togglePlayPause}
-        >
-          <div className="pause-icon text-6xl text-white text-opacity-80">
-            &#9616;&#9616;
+      {/* Paused: a play mark, and the frame stays at full brightness. */}
+      {showOverlay && isActive && !isLoading && (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+          <div className="surface rounded-full p-4 text-white">
+            <svg className="h-7 w-7" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z" />
+            </svg>
           </div>
         </div>
       )}

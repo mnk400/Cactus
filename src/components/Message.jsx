@@ -1,19 +1,13 @@
-import React from "react";
-
+// Loading and error states, centered on the stage.
 function Message({ message, variant = "loading" }) {
-  if (variant === "error") {
-    return (
-      <div className="h-full w-full flex justify-center items-center">
-        <div className="text-red-500 p-2.5 text-center bg-red-500 bg-opacity-10 rounded mt-2.5 max-w-md">
-          {message}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="h-full w-full flex justify-center items-center text-gray-500 text-base text-center p-5 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-pulse z-50">
-      {message}
+    <div
+      role={variant === "error" ? "alert" : "status"}
+      className={`absolute inset-0 z-10 flex items-center justify-center p-6 text-center text-[13px] ${
+        variant === "error" ? "text-red-300" : "animate-pulse text-white/45"
+      }`}
+    >
+      <p className="m-0 max-w-xs">{message}</p>
     </div>
   );
 }

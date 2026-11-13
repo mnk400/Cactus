@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
+import { FIELD } from "./ui/Panel";
 
 const TagInput = ({
   availableTags = [],
   onAddTags,
   onClose,
-  placeholder = "Add tags...",
+  placeholder = "add a tag",
   className = "",
   autoFocus = false,
 }) => {
@@ -39,6 +40,12 @@ const TagInput = ({
 
   const handleKeyDown = (e) => {
     if (e.key === "Escape") {
+      // First Escape closes the suggestions; the next one closes the sheet.
+      if (showSuggestions && filteredTags.length > 0) {
+        e.preventDefault();
+        setShowSuggestions(false);
+        return;
+      }
       e.preventDefault();
       onClose?.();
       return;
@@ -107,31 +114,27 @@ const TagInput = ({
           setTimeout(() => setShowSuggestions(false), 150);
         }}
         placeholder={placeholder}
-        className="w-full px-3 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-30 bg-black-shades-700 hover:bg-white hover:bg-opacity-10 text-gray-200 placeholder-gray-500 text-sm transition-colors duration-150"
+        className={`${FIELD} w-full`}
       />
 
       {showSuggestions && filteredTags.length > 0 && (
-        <div className="absolute z-50 w-full bottom-full mb-1 bg-black-shades-700 backdrop-blur-sm rounded-lg shadow-lg max-h-48 overflow-y-auto">
-          <div className="px-3 py-1.5 text-xs text-gray-500 uppercase tracking-wide">
-            Tags
-          </div>
+        <div className="well mt-1.5 max-h-48 w-full overflow-y-auto rounded-2xl py-1">
+          <div className="px-3.5 py-1 text-xs text-white/40">tags</div>
           {filteredTags.map((tag, index) => (
             <button
               key={tag.id}
               onClick={() => handleSuggestionClick(tag.name)}
-              className={`w-full px-3 py-2 text-left flex items-center text-gray-200 transition-colors duration-150 ${
-                index === selectedIndex
-                  ? "bg-white bg-opacity-15"
-                  : "hover:bg-white hover:bg-opacity-10"
+              className={`flex h-9 w-full items-center px-3.5 text-left text-gray-100 ${
+                index === selectedIndex ? "bg-white/10" : "hover:bg-white/5"
               }`}
             >
               <span
-                className="inline-block w-3 h-3 rounded-full mr-2 flex-shrink-0"
+                className="mr-2 inline-block h-2 w-2 flex-shrink-0 rounded-full"
                 style={{ backgroundColor: tag.color }}
               />
-              <span className="text-sm">{tag.name}</span>
+              <span>{tag.name}</span>
               {tag.usage_count > 0 && (
-                <span className="text-gray-500 text-xs ml-auto">
+                <span className="ml-auto text-xs text-white/40">
                   {tag.usage_count}
                 </span>
               )}

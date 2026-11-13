@@ -41,8 +41,10 @@ bun run format
 
 - **Entry**: `src/main.jsx` → `src/App.jsx`
 - **State Management**: `src/context/MediaContext.jsx` - central state for media files, filters, tags, and settings
-- **Custom Hooks**: `src/hooks/` - keyboard navigation, favorites, media preloading, tags, URL sync
-- **Components**: `src/components/` - unified media browser, responsive control rail, shared panels, settings, and tagging
+- **Custom Hooks**: `src/hooks/` - keyboard navigation, media preloading, per-item tags, URL sync
+- **Components**: `src/components/` - unified media browser (feed + gallery), floating dock, one panel track (tags / filter / settings)
+- **Layout**: where things sit is CSS in `src/index.css`, picked by viewport orientation; components take no breakpoint or orientation props. `Sheet.jsx` (the dock that grows into the open panel) only animates its own size and floats over the stage, which never resizes for it
+- **Finish**: surfaces and controls are painted from tokens in `src/index.css` (`.surface`, `.well`, `.pill`, `.lit`, …); `data-skin="matte"` on `<html>` swaps the default Soft finish for Matte (`src/utils/skin.js`)
 
 ### Backend (Express on Bun)
 

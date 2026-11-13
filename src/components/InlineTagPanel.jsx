@@ -1,35 +1,36 @@
-import { useState, useEffect, useCallback, memo, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, memo } from "react";
 import TagInput from "./TagInput";
-import useTags from "../hooks/useTags";
+import { PanelButton } from "./ui/Panel";
+import { useMediaData } from "../context/MediaContext";
 
 const InlineTagPanel = memo(function InlineTagPanel({
   currentMediaFile,
-  isExpanded,
-  onToggleExpanded,
+  onAddTags,
+  onClose,
 }) {
-  const { tags: allTags, addTagsToMedia } = useTags();
+  const { tags: allTags } = useMediaData();
 
   // AI auto-tag state
   const [aiState, setAiState] = useState("idle"); // idle | loading | confirm | applying | done | error
   const [serviceReady, setServiceReady] = useState(false);
   const [suggestedTags, setSuggestedTags] = useState([]);
   const [selectedTags, setSelectedTags] = useState(new Set());
+  // The item the current suggestions belong to. The panel stays open while
+  // you swipe, so a prediction can come back after you have moved on.
+  const [suggestedFor, setSuggestedFor] = useState(null);
+  const pathRef = useRef(currentMediaFile?.file_path);
 
-  // Collapse panel when media changes (skip initial mount)
-  const prevFilePathRef = useRef(currentMediaFile?.file_path);
+  // Drop any pending suggestions when the item changes; the panel itself
+  // stays open so you can tag and keep swiping.
   useEffect(() => {
-    if (prevFilePathRef.current === currentMediaFile?.file_path) return;
-    prevFilePathRef.current = currentMediaFile?.file_path;
-    if (isExpanded) onToggleExpanded(false);
+    pathRef.current = currentMediaFile?.file_path;
     setAiState("idle");
     setSuggestedTags([]);
     setSelectedTags(new Set());
-  }, [currentMediaFile?.file_path, isExpanded, onToggleExpanded]);
+  }, [currentMediaFile?.file_path]);
 
-  // Poll auto-tag service readiness only when panel is expanded
+  // Poll auto-tag service readiness while the panel is open (mounted)
   useEffect(() => {
-    if (!isExpanded) return;
-
     let mounted = true;
 
     const checkStatus = async () => {
@@ -50,30 +51,17 @@ const InlineTagPanel = memo(function InlineTagPanel({
       mounted = false;
       clearInterval(interval);
     };
-  }, [isExpanded]);
-
-  // Add tags immediately (no staging)
-  const handleAddTags = useCallback(
-    async (tagNames) => {
-      if (!currentMediaFile) return;
-      try {
-        await addTagsToMedia(currentMediaFile.file_path, tagNames);
-        window.dispatchEvent(new CustomEvent("tags-updated"));
-      } catch (error) {
-        console.error("Failed to add tags:", error);
-      }
-    },
-    [currentMediaFile, addTagsToMedia],
-  );
+  }, []);
 
   // AI: Generate tag suggestions
   const handleGenerate = useCallback(async () => {
-    if (!currentMediaFile?.file_path || aiState === "loading") return;
+    const path = currentMediaFile?.file_path;
+    if (!path || aiState === "loading") return;
 
     setAiState("loading");
     try {
       const res = await fetch(
-        `/api/media-path/auto-tag/generate?path=${encodeURIComponent(currentMediaFile.file_path)}`,
+        `/api/media-path/auto-tag/generate?path=${encodeURIComponent(path)}`,
         { method: "POST" },
       );
 
@@ -83,11 +71,14 @@ const InlineTagPanel = memo(function InlineTagPanel({
       }
 
       const data = await res.json();
+      if (pathRef.current !== path) return; // swiped away; already reset
+      setSuggestedFor(path);
       setSuggestedTags(data.tags || []);
       setSelectedTags(new Set(data.tags || []));
       setAiState("confirm");
     } catch (err) {
       console.error("Auto-tag generate failed:", err);
+      if (pathRef.current !== path) return;
       setAiState("error");
       setTimeout(() => setAiState("idle"), 3000);
     }
@@ -95,12 +86,12 @@ const InlineTagPanel = memo(function InlineTagPanel({
 
   // AI: Apply selected tags
   const handleApply = useCallback(async () => {
-    if (selectedTags.size === 0) return;
+    if (selectedTags.size === 0 || !suggestedFor) return;
 
     setAiState("applying");
     try {
       const res = await fetch(
-        `/api/media-path/auto-tag/apply?path=${encodeURIComponent(currentMediaFile.file_path)}`,
+        `/api/media-path/auto-tag/apply?path=${encodeURIComponent(suggestedFor)}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -123,7 +114,7 @@ const InlineTagPanel = memo(function InlineTagPanel({
       setAiState("error");
       setTimeout(() => setAiState("idle"), 3000);
     }
-  }, [currentMediaFile?.file_path, selectedTags]);
+  }, [suggestedFor, selectedTags]);
 
   const handleCancelAi = useCallback(() => {
     setAiState("idle");
@@ -153,24 +144,24 @@ const InlineTagPanel = memo(function InlineTagPanel({
   // Panel content (animation handled by parent wrapper)
   return (
     <div className="w-full">
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {/* Tag input + sparkle button */}
         <div className="flex w-full items-center gap-2">
           <TagInput
             availableTags={allTags}
-            onAddTags={handleAddTags}
-            onClose={() => onToggleExpanded(false)}
-            placeholder="Add tags..."
+            onAddTags={onAddTags}
+            onClose={onClose}
+            placeholder="add a tag"
             className="flex-1"
           />
 
-          {currentMediaFile && (
+          {currentMediaFile && serviceReady && (
             <button
               onClick={handleGenerate}
               disabled={!serviceReady || busy}
-              className={`flex-shrink-0 bg-black-shades-700 text-gray-200 border-none px-3 py-2 rounded-xl cursor-pointer transition-all duration-200 ease-in-out hover:bg-white hover:bg-opacity-20 active:scale-95 flex items-center gap-2 ${
-                !serviceReady || busy ? "opacity-50 cursor-not-allowed" : ""
-              } ${aiState === "done" ? "text-green-400" : ""} ${aiState === "error" ? "text-red-400" : ""}`}
+              className={`pill flex h-9 flex-shrink-0 items-center gap-1.5 rounded-full px-3.5 font-medium text-gray-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 ${
+                aiState === "done" ? "text-green-400" : ""
+              } ${aiState === "error" ? "text-red-400" : ""}`}
               title={sparkleTitle}
             >
               {busy ? (
@@ -195,7 +186,7 @@ const InlineTagPanel = memo(function InlineTagPanel({
                 </svg>
               ) : (
                 <svg
-                  className="w-4 h-4"
+                  className="h-[15px] w-[15px]"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -208,8 +199,8 @@ const InlineTagPanel = memo(function InlineTagPanel({
                   />
                 </svg>
               )}
-              <span className="text-sm font-medium whitespace-nowrap">
-                {busy ? "Predicting..." : "Predict"}
+              <span className="whitespace-nowrap">
+                {busy ? "predicting…" : "predict"}
               </span>
             </button>
           )}
@@ -218,17 +209,15 @@ const InlineTagPanel = memo(function InlineTagPanel({
         {/* AI suggestion chips (conditional) */}
         {aiState === "confirm" && (
           <div className="space-y-3">
-            <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
+            <div className="chips">
               {suggestedTags.map((tag) => {
                 const isSelected = selectedTags.has(tag);
                 return (
                   <button
                     key={tag}
                     onClick={() => toggleTag(tag)}
-                    className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all duration-150 ${
-                      isSelected
-                        ? "bg-blue-600 text-white"
-                        : "bg-black-shades-700 text-gray-400 line-through"
+                    className={`h-7 shrink-0 rounded-full px-3 font-medium ${
+                      isSelected ? "pill-on" : "well text-white/45 line-through"
                     }`}
                   >
                     {tag}
@@ -237,25 +226,18 @@ const InlineTagPanel = memo(function InlineTagPanel({
               })}
             </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={handleCancelAi}
-                className="flex-1 px-4 py-2 rounded-xl text-sm font-medium text-gray-300 bg-black-shades-700 hover:bg-black-shades-600 transition-colors duration-150"
-              >
-                Cancel
-              </button>
-              <button
+            <div className="flex gap-2">
+              <PanelButton className="flex-1" onClick={handleCancelAi}>
+                cancel
+              </PanelButton>
+              <PanelButton
+                variant="primary"
+                className="flex-1"
                 onClick={handleApply}
                 disabled={selectedTags.size === 0}
-                className={`flex-1 px-4 py-2 rounded-xl text-sm font-medium text-white transition-colors duration-150 ${
-                  selectedTags.size === 0
-                    ? "bg-blue-800 opacity-50 cursor-not-allowed"
-                    : "bg-blue-600 hover:bg-blue-500"
-                }`}
               >
-                Apply {selectedTags.size} tag
-                {selectedTags.size !== 1 ? "s" : ""}
-              </button>
+                add {selectedTags.size} tag{selectedTags.size !== 1 ? "s" : ""}
+              </PanelButton>
             </div>
           </div>
         )}

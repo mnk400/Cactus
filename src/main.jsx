@@ -4,8 +4,14 @@ import App from "./App.jsx";
 import LoginPage from "./components/LoginPage.jsx";
 import Message from "./components/Message.jsx";
 
+import "@fontsource-variable/figtree";
 import "./index.css";
+import { initSkin } from "./utils/skin";
 import { MediaProvider } from "./context/MediaContext";
+
+initSkin();
+// iOS only applies :active styles on touch when a touch listener exists.
+document.addEventListener("touchstart", () => {}, { passive: true });
 
 function Root() {
   const [authState, setAuthState] = useState({
@@ -45,7 +51,7 @@ function Root() {
   if (authState.checking) {
     return (
       <div className="container flex flex-col h-screen w-full max-w-full shadow-2xl overflow-hidden bg-black text-gray-200">
-        <Message message="Loading..." />
+        <Message message="loading…" />
       </div>
     );
   }

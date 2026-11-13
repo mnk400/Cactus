@@ -281,8 +281,10 @@ app.use("/thumbnails", (req, res, next) => {
 
 app.use("/api", (req, res, next) => {
   if (req.method === "GET") {
+    // Tags, favorites and media lists change under the client, so always
+    // revalidate; Express's ETags keep an unchanged response a cheap 304.
     res.set({
-      "Cache-Control": "public, max-age=300",
+      "Cache-Control": "no-cache",
       Vary: "Accept-Encoding",
     });
   }
@@ -401,22 +403,15 @@ app.get("/api/media", async (req, res) => {
 // ===== TAG MANAGEMENT API ENDPOINTS =====
 
 // Get all tags
-app.get(
-  "/api/tags",
-  (req, res, next) => {
-    res.set("Cache-Control", "public, max-age=600");
-    next();
-  },
-  async (req, res) => {
-    try {
-      const tags = await mediaProvider.getAllTags();
-      res.json({ tags });
-    } catch (error) {
-      log.error("Failed to get tags", { error: error.message });
-      res.status(500).json({ error: "Failed to get tags" });
-    }
-  },
-);
+app.get("/api/tags", async (req, res) => {
+  try {
+    const tags = await mediaProvider.getAllTags();
+    res.json({ tags });
+  } catch (error) {
+    log.error("Failed to get tags", { error: error.message });
+    res.status(500).json({ error: "Failed to get tags" });
+  }
+});
 
 // Create a new tag
 app.post("/api/tags", async (req, res) => {

@@ -1,228 +1,30 @@
-import { forwardRef, useEffect, useId, useRef } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { useIsDesktop } from "../../hooks/useIsDesktop";
+import { forwardRef } from "react";
 
-const FOCUSABLE_SELECTOR = [
-  "a[href]",
-  "button:not([disabled])",
-  "input:not([disabled])",
-  "select:not([disabled])",
-  "textarea:not([disabled])",
-  '[tabindex]:not([tabindex="-1"])',
-].join(",");
+// Controls used inside the sheet. Each one is a capsule painted by a finish
+// class from index.css (well = sunken, pill = raised, thumb = selected
+// segment), so switching Soft/Matte restyles them all.
 
-function getFocusableElements(container) {
-  if (!container) return [];
-  return Array.from(container.querySelectorAll(FOCUSABLE_SELECTOR)).filter(
-    (element) =>
-      !element.hasAttribute("hidden") &&
-      element.getAttribute("aria-hidden") !== "true",
-  );
-}
-
-export function ResponsivePanel({
-  isOpen,
-  onClose,
-  onBack,
-  title,
-  children,
-  initialFocusRef,
-  contentClassName = "",
-}) {
-  const isDesktop = useIsDesktop();
-  const reduceMotion = useReducedMotion();
-  const titleId = useId();
-  const panelRef = useRef(null);
-
-  useEffect(() => {
-    if (!isOpen) return undefined;
-
-    const returnFocusTo =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    const focusFrame = requestAnimationFrame(() => {
-      const target =
-        initialFocusRef?.current ||
-        panelRef.current?.querySelector("[data-panel-autofocus]") ||
-        panelRef.current;
-      target?.focus({ preventScroll: true });
-    });
-
-    const handleKeyDown = (event) => {
-      if (event.key === "Escape" && !event.defaultPrevented) {
-        event.preventDefault();
-        onClose();
-        return;
-      }
-
-      if (event.key !== "Tab" || !panelRef.current) return;
-
-      const focusable = getFocusableElements(panelRef.current);
-      if (focusable.length === 0) {
-        event.preventDefault();
-        panelRef.current.focus({ preventScroll: true });
-        return;
-      }
-
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      const activeElement = document.activeElement;
-      if (
-        event.shiftKey &&
-        (activeElement === first || activeElement === panelRef.current)
-      ) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      cancelAnimationFrame(focusFrame);
-      document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = previousOverflow;
-      requestAnimationFrame(() =>
-        returnFocusTo?.focus({ preventScroll: true }),
-      );
-    };
-  }, [initialFocusRef, isOpen, onClose]);
-
-  const panelMotion = isDesktop
-    ? { initial: { x: "100%" }, animate: { x: 0 }, exit: { x: "100%" } }
-    : { initial: { y: "100%" }, animate: { y: 0 }, exit: { y: "100%" } };
-
-  const motionTransition = reduceMotion
-    ? { duration: 0 }
-    : { type: "spring", stiffness: 320, damping: 34, mass: 0.7 };
-
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-50">
-          <motion.div
-            aria-hidden="true"
-            className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: reduceMotion ? 0 : 0.18 }}
-            onClick={onClose}
-          />
-          <motion.section
-            ref={panelRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={titleId}
-            tabIndex={-1}
-            className={`absolute flex flex-col overflow-hidden border-white/10 bg-black-shades-900 text-gray-200 shadow-2xl outline-none ${
-              isDesktop
-                ? "inset-y-0 right-0 w-[min(450px,calc(100vw-4rem))] border-l"
-                : "inset-x-0 bottom-0 max-h-[92dvh] rounded-t-3xl border-t"
-            }`}
-            initial={reduceMotion ? false : panelMotion.initial}
-            animate={panelMotion.animate}
-            exit={panelMotion.exit}
-            transition={motionTransition}
-          >
-            <header className="flex shrink-0 items-center gap-2 border-b border-white/10 px-4 py-3">
-              {onBack && (
-                <button
-                  type="button"
-                  onClick={onBack}
-                  className="flex h-9 w-9 items-center justify-center rounded-xl text-gray-300 transition-colors hover:bg-white/10 hover:text-white active:scale-95"
-                  aria-label="Back"
-                >
-                  <svg
-                    aria-hidden="true"
-                    className="h-5 w-5"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="m15 18-6-6 6-6" />
-                  </svg>
-                </button>
-              )}
-              <h2
-                id={titleId}
-                className="m-0 min-w-0 flex-1 text-lg font-semibold text-white"
-              >
-                {title}
-              </h2>
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-xl bg-black-shades-700 px-3 py-1.5 text-sm font-medium text-gray-200 transition-colors hover:bg-white/15 active:scale-95"
-                aria-label={`Close ${title.toLowerCase()}`}
-              >
-                Close
-              </button>
-            </header>
-            <div
-              className={`min-h-0 flex-1 overflow-y-auto px-4 py-4 safe-area-bottom ${contentClassName}`}
-            >
-              {children}
-            </div>
-          </motion.section>
-        </div>
-      )}
-    </AnimatePresence>
-  );
-}
+export const FIELD =
+  "well h-9 min-w-0 rounded-full px-3.5 text-white outline-none placeholder:text-white/40 focus:ring-1 focus:ring-white/25";
 
 export const PanelSection = forwardRef(function PanelSection(
-  { title, description, actions, children, className = "" },
+  { title, children, className = "" },
   ref,
 ) {
   return (
-    <section
-      ref={ref}
-      className={`rounded-2xl border border-white/5 bg-white/[0.035] p-4 ${className}`}
-    >
-      {(title || actions) && (
-        <div className="mb-3 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            {title && (
-              <h3 className="m-0 text-xs font-semibold uppercase tracking-wide text-gray-400">
-                {title}
-              </h3>
-            )}
-            {description && (
-              <p className="mt-1 text-sm leading-5 text-gray-500">
-                {description}
-              </p>
-            )}
-          </div>
-          {actions}
-        </div>
-      )}
+    <section ref={ref} className={`space-y-2 ${className}`}>
+      {title && <h3 className="m-0 px-1 text-xs text-white/45">{title}</h3>}
       {children}
     </section>
   );
 });
 
-export function SegmentedControl({
-  value,
-  options,
-  onChange,
-  ariaLabel,
-  className = "",
-}) {
+export function SegmentedControl({ value, options, onChange, ariaLabel }) {
   return (
     <div
       role="group"
       aria-label={ariaLabel}
-      className={`grid gap-1 rounded-xl bg-black/35 p-1 ${className}`}
+      className="well grid h-8 rounded-full p-0.5"
       style={{
         gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))`,
       }}
@@ -235,10 +37,8 @@ export function SegmentedControl({
             type="button"
             aria-pressed={active}
             onClick={() => onChange(option.value)}
-            className={`min-w-0 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors active:scale-[0.98] ${
-              active
-                ? "bg-white/20 text-white shadow-sm"
-                : "text-gray-400 hover:bg-white/10 hover:text-gray-200"
+            className={`min-w-0 truncate rounded-full px-2 font-medium ${
+              active ? "thumb" : "text-white/50 hover:text-white/80"
             }`}
           >
             {option.label}
@@ -250,10 +50,11 @@ export function SegmentedControl({
 }
 
 const BUTTON_VARIANTS = {
-  primary: "bg-white/20 text-white hover:bg-white/30",
-  secondary: "bg-black/35 text-gray-200 hover:bg-white/10",
-  danger: "bg-red-500/15 text-red-300 hover:bg-red-500/25",
-  ghost: "text-gray-300 hover:bg-white/10 hover:text-white",
+  primary: "pill-on",
+  secondary: "pill text-gray-100",
+  danger: "pill text-red-300",
+  ghost: "text-white/55 hover:text-white",
+  dangerGhost: "text-red-300/80 hover:text-red-300",
 };
 
 export function PanelButton({
@@ -266,10 +67,63 @@ export function PanelButton({
   return (
     <button
       type={type}
-      className={`rounded-xl px-3 py-2.5 text-sm font-medium transition-colors active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 ${BUTTON_VARIANTS[variant]} ${className}`}
+      className={`h-9 shrink-0 rounded-full px-3.5 font-medium transition-transform duration-100 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 ${BUTTON_VARIANTS[variant]} ${className}`}
       {...props}
     >
       {children}
     </button>
+  );
+}
+
+const CHIP_TONES = {
+  pill: "pill text-gray-100",
+  on: "pill-on",
+  add: "pill-add",
+  not: "well text-white/45 line-through",
+};
+
+// A tag as a capsule. `tone` is its state; `color` (the tag's own color)
+// shows as a small dot so tags stay recognizable without breaking the finish.
+export function Chip({
+  children,
+  tone = "pill",
+  color,
+  title,
+  onClick,
+  onRemove,
+  removeLabel,
+}) {
+  const Tag = onClick ? "button" : "span";
+  return (
+    <Tag
+      type={onClick ? "button" : undefined}
+      onClick={onClick}
+      title={title}
+      className={`inline-flex h-7 max-w-[16rem] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 font-medium ${
+        onRemove ? "pr-1.5" : ""
+      } ${onClick ? "transition-transform duration-100 active:scale-95" : ""} ${CHIP_TONES[tone]}`}
+    >
+      {color && (
+        <span
+          aria-hidden="true"
+          className="h-2 w-2 shrink-0 rounded-full"
+          style={{ backgroundColor: color }}
+        />
+      )}
+      <span className="min-w-0 truncate">{children}</span>
+      {onRemove && (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onRemove();
+          }}
+          aria-label={removeLabel}
+          className="relative flex h-5 w-5 items-center justify-center rounded-full text-base leading-none opacity-60 before:absolute before:-inset-2 before:content-[''] hover:opacity-100"
+        >
+          ×
+        </button>
+      )}
+    </Tag>
   );
 }

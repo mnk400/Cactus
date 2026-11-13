@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useVideoElement } from "../context/MediaContext";
 
+const clock = (seconds) =>
+  `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
+
 // Touch must drag at least this many pixels before engaging seek — prevents
 // stray taps near the nav from jumping playback position.
 const TOUCH_SEEK_THRESHOLD_PX = 4;
@@ -12,6 +15,7 @@ function VideoProgressBar() {
 
   const trackRef = useRef(null);
   const fillRef = useRef(null);
+  const timeRef = useRef(null);
   const rafRef = useRef(null);
   const gestureRef = useRef(null);
 
@@ -65,6 +69,8 @@ function VideoProgressBar() {
       const pos = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
       seekVideo(pos * video.duration);
       if (fillRef.current) fillRef.current.style.width = `${pos * 100}%`;
+      if (timeRef.current)
+        timeRef.current.textContent = `${clock(pos * video.duration)} / ${clock(video.duration)}`;
     },
     [seekVideo, videoElement],
   );
@@ -123,6 +129,13 @@ function VideoProgressBar() {
       onPointerUp={handlePointerEnd}
       onPointerCancel={handlePointerEnd}
     >
+      {/* Where you are, shown only while scrubbing. */}
+      <span
+        ref={timeRef}
+        className={`pointer-events-none absolute bottom-3 left-3 rounded-lg bg-black/60 px-2 py-1 text-xs font-medium tabular-nums text-white ${
+          isActive ? "" : "hidden"
+        }`}
+      />
       <div
         ref={trackRef}
         className={`absolute inset-x-0 bottom-0 overflow-hidden bg-white/25 shadow-[0_1px_2px_rgba(0,0,0,0.4)] transition-[height] duration-150 ease-out group-hover:h-[5px] ${
