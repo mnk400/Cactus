@@ -337,56 +337,31 @@ body,
   }
 }
 
-/* View Transitions API: the active feed item and the selected gallery tile
-   set view-transition-name inline (see UnifiedMediaBrowser.jsx /
-   MediaItem.jsx). These pseudo-elements tune the shared-element morph. */
-::view-transition-group(media-active) {
-  animation-duration: 320ms;
-  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+/* The photo that travels between the feed and its gallery tile (see the
+   zoom in UnifiedMediaBrowser.jsx). It is drawn cropped to the shape it
+   is at, like both ends, so it never stretches. */
+.zoom-flyer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: none;
+  overflow: hidden;
+  contain: strict;
+  pointer-events: none;
+  background-size: cover;
+  background-position: center;
+  will-change: transform, width, height;
 }
-
-::view-transition-image-pair(media-active) {
-  animation-duration: 320ms;
-}
-
-::view-transition-old(media-active),
-::view-transition-new(media-active) {
-  animation-duration: 320ms;
-}
-
-::view-transition-group(root),
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: 220ms;
-}
-
-/* Keep the sheet above the morphing media snapshot. We snapshot it purely for
-   z-index isolation — step-start makes it snap to its end state instantly
-   instead of morphing. */
-::view-transition-group(nav-bar),
-::view-transition-old(nav-bar),
-::view-transition-new(nav-bar) {
-  animation-timing-function: step-start;
-  animation-duration: 320ms;
-}
-::view-transition-group(nav-bar),
-::view-transition-group(chrome-badge),
-::view-transition-group(chrome-video),
-::view-transition-group(chrome-scrub) {
-  z-index: 100;
-}
-::view-transition-group(media-active) {
-  z-index: 1;
-}
-/* The source label changes text and width between feed and gallery; a quick
-   cross-fade in place reads better than stretching one label into the other. */
-::view-transition-group(chrome-badge) {
-  animation: none;
-}
-::view-transition-old(chrome-badge),
-::view-transition-new(chrome-badge) {
+.zoom-flyer img,
+.zoom-flyer canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
   height: 100%;
-  animation-duration: 150ms;
+  object-fit: cover;
+}
+.zoom-flyer canvas {
+  display: none;
 }
 
 img,

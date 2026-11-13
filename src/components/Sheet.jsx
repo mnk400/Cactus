@@ -246,7 +246,6 @@ function Sheet({ panel, onPanel, panels }) {
     <div
       ref={sheetRef}
       className="sheet surface text-gray-100"
-      style={{ viewTransitionName: "nav-bar" }}
       // Tapping a chip or button must not blur the field being typed in:
       // that would drop the keyboard mid-tap.
       onMouseDown={(event) => {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   decodeSettingsFromURL,
   updateURL,
@@ -60,44 +60,33 @@ export const useURLSettings = (availableTags = []) => {
     [urlSettings, availableTags],
   );
 
-  // Update URL and state
+  // The latest settings, including updates React has not rendered yet, so
+  // two updates in a row merge instead of the second losing the first.
+  const latest = useRef(urlSettings);
+  useEffect(() => {
+    latest.current = urlSettings;
+  }, [urlSettings]);
+
+  // Update URL and state. The URL is written here, once per call: a state
+  // updater may run more than once (StrictMode does), and each run would
+  // push another history entry.
   const updateSettings = useCallback((newSettings, options = {}) => {
     const { updateURL: shouldUpdateURL = true, replace = false } = options;
+    const mergedSettings = { ...latest.current, ...newSettings };
 
-    setUrlSettings((prevSettings) => {
-      // Merge with previous settings to preserve unspecified values
-      const mergedSettings = { ...prevSettings, ...newSettings };
+    // Convert tag objects to tag names for URL storage
+    const settingsForURL = {
+      ...mergedSettings,
+      selectedTags:
+        mergedSettings.selectedTags?.map((tag) => tag.name || tag) || [],
+      excludedTags:
+        mergedSettings.excludedTags?.map((tag) => tag.name || tag) || [],
+    };
 
-      // Convert tag objects to tag names for URL storage
-      const settingsForURL = {
-        ...mergedSettings,
-        selectedTags:
-          mergedSettings.selectedTags?.map((tag) => tag.name || tag) || [],
-        excludedTags:
-          mergedSettings.excludedTags?.map((tag) => tag.name || tag) || [],
-      };
-
-      if (shouldUpdateURL) {
-        updateURL(settingsForURL, replace);
-      }
-
-      return settingsForURL;
-    });
+    latest.current = settingsForURL;
+    if (shouldUpdateURL) updateURL(settingsForURL, replace);
+    setUrlSettings(settingsForURL);
   }, []);
-
-  // Update individual setting
-  const updateSetting = useCallback(
-    (key, value, options = {}) => {
-      updateSettings(
-        {
-          ...urlSettings,
-          [key]: value,
-        },
-        options,
-      );
-    },
-    [urlSettings, updateSettings],
-  );
 
   // Clear all settings
   const clearSettings = useCallback(() => {
@@ -119,7 +108,6 @@ export const useURLSettings = (availableTags = []) => {
     settings: resolvedSettings,
     rawSettings: urlSettings,
     updateSettings,
-    updateSetting,
     clearSettings,
     isInitialized,
   };

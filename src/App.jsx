@@ -28,7 +28,8 @@ function Ambient() {
   const hash = currentMediaFile?.file_hash;
   const [layers, setLayers] = useState([]);
   if (hash && layers[layers.length - 1] !== hash) {
-    setLayers([...layers.slice(-2), hash]);
+    // Back to a recent item: move its layer to the top, never twice.
+    setLayers([...layers.filter((layer) => layer !== hash).slice(-2), hash]);
   }
   return (
     <div

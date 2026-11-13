@@ -30,7 +30,6 @@ function VideoControls() {
         className="absolute right-2.5 z-20 flex gap-1.5"
         style={{
           top: "max(0.625rem, env(safe-area-inset-top, 0.625rem))",
-          viewTransitionName: "chrome-video",
         }}
       >
         <IconButton
@@ -62,7 +61,6 @@ function VideoControls() {
         // Clear of the iPhone home indicator, so scrubbing doesn't trigger it.
         style={{
           bottom: "env(safe-area-inset-bottom, 0px)",
-          viewTransitionName: "chrome-scrub",
         }}
       >
         <VideoProgressBar />

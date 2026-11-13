@@ -528,31 +528,47 @@ class LocalMediaProvider extends MediaSourceProvider {
           newWidth = Math.round((originalWidth / originalHeight) * maxDim);
         }
 
+        // The shape comes from the probe, so it is stored even if the frame
+        // grab fails: the viewer sizes the item and its tile from it.
+        const shapeOnly = { path: null, width: newWidth, height: newHeight };
+        // ffmpeg grabs a PNG frame and sharp makes the WebP, as for images:
+        // many ffmpeg builds have no WebP encoder.
+        const framePath = path.join(this.THUMBNAIL_DIR, `${fileHash}.png`);
+
         ffmpeg(filePath)
           .screenshots({
             timestamps: ["0%"],
-            filename: `${fileHash}.webp`,
+            filename: `${fileHash}.png`,
             folder: this.THUMBNAIL_DIR,
             size: `${newWidth}x${newHeight}`,
           })
-          .on("end", () => {
-            log.info("Generated video thumbnail", {
-              filePath,
-              thumbnailPath,
-              size: `${newWidth}x${newHeight}`,
-            });
-            resolve({
-              path: thumbnailPath,
-              width: newWidth,
-              height: newHeight,
-            });
+          .on("end", async () => {
+            try {
+              await sharp(framePath)
+                .webp({ quality: 80 })
+                .toFile(thumbnailPath);
+              log.info("Generated video thumbnail", {
+                filePath,
+                thumbnailPath,
+                size: `${newWidth}x${newHeight}`,
+              });
+              resolve({ ...shapeOnly, path: thumbnailPath });
+            } catch (err) {
+              log.error("Failed to encode video thumbnail", {
+                filePath,
+                error: err.message,
+              });
+              resolve(shapeOnly);
+            } finally {
+              fs.promises.unlink(framePath).catch(() => {});
+            }
           })
           .on("error", (err) => {
             log.error("Failed to generate video thumbnail", {
               filePath,
               error: err.message,
             });
-            resolve(null);
+            resolve(shapeOnly);
           });
       });
     });

@@ -5,60 +5,18 @@ import React, {
   useLayoutEffect,
   useMemo,
   useRef,
-  useState,
-  useSyncExternalStore,
 } from "react";
-import { VirtuosoMasonry } from "@virtuoso.dev/masonry";
+import { flushSync } from "react-dom";
 import MediaItem from "./MediaItem";
+import Gallery, { TILE_RADIUS } from "./Gallery";
 import { useMediaPreloader } from "../hooks/useMediaPreloader";
 import { useCurrentMedia, useMediaData } from "../context/MediaContext";
 
-const getAspectRatio = (file) => {
-  if (file?.width && file?.height) return file.width / file.height;
-  return 1.2;
-};
+const ZOOM_STIFFNESS = 340; // critically damped, settles in about 0.4s
+const GRID_GROW = 0.06; // the grid starts this much larger as it zooms out
 
-const getColumnCount = (width) => {
-  if (width < 520) return 2;
-  if (width < 860) return 3;
-  if (width < 1180) return 4;
-  if (width < 1500) return 5;
-  return 6;
-};
-
-const estimateGalleryOffset = (
-  mediaFiles,
-  index,
-  columnCount,
-  galleryWidth,
-) => {
-  if (!mediaFiles.length || index <= 0 || !galleryWidth) return 0;
-
-  const scrollerPadding = 14 * 2;
-  const cellPadding = 8;
-  const columnWidth = Math.max(
-    120,
-    (galleryWidth - scrollerPadding) / Math.max(1, columnCount),
-  );
-  const contentWidth = Math.max(80, columnWidth - cellPadding);
-  const columnHeights = new Array(columnCount).fill(0);
-  let selectedTop = 0;
-
-  for (let i = 0; i <= index && i < mediaFiles.length; i++) {
-    const file = mediaFiles[i];
-    const shortestColumn = columnHeights.indexOf(Math.min(...columnHeights));
-    const itemHeight = contentWidth / getAspectRatio(file) + cellPadding;
-
-    if (i === index) {
-      selectedTop = columnHeights[shortestColumn];
-      break;
-    }
-
-    columnHeights[shortestColumn] += itemHeight;
-  }
-
-  return Math.max(0, selectedTop - window.innerHeight * 0.35);
-};
+const lerp = (from, to, t) => from + (to - from) * t;
+const clamp01 = (x) => Math.max(0, Math.min(1, x));
 
 // Fill the stage when that crops under 8% of the item; otherwise show all of
 // it. Written straight to the DOM (classes on each item) so a resize does not
@@ -74,178 +32,37 @@ const applyFit = (feed) => {
   });
 };
 
-const createCurrentIndexStore = (initial) => {
-  const listeners = new Set();
-  let value = initial;
-  return {
-    setValue(next) {
-      if (next === value) return;
-      value = next;
-      listeners.forEach((l) => l());
-    },
-    getSnapshot() {
-      return value;
-    },
-    subscribe(l) {
-      listeners.add(l);
-      return () => listeners.delete(l);
-    },
-  };
-};
-
-const GalleryItem = memo(function GalleryItem({ data, index, context }) {
-  const { currentIndexStore, onSelectMedia, isGalleryView } = context;
-  const getSelectedSnapshot = useCallback(
-    () => currentIndexStore.getSnapshot() === index,
-    [currentIndexStore, index],
-  );
-  const isSelected = useSyncExternalStore(
-    currentIndexStore.subscribe,
-    getSelectedSnapshot,
-  );
-  const isActive = isSelected && isGalleryView;
-  const aspectRatio = getAspectRatio(data);
-
-  return (
-    <button
-      type="button"
-      className={`block w-full cursor-pointer rounded-[12px] border-0 bg-transparent p-1 text-left text-inherit outline-offset-[-2px] ${
-        isSelected ? "outline outline-2 outline-white/90" : ""
-      }`}
-      onClick={() => onSelectMedia(index)}
-      aria-label={`Open ${data.displayName || `media ${index + 1}`}`}
-    >
-      <div
-        className="relative w-full overflow-hidden rounded-lg bg-white/[0.04]"
-        style={{
-          aspectRatio,
-          viewTransitionName: isActive ? "media-active" : undefined,
-        }}
-      >
-        <img
-          src={`/thumbnails?hash=${data.file_hash}`}
-          alt=""
-          className="block h-full w-full object-cover pointer-events-none"
-          loading="lazy"
-          decoding="async"
-          draggable={false}
-          onError={(e) => {
-            e.currentTarget.style.visibility = "hidden";
-          }}
-        />
-        {data.media_type === "video" && (
-          <span
-            className="absolute right-1.5 bottom-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white pointer-events-none"
-            aria-hidden="true"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className="h-[15px] w-[15px]"
-            >
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          </span>
-        )}
-      </div>
-    </button>
-  );
-});
-
-const GalleryItemContent = ({ data, index, context }) => (
-  <div data-gallery-index={index}>
-    <GalleryItem data={data} index={index} context={context} />
-  </div>
-);
-
 const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
   const { currentIndex } = useCurrentMedia();
-  const {
-    mediaFiles,
-    selectMedia,
-    setCurrentIndex,
-    settings,
-    galleryScrollFnRef,
-  } = useMediaData();
+  const { mediaFiles, selectMedia, setCurrentIndex, settings } = useMediaData();
   const isGalleryView = settings.galleryView;
-  const feedRef = useRef(null);
+  const rootRef = useRef(null);
+  const feedLayerRef = useRef(null);
+  const galleryLayerRef = useRef(null);
+  const flyerRef = useRef(null);
   const galleryRef = useRef(null);
+  const feedRef = useRef(null);
+  const zoomRef = useRef(null);
   const scrollFrameRef = useRef(null);
-  const galleryScrollFrameRef = useRef(null);
-  const previousGalleryViewRef = useRef(null);
+  // The view the screen shows (or is zooming to): galleryView as of the
+  // last commit, until the zoom trigger below catches up.
+  const shownViewRef = useRef(isGalleryView);
   const isProgrammaticScrollRef = useRef(false);
   const didUpdateIndexFromFeedRef = useRef(false);
   const currentIndexRef = useRef(currentIndex);
   currentIndexRef.current = currentIndex;
-  const [galleryWidth, setGalleryWidth] = useState(0);
-  const columnCount = getColumnCount(galleryWidth);
+  const filesRef = useRef(mediaFiles);
+  filesRef.current = mediaFiles;
 
   const { getPreloadedMedia } = useMediaPreloader(mediaFiles, currentIndex);
-
-  // Scroll the gallery so `index`'s tile is mounted and centered, resolving
-  // once it's in place. Registered on a context ref so the gallery-open view
-  // transition can pre-mount its morph target before snapshotting. Uses the
-  // aspect-ratio estimate (not scrollHeight, which is unreliable for
-  // not-yet-rendered rows) to reach far tiles.
-  const scrollGalleryToIndex = useCallback(
-    (index) =>
-      new Promise((resolve) => {
-        const gallery = galleryRef.current;
-        if (!gallery) {
-          resolve();
-          return;
-        }
-        const targetOffset = estimateGalleryOffset(
-          mediaFiles,
-          index,
-          columnCount,
-          galleryWidth,
-        );
-        let attempts = 0;
-        const run = () => {
-          attempts += 1;
-          const scroller = gallery.querySelector(".unified-gallery-scroll");
-          const selected = gallery.querySelector(
-            `[data-gallery-index="${index}"]`,
-          );
-          if (selected) {
-            selected.scrollIntoView({
-              block: "center",
-              inline: "nearest",
-              behavior: "auto",
-            });
-            requestAnimationFrame(() => resolve());
-            return;
-          }
-          if (scroller) {
-            scroller.scrollTop = Math.min(
-              targetOffset,
-              Math.max(0, scroller.scrollHeight - scroller.clientHeight),
-            );
-          }
-          if (attempts < 12) requestAnimationFrame(run);
-          else resolve();
-        };
-        requestAnimationFrame(run);
-      }),
-    [mediaFiles, columnCount, galleryWidth],
-  );
-
-  useEffect(() => {
-    if (!galleryScrollFnRef) return;
-    galleryScrollFnRef.current = scrollGalleryToIndex;
-    return () => {
-      galleryScrollFnRef.current = null;
-    };
-  }, [galleryScrollFnRef, scrollGalleryToIndex]);
 
   useEffect(() => {
     const feed = feedRef.current;
     if (!feed) return;
 
     // Feed items are sized in CSS (100% of the stage). When the stage
-    // changes shape (fold, rotate, sheet moving) we put the current item back
-    // in place and redo the fit, before the browser paints.
+    // changes shape (fold, rotate) we put the current item back in place and
+    // redo the fit, before the browser paints.
     const sync = () => {
       if (!feed.clientHeight) return;
       feed.scrollTop = currentIndexRef.current * feed.clientHeight;
@@ -258,22 +75,8 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => {
-    const gallery = galleryRef.current;
-    if (!gallery) return;
-
-    const observer = new ResizeObserver(([entry]) => {
-      setGalleryWidth(entry.contentRect.width);
-    });
-    observer.observe(gallery);
-    setGalleryWidth(gallery.clientWidth);
-
-    return () => observer.disconnect();
-  }, []);
-
-  // useLayoutEffect so the scroll commits BEFORE the browser snapshots the new
-  // state during a view transition — otherwise the morph lands at the wrong
-  // position.
+  // A layout effect, so the feed is on the new item before the zoom below
+  // measures where that item sits.
   useLayoutEffect(() => {
     const feedHeight = feedRef.current?.clientHeight;
     if (isGalleryView || !feedHeight) return;
@@ -286,7 +89,7 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
     const targetTop = currentIndex * feedHeight;
     if (Math.abs(feedRef.current.scrollTop - targetTop) < 2) return;
 
-    const viewJustToggled = previousGalleryViewRef.current !== isGalleryView;
+    const viewJustToggled = shownViewRef.current !== isGalleryView;
     isProgrammaticScrollRef.current = true;
     feedRef.current.scrollTo({
       top: targetTop,
@@ -300,72 +103,209 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
     return () => clearTimeout(timer);
   }, [currentIndex, isGalleryView]);
 
-  useLayoutEffect(() => {
-    if (!isGalleryView || !galleryRef.current) return;
-    // Only auto-scroll the selected tile into view when the user is entering
-    // gallery view. Once they're in the gallery, their scroll position is
-    // authoritative — clicking a visible tile shouldn't yank the scroller.
-    if (previousGalleryViewRef.current === isGalleryView) return;
-
-    const targetOffset = estimateGalleryOffset(
-      mediaFiles,
-      currentIndex,
-      columnCount,
-      galleryWidth,
-    );
-
-    let attempts = 0;
-    const scrollSelectedIntoView = () => {
-      attempts++;
-      const scroller = galleryRef.current?.querySelector(
-        ".unified-gallery-scroll",
-      );
-      const selected = galleryRef.current?.querySelector(
-        `[data-gallery-index="${currentIndex}"]`,
-      );
-
-      if (selected) {
-        selected.scrollIntoView({
-          block: "center",
-          inline: "nearest",
-          behavior: attempts === 1 ? "auto" : "smooth",
-        });
-        return;
-      }
-
-      if (scroller) {
-        scroller.scrollTop = Math.min(
-          targetOffset,
-          Math.max(0, scroller.scrollHeight - scroller.clientHeight),
-        );
-      }
-
-      if (attempts < 30) {
-        galleryScrollFrameRef.current = requestAnimationFrame(
-          scrollSelectedIntoView,
-        );
-      }
-    };
-
-    galleryScrollFrameRef.current = requestAnimationFrame(
-      scrollSelectedIntoView,
-    );
-
-    return () => {
-      if (galleryScrollFrameRef.current) {
-        cancelAnimationFrame(galleryScrollFrameRef.current);
-      }
-    };
-  }, [columnCount, currentIndex, galleryWidth, isGalleryView, mediaFiles]);
-
-  useEffect(() => {
-    previousGalleryViewRef.current = isGalleryView;
-  }, [isGalleryView]);
-
   // Newly mounted items need their fit too.
   useLayoutEffect(() => {
     if (feedRef.current?.clientHeight) applyFit(feedRef.current);
   }, [currentIndex, mediaFiles]);
+
+  // The zoom between feed and gallery. One photo (the flyer) travels
+  // between the item's place in the feed and its tile, while the feed fades
+  // and the grid settles in around it. One progress value p (0 = feed,
+  // 1 = gallery) is carried by a spring and written straight to the DOM.
+  // Reversing mid-way just turns the spring around.
+  //
+  // Nothing about the two ends is remembered: every frame reads both from
+  // their sources (the feed canvas as laid out, the tile from the gallery's
+  // layout), in the stage's coordinates. So a resize, a scroll or a late
+  // video size mid-zoom is simply followed. A zoom belongs to one item in
+  // one list; if either changes, the zoom ends where it was heading.
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    const feedLayer = feedLayerRef.current;
+    const galleryLayer = galleryLayerRef.current;
+    const flyer = flyerRef.current;
+    const [flyerImg, flyerFrame] = flyer.children;
+    const at = +isGalleryView;
+    // shot: which item is zooming, and its feed canvas (hidden while the
+    // flyer stands in for it).
+    const s = { p: at, v: 0, target: at, raf: 0, last: 0, shot: null };
+
+    // The feed end: the picture as shown, relative to the stage.
+    const feedRect = (canvas) => {
+      const box = root.getBoundingClientRect();
+      if (!canvas?.isConnected) {
+        return { left: 0, top: 0, width: box.width, height: box.height };
+      }
+      const r = canvas.getBoundingClientRect();
+      return {
+        left: r.left - box.left,
+        top: r.top - box.top,
+        width: r.width,
+        height: r.height,
+      };
+    };
+
+    const paint = () => {
+      const { p, shot } = s;
+      if (!shot) {
+        feedLayer.style.opacity = clamp01(1 - p);
+        galleryLayer.style.opacity = clamp01(p);
+        galleryLayer.style.transform = "";
+        galleryLayer.style.willChange = "";
+        flyer.style.display = "none";
+        return;
+      }
+      // Read everything first, then write.
+      const a = feedRect(shot.canvas);
+      const b = { ...(galleryRef.current?.rectOf(shot.index) ?? a) };
+      // A tile far out of view travels from just past the edge, so the
+      // photo is on screen for the whole zoom instead of arriving at the end.
+      b.top = Math.max(-b.height, Math.min(root.clientHeight, b.top));
+      shot.travel = Math.max(
+        1,
+        Math.abs(a.left - b.left),
+        Math.abs(a.top - b.top),
+        Math.abs(a.width - b.width),
+        Math.abs(a.height - b.height),
+      );
+      feedLayer.style.opacity = clamp01(1 - p);
+      galleryLayer.style.opacity = clamp01(p);
+      galleryLayer.style.willChange = "transform, opacity";
+      galleryLayer.style.transformOrigin = `${b.left + b.width / 2}px ${b.top + b.height / 2}px`;
+      galleryLayer.style.transform = `scale(${1 + GRID_GROW * (1 - p)})`;
+      flyer.style.display = "block";
+      flyer.style.width = `${lerp(a.width, b.width, p)}px`;
+      flyer.style.height = `${lerp(a.height, b.height, p)}px`;
+      flyer.style.transform = `translate(${lerp(a.left, b.left, p)}px, ${lerp(a.top, b.top, p)}px)`;
+      flyer.style.borderRadius = `${TILE_RADIUS * clamp01(p)}px`;
+    };
+
+    // What the flyer shows: the thumbnail at once; over it the full photo
+    // when it is ready, or the video's current frame.
+    const dress = (file, canvas) => {
+      flyer.style.backgroundImage = `url(/thumbnails?hash=${file.file_hash})`;
+      const img = canvas?.querySelector("img");
+      flyerImg.onload = () => (flyerImg.style.opacity = "1");
+      if (img?.src) {
+        flyerImg.style.opacity = img.complete && img.naturalWidth ? "1" : "0";
+        flyerImg.src = img.currentSrc || img.src;
+      } else {
+        flyerImg.style.opacity = "0";
+        flyerImg.removeAttribute("src");
+      }
+      const video = canvas?.querySelector("video");
+      flyerFrame.style.display = "none";
+      if (video?.readyState >= 2 && video.videoWidth) {
+        const scale = Math.min(1, 1280 / video.videoWidth);
+        flyerFrame.width = Math.round(video.videoWidth * scale);
+        flyerFrame.height = Math.round(video.videoHeight * scale);
+        try {
+          flyerFrame
+            .getContext("2d")
+            .drawImage(video, 0, 0, flyerFrame.width, flyerFrame.height);
+          flyerFrame.style.display = "block";
+        } catch {
+          // A frame we cannot read: the thumbnail stands in.
+        }
+      }
+    };
+
+    const begin = (index, target) => {
+      const file = filesRef.current[index];
+      if (!file) return null;
+      if (target === 1) galleryRef.current?.reveal(index);
+      const canvas = root.querySelector(
+        `[data-feed-index="${index}"] .media-canvas`,
+      );
+      dress(file, canvas);
+      if (canvas) canvas.style.visibility = "hidden";
+      galleryRef.current?.setHidden(index);
+      return { index, files: filesRef.current, canvas };
+    };
+
+    // From a frame callback the un-hide must commit in this frame, with the
+    // flyer's removal; inside React's commit (an effect) a plain update does.
+    const settle = ({ fromFrame }) => {
+      const { shot } = s;
+      s.shot = null;
+      if (fromFrame) flushSync(() => galleryRef.current?.setHidden(null));
+      else galleryRef.current?.setHidden(null);
+      if (shot?.canvas) shot.canvas.style.visibility = "";
+      paint();
+    };
+
+    const finish = () => {
+      cancelAnimationFrame(s.raf);
+      Object.assign(s, { p: s.target, v: 0, raf: 0 });
+      settle({ fromFrame: false });
+    };
+
+    const tick = (now) => {
+      const dt = s.last
+        ? Math.min(0.032, Math.max(0, (now - s.last) / 1000))
+        : 0.016;
+      s.last = now;
+      const k = ZOOM_STIFFNESS;
+      s.v += (-k * (s.p - s.target) - 2 * Math.sqrt(k) * s.v) * dt;
+      s.p += s.v * dt;
+      // Settled within half a pixel of the end, however far the photo goes.
+      const travel = s.shot?.travel ?? 1;
+      const settled =
+        Math.abs(s.p - s.target) * travel < 0.5 && Math.abs(s.v) * travel < 10;
+      if (settled) {
+        Object.assign(s, { p: s.target, v: 0, raf: 0 });
+        settle({ fromFrame: true });
+        return;
+      }
+      paint();
+      s.raf = requestAnimationFrame(tick);
+    };
+
+    zoomRef.current = {
+      to(target, index) {
+        s.target = target;
+        if (!s.shot) {
+          if (s.p === target) return;
+          const reduceMotion = matchMedia(
+            "(prefers-reduced-motion: reduce)",
+          ).matches;
+          if (!reduceMotion) s.shot = begin(index, target);
+          if (!s.shot) {
+            s.p = target;
+            paint();
+            return;
+          }
+        }
+        paint();
+        if (!s.raf) {
+          s.last = 0;
+          s.raf = requestAnimationFrame(tick);
+        }
+      },
+      // The item or the list changed under a zoom: end it now.
+      check(index, files) {
+        if (s.shot && (s.shot.index !== index || s.shot.files !== files)) {
+          finish();
+        }
+      },
+    };
+
+    paint();
+    return () => cancelAnimationFrame(s.raf);
+    // Built once; reads everything that changes through refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Before the trigger below, so a zoom for another item ends first.
+  useLayoutEffect(() => {
+    zoomRef.current.check(currentIndex, mediaFiles);
+  }, [currentIndex, mediaFiles]);
+
+  useLayoutEffect(() => {
+    if (shownViewRef.current === isGalleryView) return;
+    shownViewRef.current = isGalleryView;
+    zoomRef.current.to(isGalleryView ? 1 : 0, currentIndexRef.current);
+  }, [isGalleryView]);
 
   const handleFeedScroll = useCallback(() => {
     if (isGalleryView || scrollFrameRef.current) return;
@@ -391,8 +331,6 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
   useEffect(() => {
     return () => {
       if (scrollFrameRef.current) cancelAnimationFrame(scrollFrameRef.current);
-      if (galleryScrollFrameRef.current)
-        cancelAnimationFrame(galleryScrollFrameRef.current);
     };
   }, []);
 
@@ -404,38 +342,15 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
     };
   }, [currentIndex, mediaFiles.length]);
 
-  const currentIndexStoreRef = useRef(null);
-  if (currentIndexStoreRef.current === null) {
-    currentIndexStoreRef.current = createCurrentIndexStore(currentIndex);
-  }
-  useEffect(() => {
-    currentIndexStoreRef.current.setValue(currentIndex);
-  }, [currentIndex]);
-
-  const masonryContext = useMemo(
-    () => ({
-      currentIndexStore: currentIndexStoreRef.current,
-      onSelectMedia: selectMedia,
-      isGalleryView,
-    }),
-    [isGalleryView, selectMedia],
-  );
-
-  // Keep this small regardless of currentIndex — Virtuoso renders all
-  // `initialItemCount` items eagerly (no virtualization), so scaling with
-  // currentIndex causes thousands of <img> tags to mount on deep links. The
-  // scroll-into-view effect below already handles landing on far-off items
-  // by setting scrollTop and retrying until Virtuoso mounts the target.
-  const initialItemCount = Math.min(mediaFiles.length, columnCount * 12);
-
   return (
-    <div className="relative h-full w-full overflow-hidden isolate">
+    <div
+      ref={rootRef}
+      className="relative h-full w-full overflow-hidden isolate"
+    >
       <div
+        ref={feedLayerRef}
         className="absolute inset-0 z-[1]"
-        style={{
-          opacity: isGalleryView ? 0 : 1,
-          pointerEvents: isGalleryView ? "none" : "auto",
-        }}
+        inert={isGalleryView ? "" : undefined}
       >
         <div
           ref={feedRef}
@@ -475,26 +390,23 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
         </div>
       </div>
 
+      {/* Over the ambient blur, like the feed: the grid has no backdrop. */}
       <div
-        ref={galleryRef}
-        className="absolute inset-0 z-[2] bg-black"
-        style={{
-          opacity: isGalleryView ? 1 : 0,
-          pointerEvents: isGalleryView ? "auto" : "none",
-        }}
+        ref={galleryLayerRef}
+        className="absolute inset-0 z-[2]"
+        inert={isGalleryView ? undefined : ""}
       >
-        <VirtuosoMasonry
-          // `unified-gallery-scroll` is a JS query hook for scroll restoration.
-          // Room below the last row for the dock goes on the columns, not the
-          // scroller: the masonry sizes its visible window from the scroller's
-          // content box, so scroller padding hides tiles near the edges.
-          className="unified-gallery-scroll h-full w-full overflow-y-auto overflow-x-hidden px-3.5 scrollbar-hide [-webkit-overflow-scrolling:touch] [&>[data-testid=virtuoso-list]]:mb-24"
-          data={mediaFiles}
-          columnCount={columnCount}
-          context={masonryContext}
-          initialItemCount={initialItemCount}
-          ItemContent={GalleryItemContent}
+        <Gallery
+          ref={galleryRef}
+          files={mediaFiles}
+          currentIndex={currentIndex}
+          onSelect={selectMedia}
         />
+      </div>
+
+      <div ref={flyerRef} className="zoom-flyer z-[3]" aria-hidden="true">
+        <img alt="" draggable={false} />
+        <canvas />
       </div>
     </div>
   );

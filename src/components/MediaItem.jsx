@@ -117,7 +117,6 @@ const MediaItem = memo(function MediaItem({
   // toggles on this wrapper from data-ar (see index.css and applyFit).
   const canvasStyle = {
     backgroundImage: `url(${thumbnailUrl})`,
-    viewTransitionName: isActive ? "media-active" : undefined,
   };
   const wrapperClass = "media-item absolute inset-0";
   const wrapperStyle = aspectRatio ? { "--ar": aspectRatio } : undefined;

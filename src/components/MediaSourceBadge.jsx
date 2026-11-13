@@ -40,7 +40,6 @@ const MediaSourceBadge = memo(function MediaSourceBadge() {
         disabled={galleryView}
         title={galleryView ? undefined : `Filter by: ${displayName}`}
         className="surface pointer-events-auto relative h-7 max-w-[60%] truncate rounded-full px-3 font-medium text-gray-100 transition-transform duration-100 enabled:active:scale-95"
-        style={{ viewTransitionName: "chrome-badge" }}
       >
         {label}
       </button>
