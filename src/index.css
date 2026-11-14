@@ -324,6 +324,15 @@ html {
   margin: 0 4px;
   background-color: rgb(255 255 255 / 0.14);
 }
+/* The previous/next arrows. A chevron has far less ink than the other
+   icons, so a full 36px cell leaves it floating in space: the pair would
+   sit apart, and the end of the dock would look padded more than the
+   start. A shorter cell along the row evens the gaps out by eye (a chevron
+   is wider than it is tall, so a row needs less trimming than a column). */
+.dock-step {
+  width: 32px;
+  height: 36px;
+}
 
 /* A video's progress: the sheet's surface fills behind the icon row
    (VideoProgress.jsx sets --p). It belongs to the sheet's dock edge, not to
@@ -422,6 +431,10 @@ html {
     width: 18px;
     height: 1px;
     margin: 4px 0;
+  }
+  .dock-step {
+    width: 36px;
+    height: 28px;
   }
   /* The tide runs down the right-hand column, fading out leftward; the
      time sits to the sheet's left. */

@@ -142,7 +142,7 @@ const Dock = memo(function Dock({ panel, onPanel }) {
         title="Search & filters"
       >
         <Icon>
-          <path d="M3 4.5h18M6 10.5h12M10 16.5h4" />
+          <path d="M3 6h18M6 12h12M10 18h4" />
         </Icon>
       </IconButton>
 
@@ -162,20 +162,20 @@ const Dock = memo(function Dock({ panel, onPanel }) {
         onClick={() => navigate(-1)}
         title="Previous (↑)"
         disabled={!showItem}
-        className="mouse-only"
+        className="mouse-only dock-step"
       >
         <Icon>
-          <path d="M5 15l7-7 7 7" />
+          <path d="M5 15.5l7-7 7 7" />
         </Icon>
       </IconButton>
       <IconButton
         onClick={() => navigate(1)}
         title="Next (↓)"
         disabled={!showItem}
-        className="mouse-only"
+        className="mouse-only dock-step"
       >
         <Icon>
-          <path d="M19 9l-7 7-7-7" />
+          <path d="M19 8.5l-7 7-7-7" />
         </Icon>
       </IconButton>
     </>
