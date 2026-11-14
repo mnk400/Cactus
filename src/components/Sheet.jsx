@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import Dock from "./Dock";
+import VideoProgress from "./VideoProgress";
 
 const DOCK = 44; // thickness of the icon row, and so of the closed sheet
 export const DRAG_SLOP = 6; // a press must travel this far to be a drag
@@ -266,6 +267,7 @@ function Sheet({ panel, onPanel, panels }) {
         if (!event.target.closest("input, textarea")) event.preventDefault();
       }}
     >
+      <VideoProgress />
       <div className="sheet-body">
         <div ref={innerRef} className="sheet-inner">
           <div className="sheet-grab" aria-hidden="true" />

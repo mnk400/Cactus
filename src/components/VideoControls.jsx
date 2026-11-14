@@ -15,7 +15,8 @@ const clock = (seconds) =>
 // dock is pulled up into its panel). The playhead moves from where it was by
 // how far you drag, never jumps to the finger; the stage's width is the whole
 // video. While you scrub, <html data-scrubbing> dims the dock's icons and
-// shows the time beside it (index.css); the dock's tide is the progress.
+// shows the time beside the sheet; the tide along its dock edge is the
+// progress.
 function useScrub(videoElement, seekVideo, timeRef) {
   useEffect(() => {
     if (!videoElement) return undefined;
@@ -23,6 +24,21 @@ function useScrub(videoElement, seekVideo, timeRef) {
     const root = document.documentElement;
     let g = null;
 
+    // The time sits just outside the sheet, whatever size it is (the dock,
+    // or a panel): centered above it on a tall screen, to its left on a wide
+    // one. index.css hangs the label off this point.
+    const placeTime = () => {
+      const label = timeRef.current;
+      const sheet = document.querySelector(".sheet");
+      if (!label?.offsetParent || !sheet) return;
+      const box = label.offsetParent.getBoundingClientRect();
+      const s = sheet.getBoundingClientRect();
+      const [x, y] = portrait.matches
+        ? [s.left + s.width / 2, Math.max(s.top - 10, box.top + 40)]
+        : [s.left - 10, s.top + s.height / 2];
+      label.style.left = `${x - box.left}px`;
+      label.style.top = `${y - box.top}px`;
+    };
     const swallow = (e) => {
       e.stopPropagation();
       e.preventDefault();
@@ -73,6 +89,7 @@ function useScrub(videoElement, seekVideo, timeRef) {
           wasPlaying: !videoElement.paused,
         };
         videoElement.pause();
+        placeTime();
         root.dataset.scrubbing = "";
       }
       const t = Math.min(
@@ -112,7 +129,7 @@ function useScrub(videoElement, seekVideo, timeRef) {
 }
 
 // Video-only chrome: sound and fullscreen top right, and the scrub gesture.
-// Progress itself lives in the dock (VideoProgress.jsx), so the dock never
+// Progress itself lives on the sheet (VideoProgress.jsx), so the dock never
 // changes shape as you swipe between photos and videos.
 function VideoControls() {
   const { videoElement, seekVideo } = useVideoElement();

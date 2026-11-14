@@ -325,16 +325,20 @@ html {
   background-color: rgb(255 255 255 / 0.14);
 }
 
-/* A video's progress: the dock's surface fills behind its icons, along the
-   row (VideoProgress.jsx sets --p). Under everything else in the sheet but
-   its background. */
+/* A video's progress: the sheet's surface fills behind the icon row
+   (VideoProgress.jsx sets --p). It belongs to the sheet's dock edge, not to
+   the row, so when the sheet grows into a panel it runs edge to edge and
+   grows with it; the sheet's corners clip it. It is a little deeper than the
+   row and fades out toward the panel, so it has no inner edge. */
 .dock-tide {
   position: absolute;
-  inset: 0;
-  z-index: -1;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 58px;
   overflow: hidden;
-  border-radius: 22px;
   pointer-events: none;
+  mask-image: linear-gradient(to top, #000 30%, transparent);
 }
 .dock-tide > i {
   position: absolute;
@@ -349,8 +353,9 @@ html {
 }
 
 /* Scrubbing (VideoControls.jsx sets data-scrubbing): the icons step back,
-   the tide brightens, and the time floats just above the dock. The paused
-   play mark stays hidden; scrubbing pauses only to hold the frame. */
+   the tide brightens, and the time floats just outside the sheet, where
+   VideoControls places it. The paused play mark stays hidden; scrubbing
+   pauses only to hold the frame. */
 .dock-row > button {
   transition: opacity 150ms;
 }
@@ -365,11 +370,8 @@ html {
 }
 .scrub-time {
   position: absolute;
-  /* Over the sheet too: a scrub along the dock may start with a panel open. */
-  z-index: 31;
-  left: 50%;
-  bottom: calc(18px + env(safe-area-inset-bottom, 0px) + 54px);
-  translate: -50% 6px;
+  z-index: 20;
+  translate: -50% calc(6px - 100%);
   padding: 5px 10px;
   border-radius: 12px;
   font-size: 12px;
@@ -384,7 +386,7 @@ html {
 }
 [data-scrubbing] .scrub-time {
   opacity: 1;
-  translate: -50% 0;
+  translate: -50% -100%;
 }
 
 /* Wide viewport: the sheet sits right-center, under the thumb, and grows
@@ -421,20 +423,24 @@ html {
     height: 1px;
     margin: 4px 0;
   }
-  /* The tide runs down the column; the time sits to the dock's left. */
+  /* The tide runs down the right-hand column, fading out leftward; the
+     time sits to the sheet's left. */
+  .dock-tide {
+    left: auto;
+    top: 0;
+    width: 58px;
+    height: auto;
+    mask-image: linear-gradient(to left, #000 30%, transparent);
+  }
   .dock-tide > i {
     box-shadow: inset 0 -1px 0 rgb(255 255 255 / 0.18);
     transform: translateY(calc((var(--p, 0) - 1) * 100%));
   }
   .scrub-time {
-    left: auto;
-    bottom: auto;
-    right: calc(10px + env(safe-area-inset-right, 0px) + 54px);
-    top: 50%;
-    translate: 6px -50%;
+    translate: calc(6px - 100%) -50%;
   }
   [data-scrubbing] .scrub-time {
-    translate: 0 -50%;
+    translate: -100% -50%;
   }
 }
 

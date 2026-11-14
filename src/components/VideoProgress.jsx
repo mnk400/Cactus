@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useVideoElement } from "../context/MediaContext";
 
-// The video's progress, as a tide that fills the dock behind its icons. Only
+// The video's progress, as a tide that fills the sheet behind its icon row. Only
 // the fill's position changes (--p, read by .dock-tide in index.css), written
 // straight to the DOM so React does not render per frame: every frame while
 // the video plays, and on each seek otherwise (which is how a scrub moves it).
