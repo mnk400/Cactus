@@ -24,8 +24,8 @@ const MediaItem = memo(function MediaItem({
     setIsLoading(loading);
   }, []);
 
-  // Publish the active video element to context so the hairline progress bar
-  // and top-right controls pill (rendered in App) can reach it.
+  // Publish the active video element to context so the dock's progress and
+  // the video controls (rendered in App) can reach it.
   const { setVideoElement } = useVideoElement();
   const isVideoActive =
     isActive && !isLoading && mediaFile?.media_type === "video";
@@ -364,7 +364,7 @@ const VideoPlayer = memo(function VideoPlayer({
 
       {/* Paused: a play mark, and the frame stays at full brightness. */}
       {showOverlay && isActive && !isLoading && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+        <div className="play-mark pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
           <div className="surface rounded-full p-4 text-white">
             <svg className="h-7 w-7" fill="currentColor" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z" />

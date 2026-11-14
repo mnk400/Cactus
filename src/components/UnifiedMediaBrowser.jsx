@@ -359,7 +359,7 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
       >
         <div
           ref={feedRef}
-          className="h-full w-full overflow-y-auto overflow-x-hidden overscroll-contain snap-y snap-mandatory scrollbar-hide [-webkit-overflow-scrolling:touch]"
+          className="h-full w-full overflow-y-auto overflow-x-hidden overscroll-contain snap-y snap-mandatory scrollbar-hide [-webkit-overflow-scrolling:touch] [touch-action:pan-y]"
           onScroll={handleFeedScroll}
         >
           {mediaFiles.map((mediaFile, actualIndex) => {

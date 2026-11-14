@@ -3,6 +3,7 @@ import { flushSync } from "react-dom";
 import Dock from "./Dock";
 
 const DOCK = 44; // thickness of the icon row, and so of the closed sheet
+export const DRAG_SLOP = 6; // a press must travel this far to be a drag
 const TOP_GAP = 10; // space kept above the open sheet on a tall screen
 const STIFFNESS = 520; // spring response ≈ 0.28s
 const FLICK_DAMPING = 0.82; // a little overshoot, only after a flick
@@ -141,7 +142,13 @@ function Sheet({ panel, onPanel, panels }) {
     // Drag by the grabber or the icon row; the panel's own content scrolls.
     const onDown = (e) => {
       if (e.button || !e.target.closest(".sheet-grab, .dock-row")) return;
-      drag = { x: e.clientX, y: e.clientY, id: e.pointerId, samples: [] };
+      drag = {
+        x: e.clientX,
+        y: e.clientY,
+        id: e.pointerId,
+        samples: [],
+        row: !!e.target.closest(".dock-row"),
+      };
     };
     const onMove = (e) => {
       if (!drag || e.pointerId !== drag.id) return;
@@ -149,7 +156,14 @@ function Sheet({ panel, onPanel, panels }) {
       const dy = e.clientY - drag.y;
       const [dist, cross] = g.tall ? [dy, dx] : [dx, dy];
       if (!drag.active) {
-        if (Math.abs(dist) < 6 || Math.abs(cross) > Math.abs(dist)) return;
+        if (Math.max(Math.abs(dist), Math.abs(cross)) < DRAG_SLOP) return;
+        if (Math.abs(cross) > Math.abs(dist)) {
+          // Sideways along the dock row is a scrub (VideoControls decides on
+          // the same move, by the same rule), so the pull lets it go.
+          // Elsewhere, wait and see.
+          if (g.tall && drag.row) drag = null;
+          return;
+        }
         try {
           sheet.setPointerCapture(e.pointerId);
         } catch {

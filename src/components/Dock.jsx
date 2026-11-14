@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { useMediaData, useCurrentMedia } from "../context/MediaContext";
 import { useMediaTags } from "../hooks/useMediaTags";
+import VideoProgress from "./VideoProgress";
 
 const FAVORITE_TAG = "favorites";
 
@@ -88,6 +89,7 @@ const Dock = memo(function Dock({ panel, onPanel }) {
 
   return (
     <>
+      <VideoProgress />
       <IconButton
         onClick={() => (favorite ? remove(favorite.id) : add([FAVORITE_TAG]))}
         active={!!favorite}

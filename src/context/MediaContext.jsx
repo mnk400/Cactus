@@ -50,8 +50,8 @@ export const MediaProvider = ({ children }) => {
     return localStorage.getItem("cactus-user-audio-interaction") === "true";
   });
 
-  // Active video element — set by MediaItem and consumed by the shared rail
-  // controls and progress bar.
+  // Active video element — set by MediaItem and consumed by the video
+  // controls and the dock's progress.
   const [videoElement, setVideoElement] = useState(null);
   const seekVideo = useCallback(
     (time) => {
@@ -630,7 +630,7 @@ export const useAudio = () => {
   return context;
 };
 
-/** Active <video> element + setter — used by hairline progress bar and controls pill */
+/** Active <video> element + setter — used by the dock's progress and the video controls */
 export const useVideoElement = () => {
   const context = useContext(VideoElementContext);
   if (!context)

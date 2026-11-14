@@ -1,18 +1,125 @@
+import { useEffect, useRef } from "react";
 import {
   useAudio,
   useCurrentMedia,
   useVideoElement,
 } from "../context/MediaContext";
 import { Icon, IconButton } from "./Dock";
-import VideoProgressBar from "./VideoProgressBar";
+import { DRAG_SLOP } from "./Sheet";
 
-// Video-only chrome: sound and fullscreen top right, scrubber along the
-// stage's bottom edge. Kept out of the dock so the dock never changes as you
-// swipe between photos and videos.
+const clock = (seconds) =>
+  `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
+
+// Scrub by sliding sideways on the video, or along the dock while it is a
+// horizontal row (sideways is free there: the feed pages vertically and the
+// dock is pulled up into its panel). The playhead moves from where it was by
+// how far you drag, never jumps to the finger; the stage's width is the whole
+// video. While you scrub, <html data-scrubbing> dims the dock's icons and
+// shows the time beside it (index.css); the dock's tide is the progress.
+function useScrub(videoElement, seekVideo, timeRef) {
+  useEffect(() => {
+    if (!videoElement) return undefined;
+    const portrait = matchMedia("(orientation: portrait)"); // same as index.css
+    const root = document.documentElement;
+    let g = null;
+
+    const swallow = (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+    };
+    const end = () => {
+      const { on, wasPlaying } = g;
+      g = null;
+      if (!on) return;
+      delete root.dataset.scrubbing;
+      if (wasPlaying) videoElement.play().catch(() => {});
+    };
+    const onDown = (e) => {
+      // One scrub at a time: a second finger does not take it over.
+      if (e.button || g?.on) return;
+      const onVideo = e.target === videoElement;
+      const onDock = portrait.matches && !!e.target.closest(".dock-row");
+      if (onVideo || onDock)
+        g = { id: e.pointerId, x: e.clientX, y: e.clientY, on: false };
+    };
+    const onMove = (e) => {
+      if (!g || e.pointerId !== g.id) return;
+      // A mouse let go outside the window sends no pointerup.
+      if (e.pointerType === "mouse" && !e.buttons) return end();
+      const { duration } = videoElement;
+      const dx = e.clientX - g.x;
+      if (!g.on) {
+        const dy = e.clientY - g.y;
+        if (Math.max(Math.abs(dx), Math.abs(dy)) < DRAG_SLOP) return;
+        // Up or down is a swipe through the feed, or a pull on the dock
+        // (Sheet.jsx makes the same call on the same move).
+        if (
+          Math.abs(dy) >= Math.abs(dx) ||
+          !(duration > 0 && isFinite(duration))
+        ) {
+          g = null;
+          return;
+        }
+        try {
+          e.target.setPointerCapture(e.pointerId);
+        } catch {
+          // Capture is a nicety; the scrub works without it.
+        }
+        g = {
+          ...g,
+          on: true,
+          x: e.clientX,
+          from: videoElement.currentTime,
+          wasPlaying: !videoElement.paused,
+        };
+        videoElement.pause();
+        root.dataset.scrubbing = "";
+      }
+      const t = Math.min(
+        duration,
+        Math.max(
+          0,
+          g.from + ((e.clientX - g.x) / window.innerWidth) * duration,
+        ),
+      );
+      seekVideo(t);
+      if (timeRef.current)
+        timeRef.current.textContent = `${clock(t)} / ${clock(duration)}`;
+    };
+    const onUp = (e) => {
+      if (!g || e.pointerId !== g.id) return;
+      const { on } = g;
+      end();
+      if (!on) return;
+      // A mouse fires a click where the drag ends; it was not a tap.
+      window.addEventListener("click", swallow, { capture: true, once: true });
+      setTimeout(() => window.removeEventListener("click", swallow, true), 0);
+    };
+
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onUp);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onUp);
+      // Torn down mid-scrub (the video changed): still let the video go.
+      if (g) end();
+    };
+  }, [videoElement, seekVideo, timeRef]);
+}
+
+// Video-only chrome: sound and fullscreen top right, and the scrub gesture.
+// Progress itself lives in the dock (VideoProgress.jsx), so the dock never
+// changes shape as you swipe between photos and videos.
 function VideoControls() {
-  const { videoElement } = useVideoElement();
+  const { videoElement, seekVideo } = useVideoElement();
   const { isMuted, toggleMute } = useAudio();
   const { currentMediaFile } = useCurrentMedia();
+  const timeRef = useRef(null);
+  useScrub(videoElement, seekVideo, timeRef);
 
   if (currentMediaFile?.media_type !== "video") return null;
 
@@ -56,15 +163,7 @@ function VideoControls() {
           </Icon>
         </IconButton>
       </div>
-      <div
-        className="absolute inset-x-0 z-20"
-        // Clear of the iPhone home indicator, so scrubbing doesn't trigger it.
-        style={{
-          bottom: "env(safe-area-inset-bottom, 0px)",
-        }}
-      >
-        <VideoProgressBar />
-      </div>
+      <span ref={timeRef} aria-hidden="true" className="scrub-time surface" />
     </>
   );
 }
