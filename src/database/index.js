@@ -23,24 +23,6 @@ const log = {
         timestamp: new Date().toISOString(),
       }),
     ),
-  warn: (message, meta = {}) =>
-    console.warn(
-      JSON.stringify({
-        level: "warn",
-        message,
-        ...meta,
-        timestamp: new Date().toISOString(),
-      }),
-    ),
-  debug: (message, meta = {}) =>
-    console.log(
-      JSON.stringify({
-        level: "debug",
-        message,
-        ...meta,
-        timestamp: new Date().toISOString(),
-      }),
-    ),
 };
 
 class MediaDatabase {
@@ -280,64 +262,6 @@ class MediaDatabase {
   }
 
   /**
-   * Add or update a media file in the database
-   */
-  upsertMediaFile(filePath, mediaType, thumbnailPath = null) {
-    if (!this.isInitialized) {
-      throw new Error("Database not initialized");
-    }
-
-    try {
-      const stats = fs.statSync(filePath);
-      const fileHash = this.generateFileHash(filePath);
-      const filename = path.basename(filePath);
-      const fileSize = stats.size;
-      const now = new Date().toISOString();
-
-      const stmt = this.db.prepare(`
-                INSERT INTO media_files (file_hash, file_path, filename, file_size, media_type, thumbnail_path, last_seen)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(file_hash) DO UPDATE SET
-                    file_path = excluded.file_path,
-                    filename = excluded.filename,
-                    thumbnail_path = excluded.thumbnail_path,
-                    last_seen = excluded.last_seen,
-                    date_modified = CASE 
-                        WHEN file_size != excluded.file_size THEN excluded.last_seen 
-                        ELSE date_modified 
-                    END,
-                    file_size = excluded.file_size
-            `);
-
-      const result = stmt.run(
-        fileHash,
-        filePath,
-        filename,
-        fileSize,
-        mediaType,
-        thumbnailPath,
-        now,
-      );
-
-      return {
-        fileHash,
-        filePath,
-        filename,
-        fileSize,
-        mediaType,
-        thumbnailPath,
-        isNew: result.changes > 0 && result.lastInsertRowid > 0,
-      };
-    } catch (error) {
-      log.error("Failed to upsert media file", {
-        filePath,
-        error: error.message,
-      });
-      throw error;
-    }
-  }
-
-  /**
    * Unified media query with composable filters.
    * All filter fields are optional — an empty object returns all media, unordered
    * ("random" is shuffled by the server with a seed).
@@ -441,13 +365,6 @@ class MediaDatabase {
   }
 
   /**
-   * @deprecated Use getMedia() instead
-   */
-  getAllMedia(sortBy = "random", mediaType = "all") {
-    return this.getMedia({ mediaType, sortBy });
-  }
-
-  /**
    * Get media file by hash
    */
   getMediaFileByHash(fileHash) {
@@ -489,13 +406,6 @@ class MediaDatabase {
       });
       throw error;
     }
-  }
-
-  /**
-   * @deprecated Use getMedia({ search }) instead
-   */
-  getMediaByGeneralFilter(substring) {
-    return this.getMedia({ search: substring });
   }
 
   /**
@@ -771,30 +681,6 @@ class MediaDatabase {
   }
 
   /**
-   * Update thumbnail path for a media file
-   */
-  updateMediaFileThumbnail(fileHash, thumbnailPath) {
-    if (!this.isInitialized) {
-      throw new Error("Database not initialized");
-    }
-
-    try {
-      const stmt = this.db.prepare(`
-                UPDATE media_files SET thumbnail_path = ? WHERE file_hash = ?
-            `);
-      const result = stmt.run(thumbnailPath, fileHash);
-      return result.changes > 0;
-    } catch (error) {
-      log.error("Failed to update media file thumbnail", {
-        fileHash,
-        thumbnailPath,
-        error: error.message,
-      });
-      throw error;
-    }
-  }
-
-  /**
    * Update thumbnail path and dimensions for a media file
    */
   updateMediaFileThumbnailWithDimensions(
@@ -890,23 +776,6 @@ class MediaDatabase {
   }
 
   /**
-   * Get tag by name
-   */
-  getTagByName(name) {
-    if (!this.isInitialized) {
-      throw new Error("Database not initialized");
-    }
-
-    try {
-      const stmt = this.db.prepare("SELECT * FROM tags WHERE name = ?");
-      return stmt.get(name.trim());
-    } catch (error) {
-      log.error("Failed to get tag by name", { name, error: error.message });
-      throw error;
-    }
-  }
-
-  /**
    * Add tag to media file
    */
   addTagToMedia(fileHash, tagId) {
@@ -980,13 +849,6 @@ class MediaDatabase {
       log.error("Failed to get media tags", { fileHash, error: error.message });
       throw error;
     }
-  }
-
-  /**
-   * @deprecated Use getMedia({ includeTags, excludeTags, mediaType }) instead
-   */
-  getMediaByTagsAndType(includeTags = [], excludeTags = [], mediaType = "all") {
-    return this.getMedia({ includeTags, excludeTags, mediaType });
   }
 
   /**

@@ -11,8 +11,6 @@ const os = require("os");
 const ffmpeg = require("fluent-ffmpeg");
 const MediaSourceProvider = require("./MediaSourceProvider");
 
-const fetch = globalThis.fetch || require("node-fetch");
-
 const mkLog =
   (level, fn) =>
   (message, meta = {}) =>
@@ -1172,7 +1170,7 @@ class SbMediaProvider extends MediaSourceProvider {
 
   async rescanDirectory() {
     throw new Error(
-      "Directory rescan not supported by sbMediaProvider. Use getAllMedia() to refresh data from sb server.",
+      "Directory rescan not supported by sbMediaProvider. Use getMedia() to refresh data from sb server.",
     );
   }
 

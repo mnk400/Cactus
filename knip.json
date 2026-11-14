@@ -1,0 +1,5 @@
+{
+  "entry": ["src/public/sw.js"],
+  "project": ["src/**/*.{js,jsx,css}"],
+  "ignoreDependencies": ["concurrently"]
+}

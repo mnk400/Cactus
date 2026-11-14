@@ -18,7 +18,7 @@ export const URL_PARAMS = {
 
 // A random order is a seed: the server shuffles with it, so the same seed
 // always gives the same order (across reloads, filters, back/forward).
-export const newSeed = () => 1 + Math.floor(Math.random() * 2147483646);
+const newSeed = () => 1 + Math.floor(Math.random() * 2147483646);
 const isSeed = (seed) => Number.isInteger(seed) && seed > 0;
 
 // Random sort carries a seed (a fresh one when it has none); other sorts none.
@@ -35,7 +35,7 @@ export const withSeed = (settings) => ({
 /**
  * Encodes settings object to URL parameters
  */
-export const encodeSettingsToURL = (settings) => {
+const encodeSettingsToURL = (settings) => {
   const params = new URLSearchParams();
 
   if (settings.mediaType && settings.mediaType !== "all") {
@@ -163,29 +163,4 @@ export const resolveTagNames = (tagNames, availableTags) => {
   return tagNames
     .map((tagName) => availableTags.find((tag) => tag.name === tagName))
     .filter(Boolean); // Remove undefined values
-};
-
-/**
- * Gets current settings from URL
- */
-export const getCurrentSettingsFromURL = () => {
-  return decodeSettingsFromURL();
-};
-
-/**
- * Finds the index of a media file by its hash
- */
-export const findMediaIndexByHash = (mediaFiles, hash) => {
-  if (!hash || !Array.isArray(mediaFiles)) {
-    return -1;
-  }
-
-  return mediaFiles.findIndex((file) => file.file_hash === hash);
-};
-
-/**
- * Clears all URL parameters
- */
-export const clearURLParams = () => {
-  window.history.replaceState({}, "", window.location.pathname);
 };

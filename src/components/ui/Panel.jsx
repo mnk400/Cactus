@@ -58,7 +58,6 @@ export function SegmentedControl({
 const BUTTON_VARIANTS = {
   primary: "pill-on",
   secondary: "pill text-gray-100",
-  danger: "pill text-red-300",
   ghost: "text-white/55 hover:text-white",
   dangerGhost: "text-red-300/80 hover:text-red-300",
 };

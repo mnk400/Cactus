@@ -1,4 +1,4 @@
-import React, {
+import {
   createContext,
   useContext,
   useState,
@@ -38,7 +38,6 @@ export const MediaProvider = ({ children }) => {
   const [loading, setLoading] = useState(null);
   const [error, setError] = useState(null);
   const [config, setConfig] = useState(null);
-  const [configLoading, setConfigLoading] = useState(true);
   const [isScanning, setIsScanning] = useState(false);
   const [isRegeneratingThumbnails, setIsRegeneratingThumbnails] =
     useState(false);
@@ -74,14 +73,8 @@ export const MediaProvider = ({ children }) => {
 
   // Tags state
   const [tags, setTags] = useState([]);
-  const [tagsLoading, setTagsLoading] = useState(false);
 
-  const {
-    settings,
-    getLatestSettings,
-    updateSettings,
-    isInitialized: isUrlInitialized,
-  } = useURLSettings(tags);
+  const { settings, getLatestSettings, updateSettings } = useURLSettings(tags);
 
   const {
     mediaType,
@@ -108,7 +101,6 @@ export const MediaProvider = ({ children }) => {
 
   // Tag Management Methods
   const fetchTags = useCallback(async () => {
-    setTagsLoading(true);
     try {
       const response = await fetch("/api/tags");
       if (!response.ok) throw new Error("Failed to fetch tags");
@@ -116,8 +108,6 @@ export const MediaProvider = ({ children }) => {
       setTags(data.tags || []);
     } catch (err) {
       console.error("Error fetching tags:", err);
-    } finally {
-      setTagsLoading(false);
     }
   }, []);
 
@@ -244,15 +234,12 @@ export const MediaProvider = ({ children }) => {
   // Fetch server configuration
   const fetchConfig = useCallback(async () => {
     try {
-      setConfigLoading(true);
       const resp = await fetch("/api/config");
       if (!resp.ok) throw new Error("Failed to fetch config");
       const data = await resp.json();
       setConfig(data);
     } catch (err) {
       console.error("Config fetch failed:", err);
-    } finally {
-      setConfigLoading(false);
     }
   }, []);
 
@@ -264,16 +251,15 @@ export const MediaProvider = ({ children }) => {
   // The one place the list is fetched: on first load, and whenever the
   // filters change, whether from the panel or browser back/forward.
   useEffect(() => {
-    if (!isUrlInitialized) return;
     if (lastFetchedFilters.current !== filterKey) fetchMedia(mediaId);
-  }, [isUrlInitialized, fetchMedia, filterKey, mediaId]);
+  }, [fetchMedia, filterKey, mediaId]);
 
   // Keep the URL's media param on the item shown. Written directly
   // (replaceState) rather than through settings, so navigating does not
   // change the settings object. Runs after settings writes too (mediaId),
   // which may have dropped the param.
   useEffect(() => {
-    if (currentMediaFile && isUrlInitialized && !isUrlSync) {
+    if (currentMediaFile && !isUrlSync) {
       const url = new URL(window.location.href);
       if (
         url.searchParams.get(URL_PARAMS.MEDIA_ID) !== currentMediaFile.file_hash
@@ -283,7 +269,7 @@ export const MediaProvider = ({ children }) => {
       }
     }
     if (isUrlSync) setIsUrlSync(false);
-  }, [currentMediaFile, isUrlInitialized, isUrlSync, mediaId]);
+  }, [currentMediaFile, isUrlSync, mediaId]);
 
   // Handle URL updates (popstate)
   useEffect(() => {
@@ -445,7 +431,6 @@ export const MediaProvider = ({ children }) => {
       setCurrentIndex,
       // Server Config
       config,
-      configLoading,
       canRescan: config?.provider?.capabilities?.canRescan || false,
       canRegenerateThumbnails:
         config?.provider?.capabilities?.canRegenerateThumbnails || false,
@@ -453,7 +438,6 @@ export const MediaProvider = ({ children }) => {
       ui: config?.ui || {},
       // Tags
       tags,
-      tagsLoading,
       fetchTags,
       createTag,
       updateTag,
@@ -473,9 +457,7 @@ export const MediaProvider = ({ children }) => {
       rescan,
       regenerateThumbnails,
       config,
-      configLoading,
       tags,
-      tagsLoading,
       fetchTags,
       createTag,
       updateTag,

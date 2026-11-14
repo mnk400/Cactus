@@ -64,21 +64,6 @@ class MediaSourceProvider {
     throw new Error("Method getMedia() must be implemented by subclass");
   }
 
-  /** @deprecated Use getMedia() */
-  async getAllMedia(mediaType, sortBy) {
-    return this.getMedia({ mediaType, sortBy });
-  }
-
-  /** @deprecated Use getMedia() */
-  async getMediaByTags(includeTags, excludeTags, mediaType, sortBy) {
-    return this.getMedia({ mediaType, sortBy, includeTags, excludeTags });
-  }
-
-  /** @deprecated Use getMedia() */
-  async getMediaByGeneralFilter(substring, mediaType, sortBy) {
-    return this.getMedia({ mediaType, sortBy, search: substring });
-  }
-
   /**
    * Get all tags from the media source
    * @returns {Promise<Array>} Array of tags
@@ -270,7 +255,7 @@ class MediaSourceProvider {
   /**
    * Get detailed media info for display, structured as self-describing sections.
    * Providers should override this to add provider-specific metadata.
-   * @param {Object} mediaFile - The full media file object from getAllMedia()
+   * @param {Object} mediaFile - The full media file object from getMedia()
    * @returns {Object} { sections: [{ title, fields: [{ label, value, type }] }] }
    */
   getMediaInfo(mediaFile) {

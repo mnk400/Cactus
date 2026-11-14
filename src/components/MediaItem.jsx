@@ -1,4 +1,4 @@
-import React, {
+import {
   useState,
   useEffect,
   useLayoutEffect,
@@ -9,7 +9,6 @@ import React, {
 import { useAudio, useVideoElement } from "../context/MediaContext";
 
 const MediaItem = memo(function MediaItem({ mediaFile, isActive, preload }) {
-  const mediaRef = useRef(null);
   const videoRef = useRef(null);
   const imgRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -87,12 +86,7 @@ const MediaItem = memo(function MediaItem({ mediaFile, isActive, preload }) {
 
   if (mediaFile.media_type === "image") {
     return (
-      <div
-        ref={mediaRef}
-        className={wrapperClass}
-        data-ar={aspectRatio}
-        style={wrapperStyle}
-      >
+      <div className={wrapperClass} data-ar={aspectRatio} style={wrapperStyle}>
         <div className="media-canvas" style={canvasStyle}>
           <img
             ref={imgRef}
@@ -113,12 +107,7 @@ const MediaItem = memo(function MediaItem({ mediaFile, isActive, preload }) {
 
   if (mediaFile.media_type === "video") {
     return (
-      <div
-        ref={mediaRef}
-        className={wrapperClass}
-        data-ar={aspectRatio}
-        style={wrapperStyle}
-      >
+      <div className={wrapperClass} data-ar={aspectRatio} style={wrapperStyle}>
         <div className="media-canvas" style={canvasStyle}>
           <VideoPlayer
             src={src}
@@ -136,7 +125,7 @@ const MediaItem = memo(function MediaItem({ mediaFile, isActive, preload }) {
 
   // Fallback for unknown media types
   return (
-    <div ref={mediaRef} className={wrapperClass}>
+    <div className={wrapperClass}>
       <div className="flex h-full items-center justify-center p-6 text-center text-[13px] text-white/45">
         <div>
           <p className="m-0">can&rsquo;t show this file</p>

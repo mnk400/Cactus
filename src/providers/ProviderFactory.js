@@ -28,15 +28,6 @@ const log = {
         timestamp: new Date().toISOString(),
       }),
     ),
-  warn: (message, meta = {}) =>
-    console.warn(
-      JSON.stringify({
-        level: "warn",
-        message,
-        ...meta,
-        timestamp: new Date().toISOString(),
-      }),
-    ),
 };
 
 class ProviderFactory {
@@ -79,19 +70,6 @@ class ProviderFactory {
    */
   isValidProvider(providerType) {
     return this.providers.has(providerType);
-  }
-
-  /**
-   * Get provider configuration schema
-   * @param {string} providerType - Provider type
-   * @returns {Object} Configuration schema
-   */
-  getProviderConfigSchema(providerType) {
-    const ProviderClass = this.providers.get(providerType);
-    if (!ProviderClass) {
-      throw new Error(`Unknown provider type: ${providerType}`);
-    }
-    return ProviderClass.getConfigSchema();
   }
 
   /**

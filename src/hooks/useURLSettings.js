@@ -36,7 +36,6 @@ export const useURLSettings = (availableTags = []) => {
     const initialSettings = decodeSettingsFromURL();
     return validateAndSanitizeSettings(initialSettings);
   });
-  const [isInitialized] = useState(true);
 
   // A URL with no seed got a fresh one above; write it back so a reload
   // keeps this order.
@@ -102,32 +101,13 @@ export const useURLSettings = (availableTags = []) => {
     setUrlSettings(settingsForURL);
   }, []);
 
-  // Clear all settings
-  const clearSettings = useCallback(() => {
-    const defaultSettings = {
-      mediaType: "all",
-      sortBy: "random",
-      selectedTags: [],
-      excludedTags: [],
-      search: "",
-      galleryView: false,
-      debug: false,
-      mediaId: "",
-    };
-
-    updateSettings(defaultSettings);
-  }, [updateSettings]);
-
   // For callers that may update twice before React renders, and so must
   // compare against the latest settings rather than the rendered ones.
   const getLatestSettings = useCallback(() => latest.current, []);
 
   return {
     settings: resolvedSettings,
-    rawSettings: urlSettings,
     getLatestSettings,
     updateSettings,
-    clearSettings,
-    isInitialized,
   };
 };

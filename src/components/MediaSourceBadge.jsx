@@ -1,4 +1,4 @@
-import React, { memo, useCallback } from "react";
+import { memo, useCallback } from "react";
 import { useCurrentMedia, useMediaData } from "../context/MediaContext";
 
 const MediaSourceBadge = memo(function MediaSourceBadge() {

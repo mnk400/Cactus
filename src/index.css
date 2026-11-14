@@ -26,7 +26,7 @@ html {
    Everything that floats is painted from these tokens, so a finish is just
    a set of values. "Soft" (default): matte black pillows with quiet depth
    and one glossy accent. "Matte": the same shapes, flat. Chosen in Settings
-   and stored as data-skin on <html> (see utils/skin.js). */
+   and stored as data-skin on <html> (see utils/prefs.js). */
 :root {
   --surface: linear-gradient(#1b1c1e, #111213);
   --surface-edge: rgb(0 0 0 / 0.7);
@@ -552,11 +552,4 @@ input,
 select,
 textarea {
   font-size: 14px;
-}
-
-/* PWA safe area handling for iOS notch/Dynamic Island */
-@supports (padding-bottom: env(safe-area-inset-bottom)) {
-  .safe-area-bottom {
-    padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
-  }
 }
