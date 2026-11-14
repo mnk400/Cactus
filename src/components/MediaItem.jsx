@@ -118,7 +118,7 @@ const MediaItem = memo(function MediaItem({
   const canvasStyle = {
     backgroundImage: `url(${thumbnailUrl})`,
   };
-  const wrapperClass = "media-item absolute inset-0";
+  const wrapperClass = "media-item";
   const wrapperStyle = aspectRatio ? { "--ar": aspectRatio } : undefined;
 
   if (mediaFile.media_type === "image") {

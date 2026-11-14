@@ -27,11 +27,12 @@ const MediaSourceBadge = memo(function MediaSourceBadge() {
         paddingTop: "max(0.625rem, env(safe-area-inset-top, 0.625rem))",
       }}
     >
-      {/* Tiles scroll under the count, so give it a soft edge to sit on. */}
+      {/* Tiles scroll under the count, so give it a soft shade to sit on:
+          around the count only, so it has no edge of its own. */}
       {galleryView && (
         <div
           aria-hidden="true"
-          className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/70 to-transparent"
+          className="absolute left-0 top-0 h-24 w-72 bg-[radial-gradient(100%_100%_at_0_0,rgb(0_0_0/0.7),transparent_70%)]"
         />
       )}
       <button

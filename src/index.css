@@ -8,8 +8,18 @@ body,
   height: 100%;
   width: 100%;
   margin: 0;
+}
+/* The page never scrolls, and only the viewport enforces that: body and
+   #root do not clip, so what hangs past the viewport's edges can show
+   where the browser draws the page beyond them (see .shell).
+
+   The page's color is the html element's alone, so there is one answer to
+   what the browser paints around the page. It follows the current item
+   (see Ambient in App.jsx). */
+html {
   overflow: hidden;
   background-color: #000;
+  transition: background-color 500ms ease;
 }
 
 /* ── Finish ──────────────────────────────────────────────────────────────
@@ -130,13 +140,44 @@ body,
   width: 100%;
   /* --app-height follows the on-screen keyboard (see App.jsx). */
   height: var(--app-height, 100dvh);
-  overflow: hidden;
-  background-color: #000;
+  /* Clipped at the sides only: what hangs below the viewport (the gallery,
+     the dock's shadow) shows under a browser bar that floats there. */
+  overflow-x: clip;
   font-size: 13px;
 }
 
 /* The blur belongs to the screen, not to an item: it stays put and
-   cross-fades while items slide over it. */
+   cross-fades while items slide over it.
+
+   A browser may show the page beyond the viewport, under controls it floats
+   beside or below it. The blur runs on below the viewport, under a bottom
+   bar. It must not run on sideways: a page wider than its viewport is one
+   iOS lets you zoom out of, whatever the viewport meta says. So at the
+   sides and the top, where the browser shows the page color (html, above)
+   instead, the blur dissolves into that color. */
+.ambient {
+  position: absolute;
+  inset: 0 0 -180px 0;
+  overflow: hidden;
+  mask-image:
+    linear-gradient(
+      to right,
+      transparent,
+      #000 96px,
+      #000 calc(100% - 96px),
+      transparent
+    ),
+    linear-gradient(to bottom, transparent, #000 96px);
+  mask-composite: intersect;
+}
+/* Before overflow-x: clip (Safari 16), clip the shell and stage outright:
+   no blur or tiles under a bottom bar, but nothing to pan either. */
+@supports not (overflow-x: clip) {
+  .shell,
+  .stage {
+    overflow: hidden;
+  }
+}
 .ambient div {
   position: absolute;
   inset: -20%;
@@ -156,20 +197,30 @@ body,
 .stage {
   position: absolute;
   inset: 0;
-  overflow: hidden;
+  overflow-x: clip;
 }
 
 /* The canvas is the photo's own shape, fitted and centered in the stage,
    so it is exactly what you see (and what morphs into its gallery tile).
    It fills the whole stage instead when that crops under 8% of the item
    (UnifiedMediaBrowser toggles .fills). Items without known dimensions fall
-   back to a full-stage canvas that letterboxes. */
+   back to a full-stage canvas that letterboxes.
+
+   The photo is a card: set in a little from the stage's edges, with soft
+   corners. The stage's edge is not always the screen's (a browser may show
+   the page beyond it), so the photo has an edge of its own all the way
+   round instead of borrowing the screen's on some sides only. The gallery's
+   tiles start on the same line (SIDE + CELL in Gallery.jsx). */
 .media-item {
+  position: absolute;
+  inset: 18px;
   container-type: size;
 }
 .media-canvas {
   position: absolute;
   inset: 0;
+  overflow: hidden;
+  border-radius: 14px;
   background-size: contain;
   background-position: center;
   background-repeat: no-repeat;

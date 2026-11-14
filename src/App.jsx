@@ -20,9 +20,32 @@ const PANELS = {
 // Tags belong to one item, so the gallery has no tags panel.
 const GALLERY_PANELS = { filters: FilterPanel, settings: SettingsPanel };
 
+// The item's average color, dimmed like the blur (brightness in index.css).
+const DIM = 0.24;
+const pageColorOf = (img) => {
+  const size = 16;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const context = canvas.getContext("2d");
+  context.drawImage(img, 0, 0, size, size);
+  const { data } = context.getImageData(0, 0, size, size);
+  const sum = [0, 0, 0];
+  for (let i = 0; i < data.length; i += 4) {
+    for (let c = 0; c < 3; c++) sum[c] += data[i + c];
+  }
+  const [r, g, b] = sum.map((v) => Math.round((v / (size * size)) * DIM));
+  return `rgb(${r} ${g} ${b})`;
+};
+
 // The blur behind everything. It belongs to the screen, not to an item: it
 // holds still and cross-fades to the next item's colors while the item
 // itself slides over it.
+//
+// It also belongs to the whole screen, not just the viewport. Where the
+// browser floats its own controls beside or below the page (Safari on a
+// folded iPhone), the blur carries on under them, and the page's background
+// color, which the browser paints wherever the blur cannot reach, follows
+// the item too. So it sits outside the shell, which clips.
 function Ambient() {
   const { currentMediaFile } = useCurrentMedia();
   const hash = currentMediaFile?.file_hash;
@@ -31,11 +54,28 @@ function Ambient() {
     // Back to a recent item: move its layer to the top, never twice.
     setLayers([...layers.filter((layer) => layer !== hash).slice(-2), hash]);
   }
+
+  useEffect(() => {
+    const paint = (color) => {
+      document.documentElement.style.backgroundColor = color;
+    };
+    // No item, or no thumbnail to take a color from: back to black rather
+    // than keeping the last item's tint.
+    if (!hash) {
+      paint("");
+      return undefined;
+    }
+    const img = new Image();
+    img.onload = () => paint(pageColorOf(img));
+    img.onerror = () => paint("");
+    img.src = `/thumbnails?hash=${hash}`;
+    return () => {
+      img.onload = img.onerror = null;
+    };
+  }, [hash]);
+
   return (
-    <div
-      aria-hidden="true"
-      className="ambient absolute inset-0 overflow-hidden"
-    >
+    <div aria-hidden="true" className="ambient">
       {layers.map((layer) => (
         <div
           key={layer}
@@ -87,51 +127,63 @@ function App() {
     };
   }, []);
 
+  // The page is taller than the viewport (the blur and the gallery carry on
+  // under a browser's bottom bar, see index.css) but must never move: put
+  // it back if anything scrolls it (find in page, a focus, a script).
+  useEffect(() => {
+    const pin = () => {
+      if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
+    };
+    window.addEventListener("scroll", pin);
+    return () => window.removeEventListener("scroll", pin);
+  }, []);
+
   const feedReady = !error && mediaFiles.length > 0;
 
   return (
-    <div className="shell text-gray-200">
+    <>
       <Ambient />
+      <div className="shell text-gray-200">
+        <main
+          className={`stage transition-opacity duration-200 ${
+            loading && feedReady ? "opacity-60" : ""
+          }`}
+        >
+          <Suspense fallback={null}>
+            <DebugInfo show={debug} />
+          </Suspense>
 
-      <main
-        className={`stage transition-opacity duration-200 ${
-          loading && feedReady ? "opacity-60" : ""
-        }`}
-      >
-        <Suspense fallback={null}>
-          <DebugInfo show={debug} />
-        </Suspense>
+          {loading && !feedReady && <Message message={loading} />}
+          {error && <Message message={error} variant="error" />}
 
-        {loading && !feedReady && <Message message={loading} />}
-        {error && <Message message={error} variant="error" />}
+          {feedReady && (
+            <>
+              <UnifiedMediaBrowser />
+              <MediaSourceBadge />
+              {!galleryView && <VideoControls />}
+            </>
+          )}
 
-        {feedReady && (
-          <>
-            <UnifiedMediaBrowser />
-            <MediaSourceBadge />
-            {!galleryView && <VideoControls />}
-          </>
-        )}
-
-        {!loading && !error && !feedReady && (
-          <div className="flex h-full w-full items-center justify-center p-5 text-center text-gray-500">
-            <div>
-              <p className="mb-2 text-base">no media files found</p>
-              <p>
-                try adjusting your filters or check that the directory contains
-                supported media files.
-              </p>
+          {!loading && !error && !feedReady && (
+            <div className="flex h-full w-full items-center justify-center p-5 text-center text-gray-500">
+              <div>
+                <p className="mb-2 text-base">no media files found</p>
+                <p>
+                  try adjusting your filters or check that the directory
+                  contains supported media files.
+                </p>
+              </div>
             </div>
-          </div>
-        )}
-      </main>
+          )}
+        </main>
 
-      <Sheet
-        panel={panel}
-        onPanel={togglePanel}
-        panels={galleryView ? GALLERY_PANELS : PANELS}
-      />
-    </div>
+        <Sheet
+          panel={panel}
+          onPanel={togglePanel}
+          panels={galleryView ? GALLERY_PANELS : PANELS}
+        />
+      </div>
+    </>
   );
 }
 

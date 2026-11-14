@@ -18,12 +18,13 @@ const GRID_GROW = 0.06; // the grid starts this much larger as it zooms out
 const lerp = (from, to, t) => from + (to - from) * t;
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
 
-// Fill the stage when that crops under 8% of the item; otherwise show all of
-// it. Written straight to the DOM (classes on each item) so a resize does not
-// re-render the feed.
+// Fill the item's box (the stage, less the card's margin) when that crops
+// under 8% of the item; otherwise show all of it. Written straight to the DOM
+// (classes on each item) so a resize does not re-render the feed.
 const applyFit = (feed) => {
-  const stage = feed.clientWidth / feed.clientHeight;
   feed.querySelectorAll("[data-ar]").forEach((item) => {
+    if (!item.clientHeight) return;
+    const stage = item.clientWidth / item.clientHeight;
     const ar = Number(item.dataset.ar);
     item.classList.toggle(
       "fills",
@@ -126,8 +127,8 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
     const flyer = flyerRef.current;
     const [flyerImg, flyerFrame] = flyer.children;
     const at = +isGalleryView;
-    // shot: which item is zooming, and its feed canvas (hidden while the
-    // flyer stands in for it).
+    // shot: which item is zooming, its feed canvas (hidden while the flyer
+    // stands in for it) and that canvas's corner radius.
     const s = { p: at, v: 0, target: at, raf: 0, last: 0, shot: null };
 
     // The feed end: the picture as shown, relative to the stage.
@@ -177,7 +178,7 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
       flyer.style.width = `${lerp(a.width, b.width, p)}px`;
       flyer.style.height = `${lerp(a.height, b.height, p)}px`;
       flyer.style.transform = `translate(${lerp(a.left, b.left, p)}px, ${lerp(a.top, b.top, p)}px)`;
-      flyer.style.borderRadius = `${TILE_RADIUS * clamp01(p)}px`;
+      flyer.style.borderRadius = `${lerp(shot.radius, TILE_RADIUS, clamp01(p))}px`;
     };
 
     // What the flyer shows: the thumbnail at once; over it the full photo
@@ -217,10 +218,14 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
       const canvas = root.querySelector(
         `[data-feed-index="${index}"] .media-canvas`,
       );
+      // Read once: the corners do not change during a zoom.
+      const radius = canvas
+        ? parseFloat(getComputedStyle(canvas).borderTopLeftRadius) || 0
+        : 0;
       dress(file, canvas);
       if (canvas) canvas.style.visibility = "hidden";
       galleryRef.current?.setHidden(index);
-      return { index, files: filesRef.current, canvas };
+      return { index, files: filesRef.current, canvas, radius };
     };
 
     // From a frame callback the un-hide must commit in this frame, with the
@@ -345,7 +350,7 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
   return (
     <div
       ref={rootRef}
-      className="relative h-full w-full overflow-hidden isolate"
+      className="relative h-full w-full overflow-x-clip isolate"
     >
       <div
         ref={feedLayerRef}

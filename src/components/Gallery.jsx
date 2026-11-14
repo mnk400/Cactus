@@ -9,9 +9,15 @@ import {
   useState,
 } from "react";
 
-const SIDE = 14; // the grid's side margin
+const SIDE = 14; // the grid's side margin: tiles start 18px in, like the feed's card
 const CELL = 4; // space around each tile, so half the gap between tiles
 const BOTTOM = 96; // room below the last row for the dock
+// The scroller runs this far past the stage's bottom edge, so where the
+// browser floats its own bar over the page there (Safari on a folded
+// iPhone) tiles carry on under it instead of ending on a line. Everywhere
+// else that part is off screen. "The view" below is the stage's share.
+const UNDER = 160;
+const viewOf = (scroller) => scroller.clientHeight - UNDER;
 const OVERSCAN = 0.75; // viewports of tiles kept drawn beyond each edge
 export const TILE_RADIUS = 8;
 
@@ -165,11 +171,11 @@ const Gallery = forwardRef(function Gallery(
     const scroller = scrollerRef.current;
     if (!scroller || !layout) return;
     const top = scroller.scrollTop;
-    const view = scroller.clientHeight;
+    const view = viewOf(scroller);
     const tiles = tilesIn(
       layout,
       top - view * OVERSCAN,
-      top + view * (1 + OVERSCAN),
+      top + view * (1 + OVERSCAN) + UNDER,
     );
     const key = tiles.join(",");
     if (key !== visibleKey.current) {
@@ -192,7 +198,7 @@ const Gallery = forwardRef(function Gallery(
   const scrollTo = useCallback(
     (top) => {
       const scroller = scrollerRef.current;
-      const max = Math.max(0, layout.height - scroller.clientHeight);
+      const max = Math.max(0, layout.height - viewOf(scroller));
       scroller.scrollTop = Math.max(0, Math.min(max, top));
       update();
     },
@@ -201,7 +207,7 @@ const Gallery = forwardRef(function Gallery(
 
   const centerOn = useCallback(
     (index, at = 0.5) => {
-      const view = scrollerRef.current.clientHeight;
+      const view = viewOf(scrollerRef.current);
       scrollTo(layout.y[index] + layout.h[index] / 2 - at * view);
     },
     [layout, scrollTo],
@@ -224,7 +230,7 @@ const Gallery = forwardRef(function Gallery(
       if (!layout || !scroller || !files[index]) return;
       const top = layout.y[index];
       const height = layout.h[index];
-      const view = scroller.clientHeight;
+      const view = viewOf(scroller);
       const shown =
         Math.min(top + height, scroller.scrollTop + view) -
         Math.max(top, scroller.scrollTop);
@@ -295,11 +301,17 @@ const Gallery = forwardRef(function Gallery(
   return (
     <div
       ref={scrollerRef}
-      className="h-full w-full overflow-x-hidden overflow-y-auto scrollbar-hide [-webkit-overflow-scrolling:touch]"
+      className="w-full overflow-x-hidden overflow-y-auto scrollbar-hide [-webkit-overflow-scrolling:touch]"
+      // The padding keeps that part from counting as "in view" when the
+      // browser brings a focused tile into view.
+      style={{ height: `calc(100% + ${UNDER}px)`, scrollPaddingBottom: UNDER }}
       onScroll={onScroll}
     >
       {layout && (
-        <div className="relative w-full" style={{ height: layout.height }}>
+        <div
+          className="relative w-full"
+          style={{ height: layout.height + UNDER }}
+        >
           {visible.map((i) =>
             files[i] ? (
               <Tile
