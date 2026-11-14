@@ -1,12 +1,14 @@
-import React, { useState, useEffect, useRef, useCallback, memo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useCallback,
+  memo,
+} from "react";
 import { useAudio, useVideoElement } from "../context/MediaContext";
 
-const MediaItem = memo(function MediaItem({
-  mediaFile,
-  index,
-  isActive,
-  getPreloadedMedia,
-}) {
+const MediaItem = memo(function MediaItem({ mediaFile, isActive, preload }) {
   const mediaRef = useRef(null);
   const videoRef = useRef(null);
   const imgRef = useRef(null);
@@ -38,40 +40,6 @@ const MediaItem = memo(function MediaItem({
     };
   }, [isVideoActive, setVideoElement]);
 
-  // Check if media is already preloaded when component becomes active
-  useEffect(() => {
-    if (!isActive || !mediaFile) return;
-
-    const preloadedMedia = getPreloadedMedia(index);
-    if (preloadedMedia) {
-      // For videos, check if they're sufficiently buffered
-      if (
-        mediaFile.media_type === "video" &&
-        preloadedMedia.tagName === "VIDEO"
-      ) {
-        if (preloadedMedia.readyState >= 3) {
-          // HAVE_FUTURE_DATA or higher
-          queueMicrotask(() => setIsLoading(false));
-        } else {
-          // Wait for the video to buffer more
-          const handleCanPlay = () => {
-            setIsLoading(false);
-            preloadedMedia.removeEventListener("canplay", handleCanPlay);
-          };
-          preloadedMedia.addEventListener("canplay", handleCanPlay);
-
-          // Fallback timeout
-          setTimeout(() => {
-            setIsLoading(false);
-            preloadedMedia.removeEventListener("canplay", handleCanPlay);
-          }, 1000);
-        }
-      } else {
-        queueMicrotask(() => setIsLoading(false));
-      }
-    }
-  }, [isActive, index, getPreloadedMedia, mediaFile]);
-
   // Handle video play/pause based on visibility
   useEffect(() => {
     if (!mediaFile || mediaFile.media_type !== "video" || !videoRef.current)
@@ -88,21 +56,15 @@ const MediaItem = memo(function MediaItem({
     }
   }, [isActive, mediaFile]);
 
-  // Check if image is already loaded (e.g., from browser cache)
-  // This handles cases where onLoad doesn't fire for cached images
-  useEffect(() => {
-    if (mediaFile?.media_type !== "image") return;
-
-    // Use setTimeout to ensure the check runs after React flushes the DOM
-    const timer = setTimeout(() => {
-      const img = imgRef.current;
-      if (img?.complete && img.naturalWidth > 0) {
-        setIsLoading(false);
-      }
-    }, 0);
-
-    return () => clearTimeout(timer);
-  }, [mediaFile?.file_path, mediaFile?.media_type]);
+  // An image the browser already holds is complete the moment it is in the
+  // DOM, and onLoad may never fire for it. Checking before paint shows it at
+  // once, so a gallery-to-feed zoom lands on the sharp photo, not a fade.
+  useLayoutEffect(() => {
+    const img = imgRef.current;
+    // Reading the DOM before paint is what a layout effect is for.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (img?.complete && img.naturalWidth > 0) setIsLoading(false);
+  }, [mediaFile?.file_path]);
 
   // Don't render anything if no media file
   if (!mediaFile) {
@@ -121,15 +83,9 @@ const MediaItem = memo(function MediaItem({
   const wrapperClass = "media-item";
   const wrapperStyle = aspectRatio ? { "--ar": aspectRatio } : undefined;
 
-  if (mediaFile.media_type === "image") {
-    const preloadedImg = getPreloadedMedia(index);
-    const imgSrc = preloadedImg
-      ? preloadedImg.src
-      : `/media?path=${encodeURIComponent(mediaFile.file_path)}`;
-    // Already decoded by the preloader: show it at once, so a gallery-to-feed
-    // morph lands on the sharp photo rather than its thumbnail.
-    const hidden = isLoading && !preloadedImg?.complete;
+  const src = `/media?path=${encodeURIComponent(mediaFile.file_path)}`;
 
+  if (mediaFile.media_type === "image") {
     return (
       <div
         ref={mediaRef}
@@ -140,9 +96,9 @@ const MediaItem = memo(function MediaItem({
         <div className="media-canvas" style={canvasStyle}>
           <img
             ref={imgRef}
-            src={imgSrc}
+            src={src}
             alt="Media content"
-            className={`absolute inset-0 h-full w-full transition-opacity duration-300 ${hidden ? "opacity-0" : "opacity-100"}`}
+            className={`absolute inset-0 h-full w-full transition-opacity duration-300 ${isLoading ? "opacity-0" : "opacity-100"}`}
             onLoad={() => setIsLoading(false)}
             onError={(e) => {
               console.error("Failed to load image:", mediaFile.file_path);
@@ -156,11 +112,6 @@ const MediaItem = memo(function MediaItem({
   }
 
   if (mediaFile.media_type === "video") {
-    const preloadedVideo = getPreloadedMedia(index);
-    const videoSrc = preloadedVideo
-      ? preloadedVideo.src
-      : `/media?path=${encodeURIComponent(mediaFile.file_path)}`;
-
     return (
       <div
         ref={mediaRef}
@@ -170,7 +121,8 @@ const MediaItem = memo(function MediaItem({
       >
         <div className="media-canvas" style={canvasStyle}>
           <VideoPlayer
-            src={videoSrc}
+            src={src}
+            preload={preload}
             mediaFile={mediaFile}
             isActive={isActive}
             onLoadingChange={handleLoadingChange}
@@ -199,6 +151,7 @@ const MediaItem = memo(function MediaItem({
 
 const VideoPlayer = memo(function VideoPlayer({
   src,
+  preload,
   mediaFile,
   isActive,
   onLoadingChange,
@@ -206,7 +159,7 @@ const VideoPlayer = memo(function VideoPlayer({
   videoRef,
 }) {
   const [showOverlay, setShowOverlay] = useState(false);
-  const { isMuted, hasUserInteracted, setMuted } = useAudio();
+  const { isMuted, setMuted } = useAudio();
   const [autoplayFailed, setAutoplayFailed] = useState(false);
 
   // Memoized event handlers
@@ -302,8 +255,9 @@ const VideoPlayer = memo(function VideoPlayer({
     if (!video) return;
 
     if (isActive) {
-      // If user has interacted and chosen to unmute, try unmuted playback
-      if (hasUserInteracted && !isMuted) {
+      // Sound on: try it. A browser that won't autoplay with sound (no tap
+      // on this page yet) refuses, and we fall back to muted.
+      if (!isMuted) {
         video.muted = false;
         video
           .play()
@@ -334,7 +288,7 @@ const VideoPlayer = memo(function VideoPlayer({
     } else {
       video.pause();
     }
-  }, [isActive, videoRef, isMuted, hasUserInteracted, setMuted]);
+  }, [isActive, videoRef, isMuted, setMuted]);
 
   // Sync mute state when user toggles it or when component starts
   useEffect(() => {
@@ -356,7 +310,7 @@ const VideoPlayer = memo(function VideoPlayer({
         loop
         muted={isMuted}
         playsInline
-        preload="auto"
+        preload={preload}
         className={`h-full w-full cursor-pointer ${isLoading ? "opacity-0" : "opacity-100"} transition-opacity duration-300`}
         onClick={togglePlayPause}
         onError={() => console.error("Video load error:", mediaFile.file_path)}

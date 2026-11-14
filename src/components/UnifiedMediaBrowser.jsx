@@ -9,7 +9,6 @@ import React, {
 import { flushSync } from "react-dom";
 import MediaItem from "./MediaItem";
 import Gallery, { TILE_RADIUS } from "./Gallery";
-import { useMediaPreloader } from "../hooks/useMediaPreloader";
 import { useCurrentMedia, useMediaData } from "../context/MediaContext";
 
 const ZOOM_STIFFNESS = 340; // critically damped, settles in about 0.4s
@@ -54,8 +53,6 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
   currentIndexRef.current = currentIndex;
   const filesRef = useRef(mediaFiles);
   filesRef.current = mediaFiles;
-
-  const { getPreloadedMedia } = useMediaPreloader(mediaFiles, currentIndex);
 
   useEffect(() => {
     const feed = feedRef.current;
@@ -383,9 +380,14 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
                   <div className="unified-feed-card relative h-full w-full overflow-hidden">
                     <MediaItem
                       mediaFile={mediaFile}
-                      index={actualIndex}
                       isActive={isActive}
-                      getPreloadedMedia={getPreloadedMedia}
+                      // Neighbours buffer ahead; the farther ones only learn
+                      // their size, leaving connections for what is on screen.
+                      preload={
+                        Math.abs(actualIndex - currentIndex) <= 1
+                          ? "auto"
+                          : "metadata"
+                      }
                     />
                   </div>
                 )}

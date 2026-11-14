@@ -17,9 +17,23 @@ const AudioContext = createContext();
 const MediaDataContext = createContext();
 const VideoElementContext = createContext();
 
+const tagNames = (list = []) => list.map((t) => t.name || t).join(",");
+const filtersKey = (s) =>
+  [
+    s.mediaType,
+    s.sortBy,
+    tagNames(s.selectedTags),
+    tagNames(s.excludedTags),
+    s.search || "",
+  ].join("|");
+// Tags or a search narrow the list; type and sort only change the view of it.
+const isNarrowed = (s) =>
+  s.selectedTags?.length > 0 ||
+  s.excludedTags?.length > 0 ||
+  Boolean(s.search?.trim());
+
 export const MediaProvider = ({ children }) => {
   const [mediaFiles, setMediaFiles] = useState([]);
-  const [allMediaFiles, setAllMediaFiles] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(null);
   const [error, setError] = useState(null);
@@ -29,15 +43,16 @@ export const MediaProvider = ({ children }) => {
   const [isRegeneratingThumbnails, setIsRegeneratingThumbnails] =
     useState(false);
   const [isUrlSync, setIsUrlSync] = useState(false);
-  // Track filters used in the last fetch to prevent duplicate fetches
-  // and enable refetching when URL changes via browser navigation
+  // The filters the current list was fetched with; the fetch effect compares
+  // against it so it fetches once per change, whatever caused the change.
   const lastFetchedFilters = useRef(null);
   // AbortController to cancel stale API requests when filters change rapidly
   const fetchAbortController = useRef(null);
 
-  // Browsing snapshot: saves state before a context switch (e.g. applying filters)
-  // so we can restore position + order when returning to the original context
-  const browsingSnapshot = useRef(null);
+  // The item you were on when a filter narrowed the list, to land on again
+  // when the filter is cleared. The order itself needs no saving: the seed
+  // in the URL makes the server return the same one.
+  const returnTo = useRef(null);
   // Ref to read currentIndex without adding it as a dependency
   const currentIndexRef = useRef(0);
 
@@ -45,9 +60,6 @@ export const MediaProvider = ({ children }) => {
   const [isMuted, setIsMuted] = useState(() => {
     const saved = localStorage.getItem("cactus-video-muted");
     return saved !== null ? JSON.parse(saved) : true;
-  });
-  const [hasUserInteracted, setHasUserInteracted] = useState(() => {
-    return localStorage.getItem("cactus-user-audio-interaction") === "true";
   });
 
   // Active video element — set by MediaItem and consumed by the video
@@ -66,6 +78,7 @@ export const MediaProvider = ({ children }) => {
 
   const {
     settings,
+    getLatestSettings,
     updateSettings,
     isInitialized: isUrlInitialized,
   } = useURLSettings(tags);
@@ -76,6 +89,7 @@ export const MediaProvider = ({ children }) => {
     selectedTags,
     excludedTags,
     search,
+    seed,
     galleryView,
     mediaId,
   } = settings;
@@ -154,35 +168,23 @@ export const MediaProvider = ({ children }) => {
     }
   }, []);
 
-  // Fetch media files from API
-  // Note: mediaId is intentionally NOT in dependencies to prevent infinite loops.
-  // When URL changes mediaId, we don't want to refetch - we just want to navigate.
-  // The mediaId is only used on initial load to set the starting position.
+  const filterKey = JSON.stringify({
+    mediaType,
+    sortBy,
+    seed,
+    tags: tagNames(selectedTags),
+    excludeTags: tagNames(excludedTags),
+    search: search || "",
+  });
+
+  // Fetch the list for the current filters and land on targetMediaId in it
+  // (the first item when it is absent). mediaId is deliberately not read from
+  // settings here: navigation does not update it, so it may be stale.
   const fetchMedia = useCallback(
-    async (overrides = {}) => {
-      const params = {
-        type: overrides.mediaType ?? mediaType,
-        sortBy: overrides.sortBy ?? sortBy,
-        tags: (overrides.selectedTags ?? selectedTags)
-          .map((t) => t.name || t)
-          .join(","),
-        "exclude-tags": (overrides.excludedTags ?? excludedTags)
-          .map((t) => t.name || t)
-          .join(","),
-        search: overrides.search !== undefined ? overrides.search : search,
-      };
-
-      // Update last fetched filters to prevent duplicate fetches from the effect
-      lastFetchedFilters.current = JSON.stringify({
-        mediaType: params.type,
-        sortBy: params.sortBy,
-        tags: params.tags,
-        excludeTags: params["exclude-tags"],
-        search: params.search || "",
-      });
-
-      // For initial load, use mediaId from overrides. Don't use state mediaId to avoid loops.
-      const targetMediaId = overrides.mediaId;
+    async (targetMediaId) => {
+      const tags = tagNames(selectedTags);
+      const excluded = tagNames(excludedTags);
+      lastFetchedFilters.current = filterKey;
 
       // Cancel any in-flight request to prevent stale responses from overwriting fresh data
       fetchAbortController.current?.abort();
@@ -194,12 +196,11 @@ export const MediaProvider = ({ children }) => {
         setLoading("loading…");
         setError(null);
 
-        let url = `/api/media?type=${params.type}&sortBy=${params.sortBy}`;
-        if (params.tags) url += `&tags=${params.tags}`;
-        if (params["exclude-tags"])
-          url += `&exclude-tags=${params["exclude-tags"]}`;
-        if (params.search)
-          url += `&search=${encodeURIComponent(params.search)}`;
+        let url = `/api/media?type=${mediaType}&sortBy=${sortBy}`;
+        if (sortBy === "random") url += `&seed=${seed}`;
+        if (tags) url += `&tags=${tags}`;
+        if (excluded) url += `&exclude-tags=${excluded}`;
+        if (search) url += `&search=${encodeURIComponent(search)}`;
 
         const response = await fetch(url, { signal });
         if (!response.ok) {
@@ -237,7 +238,7 @@ export const MediaProvider = ({ children }) => {
         }
       }
     },
-    [mediaType, sortBy, selectedTags, excludedTags, search],
+    [mediaType, sortBy, seed, selectedTags, excludedTags, search, filterKey],
   );
 
   // Fetch server configuration
@@ -255,73 +256,34 @@ export const MediaProvider = ({ children }) => {
     }
   }, []);
 
-  // Initial fetch when URL is ready
   useEffect(() => {
-    const init = async () => {
-      const fetchAllMedia = async () => {
-        try {
-          const response = await fetch("/api/media?type=all");
-          if (response.ok) {
-            const data = await response.json();
-            setAllMediaFiles(data.files || []);
-          }
-        } catch (err) {
-          console.warn("Failed to fetch all media for stats:", err);
-        }
-      };
-
-      await Promise.all([fetchConfig(), fetchTags(), fetchAllMedia()]);
-    };
-    init();
+    fetchConfig();
+    fetchTags();
   }, [fetchConfig, fetchTags]);
 
-  // Fetch media when URL is initialized or when filters change (e.g., browser back/forward)
-  // We track the last fetched filters to prevent duplicate fetches while still
-  // allowing refetches when URL parameters change via browser navigation
+  // The one place the list is fetched: on first load, and whenever the
+  // filters change, whether from the panel or browser back/forward.
   useEffect(() => {
     if (!isUrlInitialized) return;
+    if (lastFetchedFilters.current !== filterKey) fetchMedia(mediaId);
+  }, [isUrlInitialized, fetchMedia, filterKey, mediaId]);
 
-    // Build a filter key from current state to compare with last fetch
-    const currentFilterKey = JSON.stringify({
-      mediaType,
-      sortBy,
-      tags: selectedTags.map((t) => t.name || t).join(","),
-      excludeTags: excludedTags.map((t) => t.name || t).join(","),
-      search: search || "",
-    });
-
-    // Only fetch if filters have changed (or first load when ref is null)
-    if (lastFetchedFilters.current !== currentFilterKey) {
-      fetchMedia({ mediaId });
-    }
-  }, [
-    isUrlInitialized,
-    fetchMedia,
-    mediaId,
-    mediaType,
-    sortBy,
-    selectedTags,
-    excludedTags,
-    search,
-  ]);
-
-  // Sync mediaId to URL when index changes.
-  // Updates URL directly (replaceState) instead of going through settings state
-  // to avoid invalidating the memoized settings reference on every navigation.
-  const lastSyncedMediaId = useRef(mediaId);
+  // Keep the URL's media param on the item shown. Written directly
+  // (replaceState) rather than through settings, so navigating does not
+  // change the settings object. Runs after settings writes too (mediaId),
+  // which may have dropped the param.
   useEffect(() => {
     if (currentMediaFile && isUrlInitialized && !isUrlSync) {
-      const newHash = currentMediaFile.file_hash;
-      if (newHash !== lastSyncedMediaId.current) {
-        lastSyncedMediaId.current = newHash;
-        // Update just the media param in the URL without touching settings state
-        const url = new URL(window.location.href);
-        url.searchParams.set(URL_PARAMS.MEDIA_ID, newHash);
+      const url = new URL(window.location.href);
+      if (
+        url.searchParams.get(URL_PARAMS.MEDIA_ID) !== currentMediaFile.file_hash
+      ) {
+        url.searchParams.set(URL_PARAMS.MEDIA_ID, currentMediaFile.file_hash);
         window.history.replaceState({}, "", url.pathname + url.search);
       }
     }
     if (isUrlSync) setIsUrlSync(false);
-  }, [currentIndex, currentMediaFile, isUrlInitialized, isUrlSync]);
+  }, [currentMediaFile, isUrlInitialized, isUrlSync, mediaId]);
 
   // Handle URL updates (popstate)
   useEffect(() => {
@@ -343,93 +305,32 @@ export const MediaProvider = ({ children }) => {
     [mediaFiles.length],
   );
 
-  // Helper: are content-narrowing filters active?
-  const hasActiveFilters = useCallback(
-    (tags, excluded, searchTerm) =>
-      tags.length > 0 ||
-      excluded.length > 0 ||
-      (searchTerm && searchTerm.trim() !== ""),
-    [],
-  );
-
-  // Public API
+  // Public API. Changing settings is all this does; the fetch effect picks
+  // the change up. Narrowing the list starts at its first item; clearing the
+  // narrowing goes back to where you were, as long as the view (type and
+  // sort) is still the one you left.
+  // Compared against the latest settings, not the rendered ones: a control
+  // may call this twice in one go (clear-all clears search, then tags), and
+  // the second call must see the first.
   const setFilters = useCallback(
     (newSettings) => {
-      // Resolve what the new full filter state will be
-      const newTags = newSettings.selectedTags ?? selectedTags;
-      const newExcluded = newSettings.excludedTags ?? excludedTags;
-      const newSearch =
-        newSettings.search !== undefined ? newSettings.search : search;
-      const newMediaType = newSettings.mediaType ?? mediaType;
-      const newSortBy = newSettings.sortBy ?? sortBy;
+      const prev = getLatestSettings();
+      const next = { ...prev, ...newSettings };
+      if (filtersKey(next) === filtersKey(prev)) return;
 
-      const wasFiltered = hasActiveFilters(selectedTags, excludedTags, search);
-      const willBeFiltered = hasActiveFilters(newTags, newExcluded, newSearch);
-
-      // Base view settings changing → invalidate snapshot
-      if (newMediaType !== mediaType || newSortBy !== sortBy) {
-        browsingSnapshot.current = null;
+      if (next.mediaType !== prev.mediaType || next.sortBy !== prev.sortBy) {
+        returnTo.current = null;
       }
-
-      if (!wasFiltered && willBeFiltered) {
-        // Entering filtered mode → save current browsing state
-        browsingSnapshot.current = {
-          mediaFiles,
-          currentIndex: currentIndexRef.current,
-          mediaType,
-          sortBy,
-        };
-      } else if (wasFiltered && !willBeFiltered && browsingSnapshot.current) {
-        // Leaving filtered mode → try to restore snapshot
-        const snapshot = browsingSnapshot.current;
-        if (
-          snapshot.mediaType === newMediaType &&
-          snapshot.sortBy === newSortBy
-        ) {
-          setMediaFiles(snapshot.mediaFiles);
-          setCurrentIndex(snapshot.currentIndex);
-          browsingSnapshot.current = null;
-
-          // Update URL to reflect restored state
-          const restoredHash =
-            snapshot.mediaFiles[snapshot.currentIndex]?.file_hash || "";
-          updateSettings({ ...newSettings, mediaId: restoredHash });
-
-          // Sync lastFetchedFilters so the effect doesn't re-fetch
-          lastFetchedFilters.current = JSON.stringify({
-            mediaType: newMediaType,
-            sortBy: newSortBy,
-            tags: (Array.isArray(newTags)
-              ? newTags.map((t) => t.name || t)
-              : []
-            ).join(","),
-            excludeTags: (Array.isArray(newExcluded)
-              ? newExcluded.map((t) => t.name || t)
-              : []
-            ).join(","),
-            search: newSearch || "",
-          });
-
-          return; // Skip fetch — restored from snapshot
-        }
-        // Base settings don't match → invalidate and fetch fresh
-        browsingSnapshot.current = null;
+      let landOn = "";
+      if (!isNarrowed(prev) && isNarrowed(next)) {
+        returnTo.current = mediaFiles[currentIndexRef.current]?.file_hash;
+      } else if (isNarrowed(prev) && !isNarrowed(next)) {
+        landOn = returnTo.current || "";
+        returnTo.current = null;
       }
-
-      updateSettings({ ...newSettings, mediaId: "" });
-      fetchMedia({ ...newSettings, mediaId: "" });
+      updateSettings({ ...newSettings, mediaId: landOn });
     },
-    [
-      updateSettings,
-      fetchMedia,
-      hasActiveFilters,
-      selectedTags,
-      excludedTags,
-      search,
-      mediaType,
-      sortBy,
-      mediaFiles,
-    ],
+    [getLatestSettings, updateSettings, mediaFiles],
   );
 
   // The zoom between the two views is UnifiedMediaBrowser's, driven by the
@@ -464,13 +365,14 @@ export const MediaProvider = ({ children }) => {
       setIsScanning(true);
       const resp = await fetch("/rescan-directory", { method: "POST" });
       if (!resp.ok) throw new Error("Rescan failed");
-      await fetchMedia();
+      // Same seed, so the same order with the new files slotted in: stay put.
+      await fetchMedia(mediaFiles[currentIndexRef.current]?.file_hash);
     } catch (err) {
       setError(err.message);
     } finally {
       setIsScanning(false);
     }
-  }, [isScanning, fetchMedia]);
+  }, [isScanning, fetchMedia, mediaFiles]);
 
   const regenerateThumbnails = useCallback(async () => {
     if (isRegeneratingThumbnails) return;
@@ -478,34 +380,26 @@ export const MediaProvider = ({ children }) => {
       setIsRegeneratingThumbnails(true);
       const resp = await fetch("/regenerate-thumbnails", { method: "POST" });
       if (!resp.ok) throw new Error("Regeneration failed");
-      await fetchMedia();
+      await fetchMedia(mediaFiles[currentIndexRef.current]?.file_hash);
     } catch (err) {
       setError(err.message);
     } finally {
       setIsRegeneratingThumbnails(false);
     }
-  }, [isRegeneratingThumbnails, fetchMedia]);
+  }, [isRegeneratingThumbnails, fetchMedia, mediaFiles]);
 
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => !prev);
-    setHasUserInteracted(true);
   }, []);
 
   const setMutedCb = useCallback((muted) => {
     setIsMuted(muted);
-    setHasUserInteracted(true);
   }, []);
 
   // Sync audio preferences to localStorage
   useEffect(() => {
     localStorage.setItem("cactus-video-muted", JSON.stringify(isMuted));
   }, [isMuted]);
-
-  useEffect(() => {
-    if (hasUserInteracted) {
-      localStorage.setItem("cactus-user-audio-interaction", "true");
-    }
-  }, [hasUserInteracted]);
 
   // --- Memoized context values ---
 
@@ -527,18 +421,16 @@ export const MediaProvider = ({ children }) => {
   const audioValue = useMemo(
     () => ({
       isMuted,
-      hasUserInteracted,
       toggleMute,
       setMuted: setMutedCb,
     }),
-    [isMuted, hasUserInteracted, toggleMute, setMutedCb],
+    [isMuted, toggleMute, setMutedCb],
   );
 
   // Everything else — changes on filter/sort, media fetch, config load, tag CRUD
   const mediaDataValue = useMemo(
     () => ({
       mediaFiles,
-      allMediaFiles,
       loading,
       error,
       isScanning,
@@ -569,7 +461,6 @@ export const MediaProvider = ({ children }) => {
     }),
     [
       mediaFiles,
-      allMediaFiles,
       loading,
       error,
       isScanning,
@@ -623,7 +514,7 @@ export const useCurrentMedia = () => {
   return context;
 };
 
-/** Audio state — isMuted, hasUserInteracted, toggleMute, setMuted */
+/** Audio state — isMuted, toggleMute, setMuted */
 export const useAudio = () => {
   const context = useContext(AudioContext);
   if (!context) throw new Error("useAudio must be used within MediaProvider");

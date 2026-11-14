@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import TagManager from "./TagManager";
 import { PanelButton, PanelSection, SegmentedControl } from "./ui/Panel";
 import { useMediaData } from "../context/MediaContext";
@@ -38,7 +38,6 @@ const SettingsPanel = memo(function SettingsPanel() {
   const [showTagManager, setShowTagManager] = useState(false);
   const {
     settings,
-    allMediaFiles,
     isScanning,
     isRegeneratingThumbnails,
     setFilters,
@@ -54,6 +53,21 @@ const SettingsPanel = memo(function SettingsPanel() {
     updateTag,
     deleteTag,
   } = useMediaData();
+
+  // What the library holds, asked for whenever the panel opens and again
+  // after a rescan, so it is never older than the panel.
+  const [stats, setStats] = useState(null);
+  useEffect(() => {
+    if (isScanning) return;
+    let live = true;
+    fetch("/api/stats")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => live && setStats(data))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [isScanning]);
 
   const handleDeleteTag = async (id) => {
     await deleteTag(id);
@@ -83,8 +97,6 @@ const SettingsPanel = memo(function SettingsPanel() {
     );
   }
 
-  const photos = allMediaFiles.filter((f) => f.media_type === "image").length;
-  const videos = allMediaFiles.filter((f) => f.media_type === "video").length;
   const sourceName =
     config?.provider?.config?.directoryPath ||
     config?.provider?.config?.sbUrl ||
@@ -137,10 +149,13 @@ const SettingsPanel = memo(function SettingsPanel() {
       </PanelSection>
 
       <div className="space-y-1">
-        <p className="m-0 px-1 text-xs text-white/45">
-          {allMediaFiles.length.toLocaleString()} items ·{" "}
-          {photos.toLocaleString()} photos · {videos.toLocaleString()} videos
-        </p>
+        {stats && (
+          <p className="m-0 px-1 text-xs text-white/45">
+            {stats.total.toLocaleString()} items ·{" "}
+            {stats.images.toLocaleString()} photos ·{" "}
+            {stats.videos.toLocaleString()} videos
+          </p>
+        )}
         {ui.showDirectoryInfo && sourceName && (
           <p className="m-0 break-all px-1 font-mono text-[11px] normal-case text-white/30">
             {sourceName}

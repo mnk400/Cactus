@@ -2,13 +2,13 @@ const express = require("express");
 const compression = require("compression");
 const session = require("express-session");
 const crypto = require("crypto");
-const NodeCache = require("node-cache");
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
 const sharp = require("sharp");
 const ffmpeg = require("fluent-ffmpeg");
 const { ProviderFactory } = require("./providers");
+const { seededOrder } = require("./seededOrder");
 const AutoTagService = require("./services/AutoTagService");
 const minimist = require("minimist");
 
@@ -206,128 +206,20 @@ if (keyphrase) {
   log.info("Authentication disabled - no keyphrase configured");
 }
 
-// ===== PERFORMANCE OPTIMIZATIONS =====
+// ===== HTTP CACHING =====
+// Nothing here is cached on purpose. Media, thumbnails and the built app are
+// served by sendFile/express.static, whose ETag and Last-Modified make a
+// repeat request a cheap 304 without ever showing a stale file. API answers
+// always revalidate: tags and lists change under the client.
 
-const requestCache = new NodeCache({
-  stdTTL: 60,
-  checkperiod: 120,
-  maxKeys: 200,
-  useClones: false,
-});
-
-// Cache event listeners for monitoring
-requestCache.on("expired", (key) => {
-  log.info("Cache entry expired", { key });
-});
-
-requestCache.on("flush", () => {
-  log.info("Cache flushed");
-});
-
-function cacheMiddleware(req, res, next) {
-  if (req.method !== "GET" || !req.originalUrl.startsWith("/api/")) {
-    return next();
-  }
-
-  if (req.query.sortBy === "random") {
-    return next();
-  }
-
-  const key = req.originalUrl;
-  const cached = requestCache.get(key);
-
-  if (cached) {
-    const stats = requestCache.getStats();
-    const total = stats.hits + stats.misses;
-    log.info("Serving cached API response", {
-      url: key,
-      hitRate:
-        total > 0 ? ((stats.hits / total) * 100).toFixed(1) + "%" : "0.0%",
-    });
-    return res.json(cached);
-  }
-
-  const originalJson = res.json;
-  res.json = function (data) {
-    if (res.statusCode >= 200 && res.statusCode < 300) {
-      requestCache.set(key, data);
-    }
-    return originalJson.call(this, data);
-  };
-
-  next();
-}
-
-app.use("/api", cacheMiddleware);
-
-// Caching headers
-app.use("/media", (req, res, next) => {
-  res.set({
-    "Cache-Control": "public, max-age=31536000, immutable",
-    Vary: "Accept-Encoding",
-    "X-Content-Type-Options": "nosniff",
-  });
-  next();
-});
-
-app.use("/thumbnails", (req, res, next) => {
-  res.set({
-    "Cache-Control": "public, max-age=604800",
-    Vary: "Accept-Encoding",
-    "X-Content-Type-Options": "nosniff",
-  });
+app.use(["/media", "/thumbnails"], (req, res, next) => {
+  res.set("X-Content-Type-Options", "nosniff");
   next();
 });
 
 app.use("/api", (req, res, next) => {
-  if (req.method === "GET") {
-    // Tags, favorites and media lists change under the client, so always
-    // revalidate; Express's ETags keep an unchanged response a cheap 304.
-    res.set({
-      "Cache-Control": "no-cache",
-      Vary: "Accept-Encoding",
-    });
-  }
+  if (req.method === "GET") res.set("Cache-Control", "no-cache");
   next();
-});
-
-app.use("/assets", (req, res, next) => {
-  res.set({
-    "Cache-Control": "public, max-age=31536000, immutable",
-    Vary: "Accept-Encoding",
-  });
-  next();
-});
-
-app.get("/api/cache-status", (req, res) => {
-  const stats = requestCache.getStats();
-  res.json({
-    requestCache: {
-      size: requestCache.keys().length,
-      maxKeys: 200,
-      stats: stats,
-      hitRate:
-        stats.hits + stats.misses > 0
-          ? ((stats.hits / (stats.hits + stats.misses)) * 100).toFixed(1) + "%"
-          : "0%",
-    },
-    cacheDuration: 30, // seconds
-    uptime: process.uptime(),
-  });
-});
-
-log.info("Performance optimizations enabled", {
-  caching: "aggressive",
-  requestDeduplication: "30s",
-  compression: "level 6",
-  cacheDuration: {
-    media: "1 year",
-    thumbnails: "1 week",
-    api: "5 minutes",
-    tags: "10 minutes",
-    config: "1 hour",
-    assets: "1 year",
-  },
 });
 
 // Unified API endpoint to get media files with optional filtering
@@ -359,13 +251,15 @@ app.get("/api/media", async (req, res) => {
           .filter(Boolean)
       : [];
 
-    const files = await mediaProvider.getMedia({
+    const found = await mediaProvider.getMedia({
       mediaType,
       sortBy,
       includeTags,
       excludeTags: excludeTagList,
       search,
     });
+    const seed = parseInt(req.query.seed, 10) || crypto.randomInt(1, 2 ** 31);
+    const files = sortBy === "random" ? seededOrder(found, seed) : found;
 
     // Add display names to each media file using provider-specific logic
     const filesWithDisplayNames = files.map((file) => {
@@ -553,14 +447,6 @@ app.post("/api/media/:fileHash/tags", async (req, res) => {
       }
     }
 
-    // Invalidate cache for tags and media endpoints
-    const cacheKeys = requestCache.keys();
-    for (const key of cacheKeys) {
-      if (key.includes("/api/tags") || key.includes("/api/media")) {
-        requestCache.del(key);
-      }
-    }
-
     log.info("Tags added to media", { fileHash, results });
     res.json({ results });
   } catch (error) {
@@ -700,14 +586,6 @@ app.post("/api/media-path/tags", async (req, res) => {
       }
     }
 
-    // Invalidate cache for tags and media endpoints
-    const cacheKeys = requestCache.keys();
-    for (const key of cacheKeys) {
-      if (key.includes("/api/tags") || key.includes("/api/media")) {
-        requestCache.del(key);
-      }
-    }
-
     log.info("Tags added to media by path", { filePath, fileHash, results });
     res.json({ results, fileHash });
   } catch (error) {
@@ -731,14 +609,6 @@ app.delete("/api/media-path/tags/:tagId", async (req, res) => {
   try {
     const fileHash = mediaProvider.getFileHashForPath(filePath);
     const removed = await mediaProvider.removeTagFromMedia(fileHash, tagId);
-
-    // Invalidate cache for tags and media endpoints
-    const cacheKeys = requestCache.keys();
-    for (const key of cacheKeys) {
-      if (key.includes("/api/tags") || key.includes("/api/media")) {
-        requestCache.del(key);
-      }
-    }
 
     if (removed) {
       log.info("Tag removed from media by path", { filePath, fileHash, tagId });
@@ -1118,14 +988,6 @@ app.post("/api/media-path/auto-tag/apply", async (req, res) => {
       results.push({ tagId: tag.id, tagName: tag.name, added });
     }
 
-    // Invalidate cache for tags and media endpoints
-    const cacheKeys = requestCache.keys();
-    for (const key of cacheKeys) {
-      if (key.includes("/api/tags") || key.includes("/api/media")) {
-        requestCache.del(key);
-      }
-    }
-
     log.info("Auto-tags applied", {
       filePath,
       fileHash,
@@ -1254,53 +1116,46 @@ app.post("/regenerate-thumbnails", async (req, res) => {
 });
 
 // API endpoint to get server and provider configuration
-app.get(
-  "/api/config",
-  (req, res, next) => {
-    res.set("Cache-Control", "public, max-age=3600");
-    next();
-  },
-  (req, res) => {
-    try {
-      // Get provider capabilities and UI config from the provider itself
-      const providerType = mediaProvider.getProviderType();
-      const capabilities = mediaProvider.getCapabilities();
-      const uiConfig = mediaProvider.getUIConfig();
+app.get("/api/config", (req, res) => {
+  try {
+    // Get provider capabilities and UI config from the provider itself
+    const providerType = mediaProvider.getProviderType();
+    const capabilities = mediaProvider.getCapabilities();
+    const uiConfig = mediaProvider.getUIConfig();
 
-      // Get provider schema for UI hints
-      const ProviderClass = providerFactory.providers.get(providerType);
-      const providerSchema = ProviderClass
-        ? ProviderClass.getConfigSchema()
-        : null;
+    // Get provider schema for UI hints
+    const ProviderClass = providerFactory.providers.get(providerType);
+    const providerSchema = ProviderClass
+      ? ProviderClass.getConfigSchema()
+      : null;
 
-      res.json({
-        // Server configuration
-        // Provider information
-        provider: {
-          type: providerType,
-          name: mediaProvider.constructor.name,
-          config: validation.config,
-          capabilities: capabilities,
-          schema: providerSchema,
-        },
+    res.json({
+      // Server configuration
+      // Provider information
+      provider: {
+        type: providerType,
+        name: mediaProvider.constructor.name,
+        config: validation.config,
+        capabilities: capabilities,
+        schema: providerSchema,
+      },
 
-        // UI configuration from provider
-        ui: uiConfig,
+      // UI configuration from provider
+      ui: uiConfig,
 
-        // Display name computation configuration
-        displayName: {
-          providerType: providerType,
-        },
+      // Display name computation configuration
+      displayName: {
+        providerType: providerType,
+      },
 
-        // Available providers for potential switching
-        availableProviders: providerFactory.getAvailableProviders(),
-      });
-    } catch (error) {
-      log.error("Failed to get configuration", { error: error.message });
-      res.status(500).json({ error: "Failed to get configuration" });
-    }
-  },
-);
+      // Available providers for potential switching
+      availableProviders: providerFactory.getAvailableProviders(),
+    });
+  } catch (error) {
+    log.error("Failed to get configuration", { error: error.message });
+    res.status(500).json({ error: "Failed to get configuration" });
+  }
+});
 
 // Serve React app for all other routes (SPA routing)
 app.get("*", (req, res) => {

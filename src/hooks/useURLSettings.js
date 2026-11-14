@@ -5,6 +5,7 @@ import {
   resolveTagNames,
   isValidMediaType,
   isValidSortBy,
+  withSeed,
 } from "../utils/urlParams";
 
 /**
@@ -23,7 +24,7 @@ const validateAndSanitizeSettings = (settings) => {
     sanitized.sortBy = "random";
   }
 
-  return sanitized;
+  return withSeed(sanitized);
 };
 
 /**
@@ -37,12 +38,20 @@ export const useURLSettings = (availableTags = []) => {
   });
   const [isInitialized] = useState(true);
 
+  // A URL with no seed got a fresh one above; write it back so a reload
+  // keeps this order.
+  useEffect(() => {
+    updateURL(urlSettings, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on load
+  }, []);
+
   // Listen for browser back/forward navigation
   useEffect(() => {
     const handlePopState = () => {
       const newSettings = decodeSettingsFromURL();
       // Validate and sanitize settings (same as initialization)
       const sanitizedSettings = validateAndSanitizeSettings(newSettings);
+      updateURL(sanitizedSettings, true); // in case it got a fresh seed
       setUrlSettings(sanitizedSettings);
     };
 
@@ -72,7 +81,12 @@ export const useURLSettings = (availableTags = []) => {
   // push another history entry.
   const updateSettings = useCallback((newSettings, options = {}) => {
     const { updateURL: shouldUpdateURL = true, replace = false } = options;
-    const mergedSettings = { ...latest.current, ...newSettings };
+    const prev = latest.current;
+    const merged = { ...prev, ...newSettings };
+    // Switching the sort to random starts a fresh order; staying on random
+    // (changing filters, clearing them) keeps this one.
+    if (merged.sortBy !== prev.sortBy) merged.seed = 0;
+    const mergedSettings = withSeed(merged);
 
     // Convert tag objects to tag names for URL storage
     const settingsForURL = {
@@ -104,9 +118,14 @@ export const useURLSettings = (availableTags = []) => {
     updateSettings(defaultSettings);
   }, [updateSettings]);
 
+  // For callers that may update twice before React renders, and so must
+  // compare against the latest settings rather than the rendered ones.
+  const getLatestSettings = useCallback(() => latest.current, []);
+
   return {
     settings: resolvedSettings,
     rawSettings: urlSettings,
+    getLatestSettings,
     updateSettings,
     clearSettings,
     isInitialized,

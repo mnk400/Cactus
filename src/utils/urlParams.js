@@ -13,7 +13,24 @@ export const URL_PARAMS = {
   GALLERY_VIEW: "gallery",
   DEBUG: "debug",
   MEDIA_ID: "media",
+  SEED: "seed",
 };
+
+// A random order is a seed: the server shuffles with it, so the same seed
+// always gives the same order (across reloads, filters, back/forward).
+export const newSeed = () => 1 + Math.floor(Math.random() * 2147483646);
+const isSeed = (seed) => Number.isInteger(seed) && seed > 0;
+
+// Random sort carries a seed (a fresh one when it has none); other sorts none.
+export const withSeed = (settings) => ({
+  ...settings,
+  seed:
+    settings.sortBy !== "random"
+      ? 0
+      : isSeed(settings.seed)
+        ? settings.seed
+        : newSeed(),
+});
 
 /**
  * Encodes settings object to URL parameters
@@ -27,6 +44,10 @@ export const encodeSettingsToURL = (settings) => {
 
   if (settings.sortBy && settings.sortBy !== "random") {
     params.set(URL_PARAMS.SORT_BY, settings.sortBy);
+  }
+
+  if (settings.seed) {
+    params.set(URL_PARAMS.SEED, String(settings.seed));
   }
 
   if (settings.selectedTags && settings.selectedTags.length > 0) {
@@ -79,6 +100,7 @@ export const decodeSettingsFromURL = (
     galleryView: params.get(URL_PARAMS.GALLERY_VIEW) === "true",
     debug: params.get(URL_PARAMS.DEBUG) === "true",
     mediaId: params.get(URL_PARAMS.MEDIA_ID) || "",
+    seed: Number(params.get(URL_PARAMS.SEED)) || 0,
   };
 
   // Parse selected tags

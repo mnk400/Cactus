@@ -37,17 +37,11 @@ class SbMediaProvider extends MediaSourceProvider {
     this.sbUrl = sbUrl;
     this.apiKey = apiKey;
     this.isInitialized = false;
-    this.mediaCache = [];
-    this.lastFetchTime = null;
-    this.cacheTimeout = 5 * 60 * 1000;
-    this.tagsCache = null;
-    this.tagsCacheTime = null;
-    this.thumbnailMap = new Map();
-    this.generatedThumbnails = new Map();
-    this.thumbnailCache = new Map(); // Caches proxied thumbnail buffers + content-type
-    this.contentTypeCache = new Map(); // Caches probeContentType results per URL
+    // Thumbnails fetched from sb (or made from a video with ffmpeg) are kept
+    // on disk: the only cache this provider has. Regenerating thumbnails
+    // empties it. Everything else is asked of sb each time.
     this.diskCacheDir = path.join(process.cwd(), ".cactus-cache", "thumbs");
-    this.diskCacheIndex = new Map(); // fileHash -> file extension on disk
+    // Not a cache: concurrent requests for one thumbnail share one fetch.
     this.inflightThumbnails = new Map(); // fileHash -> Promise<{buffer, contentType}>
   }
 
@@ -128,7 +122,7 @@ class SbMediaProvider extends MediaSourceProvider {
           error: `Failed to connect to sb server: ${connectionTest.error}`,
         };
       }
-      await this.initDiskCache();
+      await fs.promises.mkdir(this.diskCacheDir, { recursive: true });
       this.isInitialized = true;
       log.info("sbMediaProvider initialized successfully", {
         sbUrl: this.sbUrl,
@@ -400,20 +394,7 @@ class SbMediaProvider extends MediaSourceProvider {
           buildTagFilter(),
         );
       } else {
-        // No tags — use cache-aware fetch
-        const now = Date.now();
-        if (
-          this.mediaCache.length > 0 &&
-          this.lastFetchTime &&
-          now - this.lastFetchTime < this.cacheTimeout
-        ) {
-          media = this.mediaCache;
-        } else {
-          media = await this.fetchAndTransformMedia(sortBy);
-          this.mediaCache = media;
-          this.lastFetchTime = now;
-          this.rebuildThumbnailMap();
-        }
+        media = await this.fetchAndTransformMedia(sortBy);
       }
 
       // Client-side search (SB API doesn't support server-side text search)
@@ -502,9 +483,8 @@ class SbMediaProvider extends MediaSourceProvider {
       filtered = media.filter((item) => item.media_type === targetType);
     }
 
-    if (sortBy === "random") {
-      filtered = [...filtered].sort(() => Math.random() - 0.5);
-    } else if (sortBy === "date_added") {
+    // "random" is left as is: the server shuffles with a seed.
+    if (sortBy === "date_added") {
       filtered = [...filtered].sort(
         (a, b) => new Date(b.date_added) - new Date(a.date_added),
       );
@@ -522,37 +502,10 @@ class SbMediaProvider extends MediaSourceProvider {
     return map[sortBy] || "random";
   }
 
-  rebuildThumbnailMap() {
-    this.thumbnailMap.clear();
-    for (const item of this.mediaCache) {
-      if (item.thumbnail_path) {
-        this.thumbnailMap.set(item.file_hash, item.thumbnail_path);
-      }
-    }
-  }
-
-  invalidateCache() {
-    this.mediaCache = [];
-    this.lastFetchTime = null;
-    this.tagsCache = null;
-    this.tagsCacheTime = null;
-    this.thumbnailMap.clear();
-    this.contentTypeCache.clear();
-  }
-
   // ── Tags ───────────────────────────────────────────────────────────
 
   async getAllTags() {
     if (!this.isInitialized) throw new Error("Provider not initialized");
-
-    const now = Date.now();
-    if (
-      this.tagsCache &&
-      this.tagsCacheTime &&
-      now - this.tagsCacheTime < this.cacheTimeout
-    ) {
-      return this.tagsCache;
-    }
 
     try {
       const query = `
@@ -565,15 +518,13 @@ class SbMediaProvider extends MediaSourceProvider {
       };
       const response = await this.makeGraphQLRequest(query, variables);
 
-      this.tagsCache = response.data.findTags.tags.map((tag) => ({
+      return response.data.findTags.tags.map((tag) => ({
         id: parseInt(tag.id),
         name: tag.name,
         color: "#3B82F6",
         created_at: new Date().toISOString(),
         image_count: tag.image_count || 0,
       }));
-      this.tagsCacheTime = now;
-      return this.tagsCache;
     } catch (error) {
       log.error("Failed to get tags from sb", { error: error.message });
       throw error;
@@ -600,8 +551,6 @@ class SbMediaProvider extends MediaSourceProvider {
         created_at: new Date().toISOString(),
         image_count: sbTag.image_count || 0,
       };
-      this.tagsCache = null;
-      this.tagsCacheTime = null;
       log.info("Tag created in sb", { tagId: tag.id, name: tag.name });
       return tag;
     } catch (error) {
@@ -718,7 +667,6 @@ class SbMediaProvider extends MediaSourceProvider {
         ]);
       }
 
-      this.invalidateCache();
       log.info("Tag added to media in sb", {
         mediaId,
         tagId,
@@ -773,7 +721,6 @@ class SbMediaProvider extends MediaSourceProvider {
         );
       }
 
-      this.invalidateCache();
       log.info("Tag removed from media in sb", {
         mediaId,
         tagId,
@@ -840,20 +787,16 @@ class SbMediaProvider extends MediaSourceProvider {
     try {
       const allMedia = await this.getMedia({});
       const images = allMedia.filter((item) => item.media_type === "image");
-      const videos = allMedia.filter((item) => item.media_type === "video");
       return {
-        totalFiles: allMedia.length,
-        totalImages: images.length,
-        totalVideos: videos.length,
+        total: allMedia.length,
+        images: images.length,
+        videos: allMedia.length - images.length,
         totalSize: allMedia.reduce(
           (sum, item) => sum + (item.file_size || 0),
           0,
         ),
         provider: "sb",
         sbUrl: this.sbUrl,
-        lastFetch: this.lastFetchTime
-          ? new Date(this.lastFetchTime).toISOString()
-          : null,
       };
     } catch (error) {
       log.error("Failed to get stats from sb", { error: error.message });
@@ -985,22 +928,10 @@ class SbMediaProvider extends MediaSourceProvider {
   }
 
   async getThumbnailData(fileHash) {
-    // 1. In-memory caches
-    const generated = this.generatedThumbnails.get(fileHash);
-    if (generated) return { buffer: generated, contentType: "image/jpeg" };
-
-    const cached = this.thumbnailCache.get(fileHash);
-    if (cached) return cached;
-
-    // 2. Disk cache
     const fromDisk = await this.readDiskCache(fileHash);
-    if (fromDisk) {
-      this.thumbnailCache.set(fileHash, fromDisk);
-      return fromDisk;
-    }
+    if (fromDisk) return fromDisk;
 
-    // 3. Dedup concurrent fetches for the same hash — one ffmpeg/proxy job
-    //    per unique thumbnail, no matter how many requests pile up.
+    // One ffmpeg/proxy job per thumbnail, however many requests pile up.
     const inflight = this.inflightThumbnails.get(fileHash);
     if (inflight) return inflight;
 
@@ -1013,25 +944,34 @@ class SbMediaProvider extends MediaSourceProvider {
     }
   }
 
-  async fetchThumbnailData(fileHash) {
-    // Resolve upstream URL
-    let thumbnailUrl = this.thumbnailMap.get(fileHash);
-    if (!thumbnailUrl) {
-      if (this.thumbnailMap.size === 0 && this.mediaCache.length === 0) {
-        await this.getMedia({});
-        thumbnailUrl = this.thumbnailMap.get(fileHash);
-      }
-      if (!thumbnailUrl) return null;
+  // Where sb keeps an item's thumbnail, asked for that one item.
+  async lookupThumbnailUrl(fileHash) {
+    const info = this.extractsbIdFromHash(fileHash);
+    if (info?.type === "image") {
+      const response = await this.makeGraphQLRequest(
+        `query FindImage($id: ID!) { findImage(id: $id) { paths { thumbnail } } }`,
+        { id: info.id },
+      );
+      return response.data.findImage?.paths?.thumbnail || null;
     }
+    if (info?.type === "marker") {
+      const response = await this.makeGraphQLRequest(
+        `query FindMarker($id: ID!) { findSceneMarkers(ids: [$id]) { scene_markers { screenshot } } }`,
+        { id: info.id },
+      );
+      return (
+        response.data.findSceneMarkers?.scene_markers?.[0]?.screenshot || null
+      );
+    }
+    return null;
+  }
 
-    // Probe content-type (cached per URL)
-    let contentType = this.contentTypeCache.get(thumbnailUrl);
-    if (contentType === undefined) {
-      contentType = await this.probeContentType(thumbnailUrl);
-      this.contentTypeCache.set(thumbnailUrl, contentType);
-    }
+  async fetchThumbnailData(fileHash) {
+    const thumbnailUrl = await this.lookupThumbnailUrl(fileHash);
+    if (!thumbnailUrl) return null;
 
     // Video: generate thumb via ffmpeg
+    const contentType = await this.probeContentType(thumbnailUrl);
     if (contentType.startsWith("video/")) {
       log.info(
         "Upstream returned video instead of thumbnail, generating locally",
@@ -1043,20 +983,17 @@ class SbMediaProvider extends MediaSourceProvider {
         fileHash,
       );
       if (thumbBuffer) {
-        const result = { buffer: thumbBuffer, contentType: "image/jpeg" };
-        this.generatedThumbnails.set(fileHash, thumbBuffer);
         await this.writeDiskCache(fileHash, thumbBuffer, "image/jpeg");
-        return result;
+        return { buffer: thumbBuffer, contentType: "image/jpeg" };
       }
       // ffmpeg failed — proxy the raw upstream bytes but don't persist them
-      // (could be the entire video file; pointless to cache as a thumbnail).
+      // (could be the entire video file; pointless to keep as a thumbnail).
       return this.fetchBuffer(thumbnailUrl);
     }
 
-    // Image: fetch + cache
+    // Image: fetch and keep
     const result = await this.fetchBuffer(thumbnailUrl);
     if (!result) return null;
-    this.thumbnailCache.set(fileHash, result);
     await this.writeDiskCache(fileHash, result.buffer, result.contentType);
     return result;
   }
@@ -1072,38 +1009,20 @@ class SbMediaProvider extends MediaSourceProvider {
 
   // ── Disk cache ─────────────────────────────────────────────────────
 
-  async initDiskCache() {
-    try {
-      await fs.promises.mkdir(this.diskCacheDir, { recursive: true });
-      const files = await fs.promises.readdir(this.diskCacheDir);
-      for (const file of files) {
-        const dotIdx = file.lastIndexOf(".");
-        if (dotIdx <= 0) continue;
-        this.diskCacheIndex.set(file.slice(0, dotIdx), file.slice(dotIdx + 1));
-      }
-      log.info("Disk thumbnail cache loaded", {
-        dir: this.diskCacheDir,
-        count: this.diskCacheIndex.size,
-      });
-    } catch (err) {
-      log.warn("Failed to initialize disk thumbnail cache", {
-        dir: this.diskCacheDir,
-        error: err.message,
-      });
-    }
-  }
-
+  // A thumbnail on disk is named <hash>.<ext>, the extension recording its
+  // type. Looked up on disk each time, so files removed by hand are simply
+  // fetched again.
   async readDiskCache(fileHash) {
-    const ext = this.diskCacheIndex.get(fileHash);
-    if (!ext) return null;
-    try {
-      const filePath = path.join(this.diskCacheDir, `${fileHash}.${ext}`);
-      const buffer = await fs.promises.readFile(filePath);
-      return { buffer, contentType: this.contentTypeFromExt(ext) };
-    } catch {
-      this.diskCacheIndex.delete(fileHash);
-      return null;
+    for (const ext of ["jpg", "png", "webp", "gif", "avif", "bin"]) {
+      try {
+        const filePath = path.join(this.diskCacheDir, `${fileHash}.${ext}`);
+        const buffer = await fs.promises.readFile(filePath);
+        return { buffer, contentType: this.contentTypeFromExt(ext) };
+      } catch {
+        // not this extension
+      }
     }
+    return null;
   }
 
   async writeDiskCache(fileHash, buffer, contentType) {
@@ -1111,7 +1030,6 @@ class SbMediaProvider extends MediaSourceProvider {
     const filePath = path.join(this.diskCacheDir, `${fileHash}.${ext}`);
     try {
       await fs.promises.writeFile(filePath, buffer);
-      this.diskCacheIndex.set(fileHash, ext);
     } catch (err) {
       log.warn("Failed to write disk thumbnail cache", {
         fileHash,
@@ -1258,10 +1176,17 @@ class SbMediaProvider extends MediaSourceProvider {
     );
   }
 
+  // Empties the thumbnail folder; each thumbnail is fetched from sb again the
+  // next time it is shown.
   async regenerateThumbnails() {
-    throw new Error(
-      "Thumbnail regeneration not supported by sbMediaProvider. Thumbnails are managed by sb server.",
+    const files = await fs.promises.readdir(this.diskCacheDir);
+    await Promise.all(
+      files.map((file) =>
+        fs.promises.rm(path.join(this.diskCacheDir, file), { force: true }),
+      ),
     );
+    log.info("Thumbnail folder emptied", { removed: files.length });
+    return files.length;
   }
 
   // ── UI Config ──────────────────────────────────────────────────────
@@ -1269,7 +1194,7 @@ class SbMediaProvider extends MediaSourceProvider {
   getCapabilities() {
     return {
       canRescan: false,
-      canRegenerateThumbnails: false,
+      canRegenerateThumbnails: true,
       canManageTags: false,
       canGetFileHashForPath: false,
       supportsLocalFiles: false,
@@ -1516,15 +1441,6 @@ class SbMediaProvider extends MediaSourceProvider {
 
   async close() {
     this.isInitialized = false;
-    this.mediaCache = [];
-    this.lastFetchTime = null;
-    this.tagsCache = null;
-    this.tagsCacheTime = null;
-    this.thumbnailMap.clear();
-    this.generatedThumbnails.clear();
-    this.thumbnailCache.clear();
-    this.contentTypeCache.clear();
-    this.diskCacheIndex.clear();
     this.inflightThumbnails.clear();
     await super.close();
     log.info("sbMediaProvider closed");

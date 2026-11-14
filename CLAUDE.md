@@ -41,7 +41,7 @@ bun run format
 
 - **Entry**: `src/main.jsx` → `src/App.jsx`
 - **State Management**: `src/context/MediaContext.jsx` - central state for media files, filters, tags, and settings
-- **Custom Hooks**: `src/hooks/` - keyboard navigation, media preloading, per-item tags, URL sync
+- **Custom Hooks**: `src/hooks/` - keyboard navigation, per-item tags, URL sync
 - **Components**: `src/components/` - unified media browser (feed + gallery), floating dock, one panel track (tags / filter / settings)
 - **Layout**: where things sit is CSS in `src/index.css`, picked by viewport orientation; components take no breakpoint or orientation props. `Sheet.jsx` (the dock that grows into the open panel) only animates its own size and floats over the stage, which never resizes for it
 - **Gallery**: `Gallery.jsx` computes the masonry layout itself from each item's stored width/height (so any tile's position is exact before it is drawn) and only draws tiles near the viewport. The feed↔gallery zoom is one photo moved on a spring in `UnifiedMediaBrowser.jsx`, reading both ends every frame; there are no View Transitions
@@ -58,7 +58,9 @@ bun run format
 ### Key Patterns
 
 - **Provider Pattern**: All media sources implement `MediaSourceProvider` interface with methods for `getAllMedia()`, `getMediaByTags()`, tag CRUD, `serveThumbnail()`, etc.
-- **URL State Sync**: Filter settings (mediaType, tags, sortBy) sync bidirectionally with URL parameters via `useURLSettings` hook
+- **URL State Sync**: Filter settings (mediaType, tags, sortBy, seed) sync bidirectionally with URL parameters via `useURLSettings` hook
+- **Random order is a seed**: `/api/media?sortBy=random&seed=N` orders by a hash of the seed and each item's id (`src/seededOrder.js`); providers return random in any order. Items never move relative to each other as the library grows or shrinks, and a filtered list keeps the full list's order. The seed lives in the URL, so reloads, back/forward and clearing a filter keep the order, and nothing on the client stores a copy of the list
+- **No caches**: nothing caches data on purpose. The server has no response cache, media/thumbnails/assets revalidate by ETag, and there is no service worker (`public/sw.js` only removes the one older versions installed). The feed's preloading is just the ±2 items it renders. The one cache is the sb provider's thumbnail folder (`.cactus-cache/thumbs`; remote fetch or ffmpeg per miss), emptied by "regenerate thumbnails". Add a cache only with a strong reason, and give it a way to be emptied
 - **API Routes**: `/api/media`, `/api/tags`, `/api/config`, `/api/auth/*`
 
 ### Build Pipeline

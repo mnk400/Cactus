@@ -64,7 +64,6 @@ class MediaDatabase {
       this.db = new Database(this.dbPath);
       this.db.exec("PRAGMA journal_mode = WAL"); // Better performance for concurrent reads
       this.db.exec("PRAGMA synchronous = NORMAL"); // Good balance of safety and performance
-      this.db.exec("PRAGMA cache_size = 1000"); // Cache more pages in memory
       this.db.exec("PRAGMA temp_store = memory"); // Store temp tables in memory
 
       this.initializeSchema();
@@ -340,7 +339,8 @@ class MediaDatabase {
 
   /**
    * Unified media query with composable filters.
-   * All filter fields are optional — an empty object returns all media in random order.
+   * All filter fields are optional — an empty object returns all media, unordered
+   * ("random" is shuffled by the server with a seed).
    * @param {Object} filters
    * @param {string} filters.mediaType - "all", "photos", or "videos"
    * @param {string} filters.sortBy - "random", "date_added", or "date_created"
@@ -425,7 +425,7 @@ class MediaDatabase {
           query += " ORDER BY mf.date_added DESC";
           break;
         default:
-          query += " ORDER BY RANDOM()";
+          // "random": left unordered here; the server shuffles with a seed.
           break;
       }
 
