@@ -263,11 +263,10 @@ class MediaDatabase {
 
   /**
    * Unified media query with composable filters.
-   * All filter fields are optional — an empty object returns all media, unordered
-   * ("random" is shuffled by the server with a seed).
+   * All filter fields are optional — an empty object returns all media.
+   * Unordered: the server orders every list (src/order.js).
    * @param {Object} filters
    * @param {string} filters.mediaType - "all", "photos", or "videos"
-   * @param {string} filters.sortBy - "random", "date_added", or "date_created"
    * @param {string[]} filters.includeTags - Tag names (AND logic: media must have ALL)
    * @param {string[]} filters.excludeTags - Tag names (NOT logic: media must have NONE)
    * @param {string} filters.search - Substring match on file_path
@@ -280,7 +279,6 @@ class MediaDatabase {
 
     const {
       mediaType = "all",
-      sortBy = "random",
       includeTags = [],
       excludeTags = [],
       search = "",
@@ -338,19 +336,6 @@ class MediaDatabase {
       if (includeTags.length > 0) {
         query += ` GROUP BY mf.file_hash HAVING COUNT(DISTINCT t_inc.id) = ?`;
         params.push(includeTags.length);
-      }
-
-      // Sort
-      switch (sortBy) {
-        case "date_created":
-          query += " ORDER BY mf.date_created DESC";
-          break;
-        case "date_added":
-          query += " ORDER BY mf.date_added DESC";
-          break;
-        default:
-          // "random": left unordered here; the server shuffles with a seed.
-          break;
       }
 
       const stmt = this.db.prepare(query);

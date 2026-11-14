@@ -74,8 +74,12 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
   }, []);
 
   // A layout effect, so the feed is on the new item before the zoom below
-  // measures where that item sits.
+  // measures where that item sits. In a new list (a filter changed) the
+  // item is the same one at a new index: jump, do not glide past the rest.
+  const scrolledListRef = useRef(mediaFiles);
   useLayoutEffect(() => {
+    const newList = scrolledListRef.current !== mediaFiles;
+    scrolledListRef.current = mediaFiles;
     const feedHeight = feedRef.current?.clientHeight;
     if (isGalleryView || !feedHeight) return;
 
@@ -91,7 +95,7 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
     isProgrammaticScrollRef.current = true;
     feedRef.current.scrollTo({
       top: targetTop,
-      behavior: viewJustToggled ? "auto" : "smooth",
+      behavior: viewJustToggled || newList ? "auto" : "smooth",
     });
 
     const timer = setTimeout(() => {
@@ -99,7 +103,7 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
     }, 350);
 
     return () => clearTimeout(timer);
-  }, [currentIndex, isGalleryView]);
+  }, [currentIndex, isGalleryView, mediaFiles]);
 
   // Newly mounted items need their fit too.
   useLayoutEffect(() => {

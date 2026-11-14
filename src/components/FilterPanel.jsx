@@ -3,45 +3,24 @@ import UnifiedSearchBar from "./UnifiedSearchBar";
 import { byUsage } from "./TagsPanel";
 import { Chip, PanelButton, SegmentedControl } from "./ui/Panel";
 import { useMediaData } from "../context/MediaContext";
-
-const MEDIA_TYPES = [
-  { value: "all", label: "all" },
-  { value: "photos", label: "photos" },
-  { value: "videos", label: "videos" },
-];
-
-const SORT_OPTIONS = [
-  { value: "random", label: "random" },
-  { value: "date_added", label: "added" },
-  { value: "date_created", label: "created" },
-];
+import { MEDIA_TYPES, SORT_OPTIONS, isFiltered } from "../utils/filters";
 
 // What the feed and gallery show. Changes apply as you make them, and the
 // stage beside the sheet updates live.
 const FilterPanel = memo(function FilterPanel() {
-  const { settings, setFilters, tags, mediaFiles } = useMediaData();
+  const { settings, setFilters, clearFilters, tags, mediaFiles } =
+    useMediaData();
   const { search, selectedTags, excludedTags, mediaType, sortBy } = settings;
 
   const topTags = useMemo(() => [...tags].sort(byUsage).slice(0, 12), [tags]);
 
-  const hasActiveFilters =
-    mediaType !== "all" ||
-    sortBy !== "random" ||
-    selectedTags.length > 0 ||
-    excludedTags.length > 0 ||
-    Boolean(search?.trim());
-
   const without = (list, tag) => list.filter((t) => t.id !== tag.id);
 
-  const clearFilters = useCallback(() => {
-    setFilters({
-      mediaType: "all",
-      sortBy: "random",
-      selectedTags: [],
-      excludedTags: [],
-      search: "",
-    });
-  }, [setFilters]);
+  // The field's ×: everything typed or picked there, excluded tags included.
+  const clearField = useCallback(
+    () => setFilters({ search: "", selectedTags: [], excludedTags: [] }),
+    [setFilters],
+  );
 
   return (
     <div className="space-y-2.5">
@@ -53,6 +32,7 @@ const FilterPanel = memo(function FilterPanel() {
         onTagsChange={(next) => setFilters({ selectedTags: next })}
         onExcludedChange={(next) => setFilters({ excludedTags: next })}
         onSearchChange={(value) => setFilters({ search: value })}
+        onClear={clearField}
       />
 
       {/* Tap a tag to include it, tap again to clear. Excluded tags (typed
@@ -108,7 +88,7 @@ const FilterPanel = memo(function FilterPanel() {
 
       <div className="flex h-7 items-center justify-between pl-1 text-xs text-white/45">
         <span>{mediaFiles.length.toLocaleString()} items</span>
-        {hasActiveFilters && (
+        {isFiltered(settings) && (
           <PanelButton
             variant="ghost"
             className="h-7 px-2"

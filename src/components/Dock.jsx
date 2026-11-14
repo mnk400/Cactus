@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { useMediaData, useCurrentMedia } from "../context/MediaContext";
 import { useMediaTags } from "../hooks/useMediaTags";
+import { filterParts } from "../utils/filters";
 
 const FAVORITE_TAG = "favorites";
 
@@ -70,8 +71,7 @@ const HEART =
 const Dock = memo(function Dock({ panel, onPanel }) {
   const { currentMediaFile } = useCurrentMedia();
   const { toggleGallery, navigate, settings } = useMediaData();
-  const { galleryView, search, selectedTags, excludedTags, mediaType, sortBy } =
-    settings;
+  const { galleryView } = settings;
 
   const showItem = !galleryView && !!currentMediaFile;
   const { tags, add, remove } = useMediaTags(
@@ -79,12 +79,7 @@ const Dock = memo(function Dock({ panel, onPanel }) {
   );
   const favorite = tags.find((tag) => tag.name === FAVORITE_TAG);
 
-  const filterCount =
-    selectedTags.length +
-    excludedTags.length +
-    (search?.trim() ? 1 : 0) +
-    (mediaType !== "all" ? 1 : 0) +
-    (sortBy !== "random" ? 1 : 0);
+  const filterCount = filterParts(settings).length;
 
   return (
     <>

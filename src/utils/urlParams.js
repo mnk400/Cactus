@@ -123,18 +123,20 @@ export const decodeSettingsFromURL = (
 };
 
 /**
- * Updates the browser URL with current settings
+ * Updates the browser URL with current settings. `state` is the history
+ * entry's state (setFilters marks a filter session's entry with it); a
+ * replace without one keeps the entry's own.
  */
-export const updateURL = (settings, replace = false) => {
+export const updateURL = (settings, replace = false, state) => {
   const paramString = encodeSettingsToURL(settings);
   const newURL = paramString
     ? `${window.location.pathname}?${paramString}`
     : window.location.pathname;
 
   if (replace) {
-    window.history.replaceState({}, "", newURL);
+    window.history.replaceState(state ?? window.history.state, "", newURL);
   } else {
-    window.history.pushState({}, "", newURL);
+    window.history.pushState(state ?? null, "", newURL);
   }
 };
 

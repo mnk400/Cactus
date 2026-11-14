@@ -51,10 +51,12 @@ class MediaSourceProvider {
   }
 
   /**
-   * Unified media retrieval with composable filters.
+   * Unified media retrieval with composable filters. Return the items in any
+   * order: the server orders every list (src/order.js).
    * @param {Object} filters
    * @param {string} filters.mediaType - 'all', 'photos', or 'videos'
-   * @param {string} filters.sortBy - 'random' (any order; the server shuffles), 'date_added', or 'date_created'
+   * @param {string} filters.sortBy - 'random', 'date_added' or 'date_created';
+   *   only a hint, for a source that can return just part of the library
    * @param {string[]} filters.includeTags - Tag names (AND logic)
    * @param {string[]} filters.excludeTags - Tag names (NOT logic)
    * @param {string} filters.search - Substring match on file paths

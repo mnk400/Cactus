@@ -9,6 +9,7 @@ import FilterPanel from "./components/FilterPanel";
 import SettingsPanel from "./components/SettingsPanel";
 import { useKeyboardNavigation } from "./hooks/useKeyboardNavigation";
 import { useCurrentMedia, useMediaData } from "./context/MediaContext";
+import { isFiltered } from "./utils/filters";
 
 const DebugInfo = lazy(() => import("./components/DebugInfo"));
 
@@ -105,6 +106,7 @@ function App() {
     (name) => setPanel((current) => (current === name ? null : name)),
     [],
   );
+  const openFilters = useCallback(() => setPanel("filters"), []);
 
   // iOS keeps the layout viewport full height under the on-screen keyboard,
   // so size the shell to the part that is actually visible.
@@ -159,9 +161,15 @@ function App() {
           {feedReady && (
             <>
               <UnifiedMediaBrowser />
-              <MediaSourceBadge />
               {!galleryView && <VideoControls />}
             </>
+          )}
+
+          {/* Filtered, it stays up whatever the stage shows (loading, "no
+              media files found", an error), so the filters can always be
+              cleared from where they are shown. */}
+          {(feedReady || isFiltered(settings)) && (
+            <MediaSourceBadge onOpenFilters={openFilters} />
           )}
 
           {!loading && !error && !feedReady && (

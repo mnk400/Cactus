@@ -10,27 +10,14 @@ import {
 import { useURLSettings } from "../hooks/useURLSettings";
 
 import { URL_PARAMS } from "../utils/urlParams";
+import { NO_FILTERS, apiQuery, isFiltered, listKey } from "../utils/filters";
+import { indexAfter } from "../order";
 
 // Split contexts for granular re-render control
 const CurrentMediaContext = createContext();
 const AudioContext = createContext();
 const MediaDataContext = createContext();
 const VideoElementContext = createContext();
-
-const tagNames = (list = []) => list.map((t) => t.name || t).join(",");
-const filtersKey = (s) =>
-  [
-    s.mediaType,
-    s.sortBy,
-    tagNames(s.selectedTags),
-    tagNames(s.excludedTags),
-    s.search || "",
-  ].join("|");
-// Tags or a search narrow the list; type and sort only change the view of it.
-const isNarrowed = (s) =>
-  s.selectedTags?.length > 0 ||
-  s.excludedTags?.length > 0 ||
-  Boolean(s.search?.trim());
 
 export const MediaProvider = ({ children }) => {
   const [mediaFiles, setMediaFiles] = useState([]);
@@ -42,18 +29,20 @@ export const MediaProvider = ({ children }) => {
   const [isRegeneratingThumbnails, setIsRegeneratingThumbnails] =
     useState(false);
   const [isUrlSync, setIsUrlSync] = useState(false);
-  // The filters the current list was fetched with; the fetch effect compares
-  // against it so it fetches once per change, whatever caused the change.
-  const lastFetchedFilters = useRef(null);
+  // The list (listKey) last fetched; the fetch effect compares against it so
+  // it fetches once per change, whatever caused the change.
+  const lastFetchedKey = useRef(null);
   // AbortController to cancel stale API requests when filters change rapidly
   const fetchAbortController = useRef(null);
 
-  // The item you were on when a filter narrowed the list, to land on again
-  // when the filter is cleared. The order itself needs no saving: the seed
-  // in the URL makes the server return the same one.
-  const returnTo = useRef(null);
-  // Ref to read currentIndex without adding it as a dependency
+  // Refs to read the list and position without adding them as dependencies,
+  // so the actions below keep their identity across fetches and navigation.
   const currentIndexRef = useRef(0);
+  const mediaFilesRef = useRef(mediaFiles);
+  mediaFilesRef.current = mediaFiles;
+  // The last item shown: where you are, even while a filter shows nothing
+  // (or a fetch failed). Filtering and clearing land relative to it.
+  const lastShownRef = useRef(null);
 
   // Audio state
   const [isMuted, setIsMuted] = useState(() => {
@@ -76,16 +65,7 @@ export const MediaProvider = ({ children }) => {
 
   const { settings, getLatestSettings, updateSettings } = useURLSettings(tags);
 
-  const {
-    mediaType,
-    sortBy,
-    selectedTags,
-    excludedTags,
-    search,
-    seed,
-    galleryView,
-    mediaId,
-  } = settings;
+  const { galleryView, mediaId } = settings;
 
   // Keep currentIndex ref in sync for snapshot reads without adding dependency
   currentIndexRef.current = currentIndex;
@@ -98,6 +78,7 @@ export const MediaProvider = ({ children }) => {
         : null,
     [mediaFiles, currentIndex],
   );
+  if (currentMediaFile) lastShownRef.current = currentMediaFile;
 
   // Tag Management Methods
   const fetchTags = useCallback(async () => {
@@ -158,23 +139,16 @@ export const MediaProvider = ({ children }) => {
     }
   }, []);
 
-  const filterKey = JSON.stringify({
-    mediaType,
-    sortBy,
-    seed,
-    tags: tagNames(selectedTags),
-    excludeTags: tagNames(excludedTags),
-    search: search || "",
-  });
+  const key = listKey(settings);
 
-  // Fetch the list for the current filters and land on targetMediaId in it
-  // (the first item when it is absent). mediaId is deliberately not read from
-  // settings here: navigation does not update it, so it may be stale.
+  // Fetch the list and land on targetMediaId in it. When the new list left
+  // it out, land on the next item after it in the order (indexAfter); the
+  // first item when there is nothing to go by. mediaId is deliberately not
+  // read from settings here: navigation does not update it, so it may be
+  // stale.
   const fetchMedia = useCallback(
     async (targetMediaId) => {
-      const tags = tagNames(selectedTags);
-      const excluded = tagNames(excludedTags);
-      lastFetchedFilters.current = filterKey;
+      lastFetchedKey.current = listKey(settings);
 
       // Cancel any in-flight request to prevent stale responses from overwriting fresh data
       fetchAbortController.current?.abort();
@@ -186,13 +160,9 @@ export const MediaProvider = ({ children }) => {
         setLoading("loading…");
         setError(null);
 
-        let url = `/api/media?type=${mediaType}&sortBy=${sortBy}`;
-        if (sortBy === "random") url += `&seed=${seed}`;
-        if (tags) url += `&tags=${tags}`;
-        if (excluded) url += `&exclude-tags=${excluded}`;
-        if (search) url += `&search=${encodeURIComponent(search)}`;
-
-        const response = await fetch(url, { signal });
+        const response = await fetch(`/api/media?${apiQuery(settings)}`, {
+          signal,
+        });
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.error || "Failed to get media files");
@@ -201,20 +171,24 @@ export const MediaProvider = ({ children }) => {
         const data = await response.json();
         const files = data.files || [];
 
-        setMediaFiles(files);
-
-        if (targetMediaId && files.length > 0) {
-          const foundIndex = files.findIndex(
-            (f) => f.file_hash === targetMediaId,
-          );
-          if (foundIndex !== -1) {
-            setCurrentIndex(foundIndex);
-          } else {
-            setCurrentIndex(0);
-          }
-        } else {
-          setCurrentIndex(0);
+        let index = targetMediaId
+          ? files.findIndex((f) => f.file_hash === targetMediaId)
+          : -1;
+        if (index === -1) {
+          const last = lastShownRef.current;
+          const gone =
+            last?.file_hash === targetMediaId
+              ? last
+              : mediaFilesRef.current.find(
+                  (f) => f.file_hash === targetMediaId,
+                );
+          index = gone
+            ? indexAfter(files, gone, settings.sortBy, settings.seed)
+            : 0;
         }
+
+        setMediaFiles(files);
+        setCurrentIndex(index);
       } catch (err) {
         // Ignore aborted requests - they're intentionally cancelled
         if (err.name === "AbortError") return;
@@ -228,7 +202,7 @@ export const MediaProvider = ({ children }) => {
         }
       }
     },
-    [mediaType, sortBy, seed, selectedTags, excludedTags, search, filterKey],
+    [settings],
   );
 
   // Fetch server configuration
@@ -251,8 +225,8 @@ export const MediaProvider = ({ children }) => {
   // The one place the list is fetched: on first load, and whenever the
   // filters change, whether from the panel or browser back/forward.
   useEffect(() => {
-    if (lastFetchedFilters.current !== filterKey) fetchMedia(mediaId);
-  }, [fetchMedia, filterKey, mediaId]);
+    if (lastFetchedKey.current !== key) fetchMedia(mediaId);
+  }, [fetchMedia, key, mediaId]);
 
   // Keep the URL's media param on the item shown. Written directly
   // (replaceState) rather than through settings, so navigating does not
@@ -265,7 +239,11 @@ export const MediaProvider = ({ children }) => {
         url.searchParams.get(URL_PARAMS.MEDIA_ID) !== currentMediaFile.file_hash
       ) {
         url.searchParams.set(URL_PARAMS.MEDIA_ID, currentMediaFile.file_hash);
-        window.history.replaceState({}, "", url.pathname + url.search);
+        window.history.replaceState(
+          window.history.state, // keeps the filter-session mark
+          "",
+          url.pathname + url.search,
+        );
       }
     }
     if (isUrlSync) setIsUrlSync(false);
@@ -292,32 +270,46 @@ export const MediaProvider = ({ children }) => {
   );
 
   // Public API. Changing settings is all this does; the fetch effect picks
-  // the change up. Narrowing the list starts at its first item; clearing the
-  // narrowing goes back to where you were, as long as the view (type and
-  // sort) is still the one you left.
+  // the change up.
+  //
+  // Where you land: there is one order, and filters only hide items in it.
+  // So you stay on the item you are on; if a filter hides it, you go on to
+  // the next item it kept. Clearing leaves you where you are, among the
+  // neighbours the filter hid. Only a new sort, a new order, starts at the
+  // top.
+  //
+  // History: one step per filter session. The first filter adds an entry,
+  // marked as the session's; changes while filtered replace that entry
+  // (only that one: after a gallery toggle the next change is a new step);
+  // clearing adds one. So Back undoes the clear, and Back again returns to
+  // where you were before filtering. A sort change is its own step.
+  //
   // Compared against the latest settings, not the rendered ones: a control
-  // may call this twice in one go (clear-all clears search, then tags), and
-  // the second call must see the first.
+  // may call this twice in one go, and the second call must see the first.
   const setFilters = useCallback(
     (newSettings) => {
       const prev = getLatestSettings();
       const next = { ...prev, ...newSettings };
-      if (filtersKey(next) === filtersKey(prev)) return;
+      if (listKey(next) === listKey(prev)) return;
 
-      if (next.mediaType !== prev.mediaType || next.sortBy !== prev.sortBy) {
-        returnTo.current = null;
-      }
-      let landOn = "";
-      if (!isNarrowed(prev) && isNarrowed(next)) {
-        returnTo.current = mediaFiles[currentIndexRef.current]?.file_hash;
-      } else if (isNarrowed(prev) && !isNarrowed(next)) {
-        landOn = returnTo.current || "";
-        returnTo.current = null;
-      }
-      updateSettings({ ...newSettings, mediaId: landOn });
+      const resorted = next.sortBy !== prev.sortBy;
+      const filtered = isFiltered(next);
+      const inSession = window.history.state?.filterSession === true;
+      updateSettings(
+        {
+          ...newSettings,
+          mediaId: resorted ? "" : lastShownRef.current?.file_hash || "",
+        },
+        {
+          replace: !resorted && filtered && inSession,
+          state: { filterSession: filtered },
+        },
+      );
     },
-    [getLatestSettings, updateSettings, mediaFiles],
+    [getLatestSettings, updateSettings],
   );
+
+  const clearFilters = useCallback(() => setFilters(NO_FILTERS), [setFilters]);
 
   // The zoom between the two views is UnifiedMediaBrowser's, driven by the
   // galleryView setting changing; these only change state.
@@ -328,10 +320,9 @@ export const MediaProvider = ({ children }) => {
     () =>
       updateSettings({
         galleryView: !galleryView,
-        mediaId: mediaFiles[currentIndexRef.current]?.file_hash || "",
+        mediaId: lastShownRef.current?.file_hash || "",
       }),
-    // Read through the ref: this must not change on every navigation.
-    [galleryView, mediaFiles, updateSettings],
+    [galleryView, updateSettings],
   );
 
   const selectMedia = useCallback(
@@ -339,10 +330,10 @@ export const MediaProvider = ({ children }) => {
       setCurrentIndex(index);
       updateSettings({
         galleryView: false,
-        mediaId: mediaFiles[index]?.file_hash || "",
+        mediaId: mediaFilesRef.current[index]?.file_hash || "",
       });
     },
-    [mediaFiles, updateSettings],
+    [updateSettings],
   );
 
   const rescan = useCallback(async () => {
@@ -351,14 +342,14 @@ export const MediaProvider = ({ children }) => {
       setIsScanning(true);
       const resp = await fetch("/rescan-directory", { method: "POST" });
       if (!resp.ok) throw new Error("Rescan failed");
-      // Same seed, so the same order with the new files slotted in: stay put.
-      await fetchMedia(mediaFiles[currentIndexRef.current]?.file_hash);
+      // Same order with the new files slotted in: stay put.
+      await fetchMedia(lastShownRef.current?.file_hash);
     } catch (err) {
       setError(err.message);
     } finally {
       setIsScanning(false);
     }
-  }, [isScanning, fetchMedia, mediaFiles]);
+  }, [isScanning, fetchMedia]);
 
   const regenerateThumbnails = useCallback(async () => {
     if (isRegeneratingThumbnails) return;
@@ -366,13 +357,13 @@ export const MediaProvider = ({ children }) => {
       setIsRegeneratingThumbnails(true);
       const resp = await fetch("/regenerate-thumbnails", { method: "POST" });
       if (!resp.ok) throw new Error("Regeneration failed");
-      await fetchMedia(mediaFiles[currentIndexRef.current]?.file_hash);
+      await fetchMedia(lastShownRef.current?.file_hash);
     } catch (err) {
       setError(err.message);
     } finally {
       setIsRegeneratingThumbnails(false);
     }
-  }, [isRegeneratingThumbnails, fetchMedia, mediaFiles]);
+  }, [isRegeneratingThumbnails, fetchMedia]);
 
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => !prev);
@@ -424,6 +415,7 @@ export const MediaProvider = ({ children }) => {
       settings,
       navigate,
       setFilters,
+      clearFilters,
       toggleGallery,
       selectMedia,
       rescan,
@@ -452,6 +444,7 @@ export const MediaProvider = ({ children }) => {
       settings,
       navigate,
       setFilters,
+      clearFilters,
       toggleGallery,
       selectMedia,
       rescan,

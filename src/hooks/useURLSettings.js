@@ -79,7 +79,11 @@ export const useURLSettings = (availableTags = []) => {
   // updater may run more than once (StrictMode does), and each run would
   // push another history entry.
   const updateSettings = useCallback((newSettings, options = {}) => {
-    const { updateURL: shouldUpdateURL = true, replace = false } = options;
+    const {
+      updateURL: shouldUpdateURL = true,
+      replace = false,
+      state,
+    } = options;
     const prev = latest.current;
     const merged = { ...prev, ...newSettings };
     // Switching the sort to random starts a fresh order; staying on random
@@ -97,7 +101,7 @@ export const useURLSettings = (availableTags = []) => {
     };
 
     latest.current = settingsForURL;
-    if (shouldUpdateURL) updateURL(settingsForURL, replace);
+    if (shouldUpdateURL) updateURL(settingsForURL, replace, state);
     setUrlSettings(settingsForURL);
   }, []);
 

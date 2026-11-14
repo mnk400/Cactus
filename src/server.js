@@ -8,7 +8,7 @@ const os = require("os");
 const sharp = require("sharp");
 const ffmpeg = require("fluent-ffmpeg");
 const ProviderFactory = require("./providers/ProviderFactory");
-const { seededOrder } = require("./seededOrder");
+const { orderFiles } = require("./order");
 const AutoTagService = require("./services/AutoTagService");
 const minimist = require("minimist");
 
@@ -226,7 +226,8 @@ app.use("/api", (req, res, next) => {
 app.get("/api/media", async (req, res) => {
   const mediaType = req.query.type || "all";
   const sortBy = req.query.sortBy || "random";
-  const search = req.query.search || req.query.pathSubstring || "";
+  // Spaces alone are no search (the client counts it the same way).
+  const search = (req.query.search || req.query.pathSubstring || "").trim();
   const tags = req.query.tags;
   const excludeTags = req.query["exclude-tags"];
 
@@ -234,6 +235,11 @@ app.get("/api/media", async (req, res) => {
   if (!["all", "photos", "videos"].includes(mediaType)) {
     return res.status(400).json({
       error: 'Invalid media type. Use "all", "photos", or "videos".',
+    });
+  }
+  if (!["random", "date_added", "date_created"].includes(sortBy)) {
+    return res.status(400).json({
+      error: 'Invalid sort. Use "random", "date_added", or "date_created".',
     });
   }
 
@@ -259,7 +265,8 @@ app.get("/api/media", async (req, res) => {
       search,
     });
     const seed = parseInt(req.query.seed, 10) || crypto.randomInt(1, 2 ** 31);
-    const files = sortBy === "random" ? seededOrder(found, seed) : found;
+    // Providers return any order; the order is the server's (src/order.js).
+    const files = orderFiles(found, sortBy, seed);
 
     // Add display names to each media file using provider-specific logic
     const filesWithDisplayNames = files.map((file) => {

@@ -403,7 +403,7 @@ class SbMediaProvider extends MediaSourceProvider {
         );
       }
 
-      return this.filterAndSortMedia(media, mediaType, sortBy);
+      return this.filterByType(media, mediaType);
     } catch (error) {
       log.error("Failed to get media from sb", {
         filters,
@@ -468,33 +468,14 @@ class SbMediaProvider extends MediaSourceProvider {
       .filter(Boolean);
   }
 
-  filterAndSortMedia(media, mediaType, sortBy) {
-    let filtered = media;
-
-    if (mediaType !== "all") {
-      const targetType =
-        mediaType === "photos"
-          ? "image"
-          : mediaType === "videos"
-            ? "video"
-            : mediaType;
-      filtered = media.filter((item) => item.media_type === targetType);
-    }
-
-    // "random" is left as is: the server shuffles with a seed.
-    if (sortBy === "date_added") {
-      filtered = [...filtered].sort(
-        (a, b) => new Date(b.date_added) - new Date(a.date_added),
-      );
-    } else if (sortBy === "date_created") {
-      filtered = [...filtered].sort(
-        (a, b) => new Date(b.date_created) - new Date(a.date_created),
-      );
-    }
-
-    return filtered;
+  // Any order: the server orders the list (src/order.js).
+  filterByType(media, mediaType) {
+    if (mediaType === "all") return media;
+    const targetType = mediaType === "photos" ? "image" : "video";
+    return media.filter((item) => item.media_type === targetType);
   }
 
+  // sb returns at most per_page items; its sort picks which ones those are.
   mapSortBy(sortBy) {
     const map = { date_added: "created_at", date_created: "date" };
     return map[sortBy] || "random";

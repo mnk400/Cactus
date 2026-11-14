@@ -8,6 +8,7 @@ const UnifiedSearchBar = ({
   onTagsChange,
   onExcludedChange,
   onSearchChange,
+  onClear,
 }) => {
   const [inputValue, setInputValue] = useState(search);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -115,13 +116,13 @@ const UnifiedSearchBar = ({
 
   const handleClearAll = () => {
     setInputValue("");
-    onSearchChange("");
-    onTagsChange([]);
+    onClear();
     inputRef.current?.focus();
   };
 
   const isSearchActive = search && search.length > 0;
-  const hasContent = isSearchActive || selectedTags.length > 0;
+  const hasContent =
+    isSearchActive || selectedTags.length > 0 || excludedTags.length > 0;
 
   return (
     <div className="relative" ref={containerRef}>
@@ -187,7 +188,7 @@ const UnifiedSearchBar = ({
               handleClearAll();
             }}
             className="flex-shrink-0 text-white/40 hover:text-white"
-            aria-label="Clear all filters"
+            aria-label="Clear search and tags"
           >
             <svg
               className="w-4 h-4"
