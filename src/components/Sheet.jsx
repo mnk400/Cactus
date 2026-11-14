@@ -64,6 +64,7 @@ function Sheet({ panel, onPanel, panels }) {
         g.dock = dock.offsetWidth;
         g.across = W - 16;
         inner.style.width = `${g.across}px`;
+        inner.style.minHeight = "";
         inner.style.maxHeight = `${H - g.edge - TOP_GAP - DOCK}px`;
         g.open = DOCK + inner.offsetHeight;
       } else {
@@ -71,6 +72,9 @@ function Sheet({ panel, onPanel, panels }) {
         g.across = Math.min(340, Math.round(W * 0.42));
         inner.style.width = `${g.across - DOCK}px`;
         inner.style.maxHeight = `${H - 20}px`;
+        // A panel shorter than the dock still spans it, so its content
+        // starts at the top instead of floating mid-sheet.
+        inner.style.minHeight = `${g.dock}px`;
         g.open = Math.max(g.dock, inner.offsetHeight);
       }
     };

@@ -360,6 +360,14 @@ html {
   transform: translateX(calc((var(--p, 0) - 1) * 100%));
   transition: background-color 150ms;
 }
+/* Settings › ui can hide the tide. Sliding sideways still scrubs, and the
+   tide fades in for the scrub, as the icons step back, to show where you are. */
+.dock-tide {
+  transition: opacity 150ms;
+}
+[data-progress="hidden"]:not([data-scrubbing]) .dock-tide {
+  opacity: 0;
+}
 
 /* Scrubbing (VideoControls.jsx sets data-scrubbing): the icons step back,
    the tide brightens, and the time floats just outside the sheet, where

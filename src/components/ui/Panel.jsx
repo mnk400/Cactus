@@ -19,12 +19,18 @@ export const PanelSection = forwardRef(function PanelSection(
   );
 });
 
-export function SegmentedControl({ value, options, onChange, ariaLabel }) {
+export function SegmentedControl({
+  value,
+  options,
+  onChange,
+  ariaLabel,
+  className = "",
+}) {
   return (
     <div
       role="group"
       aria-label={ariaLabel}
-      className="well grid h-8 rounded-full p-0.5"
+      className={`well grid h-8 rounded-full p-0.5 ${className}`}
       style={{
         gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))`,
       }}

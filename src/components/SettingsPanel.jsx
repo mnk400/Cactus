@@ -1,18 +1,41 @@
 import { memo, useState } from "react";
 import TagManager from "./TagManager";
-import { PanelButton, SegmentedControl } from "./ui/Panel";
+import { PanelButton, PanelSection, SegmentedControl } from "./ui/Panel";
 import { useMediaData } from "../context/MediaContext";
-import { getSkin, setSkin } from "../utils/skin";
+import { skin, videoProgress } from "../utils/prefs";
 
 const FINISHES = [
   { value: "soft", label: "soft" },
   { value: "matte", label: "matte" },
 ];
+const PROGRESS = [
+  { value: "shown", label: "show" },
+  { value: "hidden", label: "hide" },
+];
 
-// Library upkeep, the finish, and what the library holds.
+// A display preference: its name, and a segmented control that saves it.
+function PrefRow({ label, pref, options }) {
+  const [value, setValue] = useState(pref.get);
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="min-w-0 truncate px-1 text-white/80">{label}</span>
+      <SegmentedControl
+        ariaLabel={label}
+        className="w-36 shrink-0"
+        value={value}
+        options={options}
+        onChange={(next) => {
+          pref.set(next);
+          setValue(next);
+        }}
+      />
+    </div>
+  );
+}
+
+// Library upkeep, display preferences, and what the library holds.
 const SettingsPanel = memo(function SettingsPanel() {
   const [showTagManager, setShowTagManager] = useState(false);
-  const [skin, setSkinState] = useState(getSkin);
   const {
     settings,
     allMediaFiles,
@@ -67,54 +90,63 @@ const SettingsPanel = memo(function SettingsPanel() {
     config?.provider?.config?.sbUrl ||
     "";
 
+  const hasLibrary = canManageTags || canRescan || canRegenerateThumbnails;
+
   return (
-    <div className="space-y-2">
-      {canManageTags && (
-        <PanelButton
-          className="flex w-full items-center justify-between"
-          onClick={() => setShowTagManager(true)}
-        >
-          manage tags <span aria-hidden="true">›</span>
-        </PanelButton>
-      )}
-      {canRescan && (
-        <PanelButton
-          className="w-full text-left"
-          disabled={isScanning}
-          onClick={rescan}
-        >
-          {isScanning ? "scanning…" : "rescan library"}
-        </PanelButton>
-      )}
-      {canRegenerateThumbnails && (
-        <PanelButton
-          className="w-full text-left"
-          disabled={isRegeneratingThumbnails}
-          onClick={regenerateThumbnails}
-        >
-          {isRegeneratingThumbnails ? "generating…" : "regenerate thumbnails"}
-        </PanelButton>
+    <div className="space-y-4">
+      {hasLibrary && (
+        <PanelSection title="library">
+          {canManageTags && (
+            <PanelButton
+              className="flex w-full items-center justify-between"
+              onClick={() => setShowTagManager(true)}
+            >
+              manage tags <span aria-hidden="true">›</span>
+            </PanelButton>
+          )}
+          {canRescan && (
+            <PanelButton
+              className="w-full text-left"
+              disabled={isScanning}
+              onClick={rescan}
+            >
+              {isScanning ? "scanning…" : "rescan library"}
+            </PanelButton>
+          )}
+          {canRegenerateThumbnails && (
+            <PanelButton
+              className="w-full text-left"
+              disabled={isRegeneratingThumbnails}
+              onClick={regenerateThumbnails}
+            >
+              {isRegeneratingThumbnails
+                ? "generating…"
+                : "regenerate thumbnails"}
+            </PanelButton>
+          )}
+        </PanelSection>
       )}
 
-      <SegmentedControl
-        ariaLabel="Finish"
-        value={skin}
-        options={FINISHES}
-        onChange={(value) => {
-          setSkin(value);
-          setSkinState(value);
-        }}
-      />
+      <PanelSection title="ui">
+        <PrefRow label="finish" pref={skin} options={FINISHES} />
+        <PrefRow
+          label="video progress"
+          pref={videoProgress}
+          options={PROGRESS}
+        />
+      </PanelSection>
 
-      <p className="m-0 px-1 pt-1 text-xs text-white/45">
-        {allMediaFiles.length.toLocaleString()} items ·{" "}
-        {photos.toLocaleString()} photos · {videos.toLocaleString()} videos
-      </p>
-      {ui.showDirectoryInfo && sourceName && (
-        <p className="m-0 break-all px-1 font-mono text-[11px] normal-case text-white/30">
-          {sourceName}
+      <div className="space-y-1">
+        <p className="m-0 px-1 text-xs text-white/45">
+          {allMediaFiles.length.toLocaleString()} items ·{" "}
+          {photos.toLocaleString()} photos · {videos.toLocaleString()} videos
         </p>
-      )}
+        {ui.showDirectoryInfo && sourceName && (
+          <p className="m-0 break-all px-1 font-mono text-[11px] normal-case text-white/30">
+            {sourceName}
+          </p>
+        )}
+      </div>
     </div>
   );
 });

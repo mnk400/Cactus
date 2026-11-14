@@ -6,10 +6,10 @@ import Message from "./components/Message.jsx";
 
 import "@fontsource-variable/figtree";
 import "./index.css";
-import { initSkin } from "./utils/skin";
+import { initPrefs } from "./utils/prefs";
 import { MediaProvider } from "./context/MediaContext";
 
-initSkin();
+initPrefs();
 // iOS only applies :active styles on touch when a touch listener exists.
 document.addEventListener("touchstart", () => {}, { passive: true });
 
