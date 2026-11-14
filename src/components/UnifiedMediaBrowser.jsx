@@ -180,7 +180,7 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
 
     // What the flyer shows: the thumbnail at once; over it the full photo
     // when it is ready, or the video's current frame.
-    const dress = (file, canvas) => {
+    const dress = (file, canvas, target) => {
       flyer.style.backgroundImage = `url(/thumbnails?hash=${file.file_hash})`;
       const img = canvas?.querySelector("img");
       flyerImg.onload = () => (flyerImg.style.opacity = "1");
@@ -192,16 +192,23 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
         flyerImg.removeAttribute("src");
       }
       const video = canvas?.querySelector("video");
+      // Stop playback before sampling, so the frame cannot advance between
+      // the feed, the flyer and the gallery tile.
+      if (target === 1) video?.pause();
       flyerFrame.style.display = "none";
-      if (video?.readyState >= 2 && video.videoWidth) {
-        const scale = Math.min(1, 1280 / video.videoWidth);
-        flyerFrame.width = Math.round(video.videoWidth * scale);
-        flyerFrame.height = Math.round(video.videoHeight * scale);
+      if (video?.readyState >= 2 && video.videoWidth && !video.seeking) {
+        const { videoWidth: width, videoHeight: height } = video;
+        const scale = Math.min(1, 1280 / Math.max(width, height));
+        flyerFrame.width = Math.max(1, Math.round(width * scale));
+        flyerFrame.height = Math.max(1, Math.round(height * scale));
         try {
           flyerFrame
             .getContext("2d")
             .drawImage(video, 0, 0, flyerFrame.width, flyerFrame.height);
           flyerFrame.style.display = "block";
+          if (target === 1) {
+            galleryRef.current?.showVideoFrame(file, video, flyerFrame);
+          }
         } catch {
           // A frame we cannot read: the thumbnail stands in.
         }
@@ -219,7 +226,7 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
       const radius = canvas
         ? parseFloat(getComputedStyle(canvas).borderTopLeftRadius) || 0
         : 0;
-      dress(file, canvas);
+      dress(file, canvas, target);
       if (canvas) canvas.style.visibility = "hidden";
       galleryRef.current?.setHidden(index);
       return { index, files: filesRef.current, canvas, radius };
@@ -266,15 +273,21 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
     zoomRef.current = {
       to(target, index) {
         s.target = target;
+        // Returning to the gallery mid-zoom freezes the video's new
+        // position, rather than reusing a frame captured before it resumed.
+        if (target === 1 && s.shot) {
+          dress(filesRef.current[index], s.shot.canvas, target);
+        }
         if (!s.shot) {
           if (s.p === target) return;
           const reduceMotion = matchMedia(
             "(prefers-reduced-motion: reduce)",
           ).matches;
-          if (!reduceMotion) s.shot = begin(index, target);
-          if (!s.shot) {
+          // Reduced motion still captures the frame; only the travel is skipped.
+          s.shot = begin(index, target);
+          if (reduceMotion || !s.shot) {
             s.p = target;
-            paint();
+            settle({ fromFrame: false });
             return;
           }
         }
@@ -408,6 +421,7 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
           files={mediaFiles}
           currentIndex={currentIndex}
           onSelect={selectMedia}
+          isActive={isGalleryView}
         />
       </div>
 

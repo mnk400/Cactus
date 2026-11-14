@@ -2,6 +2,7 @@ import {
   forwardRef,
   memo,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useLayoutEffect,
   useMemo,
@@ -84,8 +85,18 @@ const Tile = memo(function Tile({
   h,
   selected,
   hidden,
+  videoFrame,
   onSelect,
 }) {
+  const frameRef = useRef(null);
+  useLayoutEffect(() => {
+    const canvas = frameRef.current;
+    if (!canvas || !videoFrame) return;
+    canvas.width = videoFrame.canvas.width;
+    canvas.height = videoFrame.canvas.height;
+    canvas.getContext("2d").drawImage(videoFrame.canvas, 0, 0);
+  }, [videoFrame]);
+
   return (
     <button
       type="button"
@@ -117,6 +128,13 @@ const Tile = memo(function Tile({
             e.currentTarget.style.visibility = "hidden";
           }}
         />
+        {videoFrame && (
+          <canvas
+            ref={frameRef}
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+            aria-hidden="true"
+          />
+        )}
         {file.media_type === "video" && (
           <span
             className="pointer-events-none absolute right-1.5 bottom-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white"
@@ -143,9 +161,26 @@ const Tile = memo(function Tile({
 // it where a tile is (rectOf), to bring one into view (reveal), and to hide
 // the tile the flying photo stands in for (setHidden).
 const Gallery = forwardRef(function Gallery(
-  { files, currentIndex, onSelect },
+  { files, currentIndex, onSelect, isActive },
   ref,
 ) {
+  // One temporary frame for the player we just paused, never a history.
+  const [videoFrame, setVideoFrame] = useState(null);
+  if (videoFrame && (!isActive || videoFrame.file !== files[currentIndex])) {
+    setVideoFrame(null);
+  }
+  useEffect(() => {
+    if (!videoFrame) return;
+    const clear = () => setVideoFrame(null);
+    const events = ["play", "seeking", "emptied"];
+    events.forEach((event) => videoFrame.video.addEventListener(event, clear));
+    return () => {
+      events.forEach((event) =>
+        videoFrame.video.removeEventListener(event, clear),
+      );
+    };
+  }, [videoFrame]);
+
   // For the layout effect below, which must not rerun on every move.
   const currentRef = useRef(currentIndex);
   useLayoutEffect(() => {
@@ -294,6 +329,9 @@ const Gallery = forwardRef(function Gallery(
       },
       reveal,
       setHidden,
+      showVideoFrame(file, video, canvas) {
+        setVideoFrame({ file, video, canvas });
+      },
     }),
     [layout, files, reveal],
   );
@@ -324,6 +362,7 @@ const Gallery = forwardRef(function Gallery(
                 h={layout.h[i]}
                 selected={i === currentIndex}
                 hidden={i === hidden}
+                videoFrame={i === currentIndex ? videoFrame : null}
                 onSelect={onSelect}
               />
             ) : null,
