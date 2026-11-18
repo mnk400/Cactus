@@ -406,26 +406,28 @@ html {
   translate: -50% -100%;
 }
 
-/* Wide viewport: the sheet sits right-center, under the thumb, and grows
-   leftward to its content's height. */
+/* Wide viewport: the sheet sits left-center and grows rightward to its
+   content's height. The left, because a status bar can run down the right
+   edge as a column (iPhone Duo): the whole edge is then inset, though the
+   column holds only the clock at its top, and a dock kept clear of it
+   floats far from the edge. The dock hugs its own edge's inset, so a
+   cutout on the left (a phone turned the other way) still pushes it in. */
 @media (orientation: landscape) {
   .sheet {
-    flex-direction: row;
-    left: auto;
+    flex-direction: row-reverse;
     bottom: auto;
-    right: calc(10px + env(safe-area-inset-right, 0px));
+    left: max(10px, env(safe-area-inset-left, 0px));
     top: 50%;
     translate: 0 -50%;
   }
   .sheet-inner {
-    left: auto;
     bottom: auto;
-    right: 0;
+    left: 0;
     top: 50%;
     translate: 0 -50%;
   }
   .sheet-content {
-    padding: 14px 6px 14px 14px;
+    padding: 14px 14px 14px 6px;
   }
   .sheet-grab {
     display: none;
@@ -444,25 +446,43 @@ html {
     width: 36px;
     height: 28px;
   }
-  /* The tide runs down the right-hand column, fading out leftward; the
-     time sits to the sheet's left. */
+  /* The tide runs down the left-hand column, fading out rightward; the
+     time sits to the sheet's right. */
   .dock-tide {
-    left: auto;
+    right: auto;
     top: 0;
     width: 58px;
     height: auto;
-    mask-image: linear-gradient(to left, #000 30%, transparent);
+    mask-image: linear-gradient(to right, #000 30%, transparent);
   }
   .dock-tide > i {
     box-shadow: inset 0 -1px 0 rgb(255 255 255 / 0.18);
     transform: translateY(calc((var(--p, 0) - 1) * 100%));
   }
   .scrub-time {
-    translate: calc(6px - 100%) -50%;
+    translate: -6px -50%;
   }
   [data-scrubbing] .scrub-time {
-    translate: -100% -50%;
+    translate: 0 -50%;
   }
+}
+
+/* Chrome that sits in a screen corner: the source badge top left, the video
+   buttons top right. Each keeps clear of its own two edges' insets, and
+   where an edge has none, of the screen's rounded corner, which no inset
+   describes. The status bar is not always along the top (on iPhone Duo it
+   is a column down one side), so neither edge can be assumed free. */
+.corner-tl,
+.corner-tr {
+  --corner: 16px;
+  position: absolute;
+  top: max(var(--corner), env(safe-area-inset-top, 0px));
+}
+.corner-tl {
+  left: max(var(--corner), env(safe-area-inset-left, 0px));
+}
+.corner-tr {
+  right: max(var(--corner), env(safe-area-inset-right, 0px));
 }
 
 /* Previous/next arrows are for mice; touch swipes. */

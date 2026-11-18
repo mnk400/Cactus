@@ -59,7 +59,7 @@ function Sheet({ panel, onPanel, panels }) {
       const H = shell.clientHeight;
       const tall = portrait.matches;
       const style = getComputedStyle(sheet);
-      g = { tall, edge: parseFloat(tall ? style.bottom : style.right) };
+      g = { tall, edge: parseFloat(tall ? style.bottom : style.left) };
       if (tall) {
         g.dock = dock.offsetWidth;
         g.across = W - 16;
@@ -99,7 +99,7 @@ function Sheet({ panel, onPanel, panels }) {
       inner.style.opacity = visible;
       inner.style.transform = g.tall
         ? `translateY(${drift}px)`
-        : `translateX(${drift}px)`;
+        : `translateX(${-drift}px)`;
       inner.style.pointerEvents = q > 0.5 ? "" : "none";
     };
 
@@ -159,7 +159,9 @@ function Sheet({ panel, onPanel, panels }) {
       if (!drag || e.pointerId !== drag.id) return;
       const dx = e.clientX - drag.x;
       const dy = e.clientY - drag.y;
-      const [dist, cross] = g.tall ? [dy, dx] : [dx, dy];
+      // dist grows toward closed: down on a tall screen, left on a wide one
+      // (the sheet sits on the left there and opens rightward).
+      const [dist, cross] = g.tall ? [dy, dx] : [-dx, dy];
       if (!drag.active) {
         if (Math.max(Math.abs(dist), Math.abs(cross)) < DRAG_SLOP) return;
         if (Math.abs(cross) > Math.abs(dist)) {

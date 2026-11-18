@@ -45,12 +45,7 @@ const MediaSourceBadge = memo(function MediaSourceBadge({ onOpenFilters }) {
   if (!top && !bottom) return null;
 
   return (
-    <div
-      className="pointer-events-none absolute left-0 right-0 top-0 z-20 flex justify-start px-2.5"
-      style={{
-        paddingTop: "max(0.625rem, env(safe-area-inset-top, 0.625rem))",
-      }}
-    >
+    <div className="pointer-events-none absolute left-0 right-0 top-0 z-20">
       {/* Tiles scroll under the badge, so give it a soft shade to sit on:
           around the badge only, so it has no edge of its own. */}
       {galleryView && (
@@ -60,7 +55,7 @@ const MediaSourceBadge = memo(function MediaSourceBadge({ onOpenFilters }) {
         />
       )}
       <div
-        className={`surface pointer-events-auto relative flex items-center rounded-full ${
+        className={`surface corner-tl pointer-events-auto flex items-center rounded-full ${
           bottom ? "h-10 max-w-[70%]" : "h-7 max-w-[60%]"
         }`}
       >

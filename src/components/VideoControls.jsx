@@ -25,8 +25,8 @@ function useScrub(videoElement, seekVideo, timeRef) {
     let g = null;
 
     // The time sits just outside the sheet, whatever size it is (the dock,
-    // or a panel): centered above it on a tall screen, to its left on a wide
-    // one. index.css hangs the label off this point.
+    // or a panel): centered above it on a tall screen, to its right on a
+    // wide one. index.css hangs the label off this point.
     const placeTime = () => {
       const label = timeRef.current;
       const sheet = document.querySelector(".sheet");
@@ -35,7 +35,7 @@ function useScrub(videoElement, seekVideo, timeRef) {
       const s = sheet.getBoundingClientRect();
       const [x, y] = portrait.matches
         ? [s.left + s.width / 2, Math.max(s.top - 10, box.top + 40)]
-        : [s.left - 10, s.top + s.height / 2];
+        : [s.right + 10, s.top + s.height / 2];
       label.style.left = `${x - box.left}px`;
       label.style.top = `${y - box.top}px`;
     };
@@ -128,7 +128,8 @@ function useScrub(videoElement, seekVideo, timeRef) {
   }, [videoElement, seekVideo, timeRef]);
 }
 
-// Video-only chrome: sound and fullscreen top right, and the scrub gesture.
+// Video-only chrome: sound and fullscreen top right (.corner-tr), and the
+// scrub gesture.
 // Progress itself lives on the sheet (VideoProgress.jsx), so the dock never
 // changes shape as you swipe between photos and videos.
 function VideoControls() {
@@ -150,12 +151,7 @@ function VideoControls() {
 
   return (
     <>
-      <div
-        className="absolute right-2.5 z-20 flex gap-1.5"
-        style={{
-          top: "max(0.625rem, env(safe-area-inset-top, 0.625rem))",
-        }}
-      >
+      <div className="corner-tr z-20 flex gap-1.5">
         <IconButton
           onClick={toggleMute}
           title={isMuted ? "Unmute" : "Mute"}
