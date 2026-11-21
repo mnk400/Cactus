@@ -1,5 +1,10 @@
 import { memo } from "react";
-import { useMediaData, useCurrentMedia } from "../context/MediaContext";
+import {
+  useAudio,
+  useCurrentMedia,
+  useMediaData,
+  useVideoElement,
+} from "../context/MediaContext";
 import { useMediaTags } from "../hooks/useMediaTags";
 import { filterParts } from "../utils/filters";
 
@@ -64,16 +69,42 @@ export function IconButton({
 const HEART =
   "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z";
 
+// A video's own buttons, one at each end of the dock. They are always there,
+// folded to nothing unless the item is a video; both ends are the same size
+// and the dock is centered along its length, so the buttons between them
+// never move as the ends open or fold (index.css, .dock-end).
+function DockEnd({ open, children }) {
+  return (
+    <div
+      className={`dock-end${open ? " open" : ""}`}
+      inert={open ? undefined : ""}
+    >
+      <div>{children}</div>
+    </div>
+  );
+}
+
+const enterFullscreen = (video) =>
+  (
+    video.requestFullscreen ||
+    video.webkitRequestFullscreen ||
+    video.webkitEnterFullscreen
+  )?.call(video);
+
 // The icon row of the sheet (see Sheet.jsx): it is the dock when the sheet is
 // closed and stays in place under the panel when it is open. Its buttons
 // never come or go, so each one keeps its spot under your thumb; item actions
-// just dim in the gallery, where there is no one item.
+// just dim in the gallery, where there is no one item. The one exception is
+// a video's sound and fullscreen, which grow out of the dock's two ends.
 const Dock = memo(function Dock({ panel, onPanel }) {
   const { currentMediaFile } = useCurrentMedia();
   const { toggleGallery, navigate, settings } = useMediaData();
+  const { isMuted, toggleMute } = useAudio();
+  const { videoElement } = useVideoElement();
   const { galleryView } = settings;
 
   const showItem = !galleryView && !!currentMediaFile;
+  const isVideo = showItem && currentMediaFile.media_type === "video";
   const { tags, add, remove } = useMediaTags(
     showItem ? currentMediaFile.file_path : null,
   );
@@ -83,6 +114,19 @@ const Dock = memo(function Dock({ panel, onPanel }) {
 
   return (
     <>
+      <DockEnd open={isVideo}>
+        <IconButton onClick={toggleMute} title={isMuted ? "Unmute" : "Mute"}>
+          <Icon>
+            {isMuted ? (
+              <path d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+            ) : (
+              <path d="M15.536 8.464a5 5 0 010 7.072M17.95 6.05a8.5 8.5 0 010 11.9M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+            )}
+          </Icon>
+        </IconButton>
+        <span aria-hidden="true" className="dock-sep" />
+      </DockEnd>
+
       <IconButton
         onClick={() => (favorite ? remove(favorite.id) : add([FAVORITE_TAG]))}
         active={!!favorite}
@@ -173,6 +217,19 @@ const Dock = memo(function Dock({ panel, onPanel }) {
           <path d="M19 8.5l-7 7-7-7" />
         </Icon>
       </IconButton>
+
+      <DockEnd open={isVideo}>
+        <span aria-hidden="true" className="dock-sep" />
+        <IconButton
+          onClick={() => videoElement && enterFullscreen(videoElement)}
+          title="Fullscreen"
+          disabled={!videoElement}
+        >
+          <Icon>
+            <path d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+          </Icon>
+        </IconButton>
+      </DockEnd>
     </>
   );
 });

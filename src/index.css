@@ -82,7 +82,7 @@ html {
   --heart-glow: none;
 }
 
-/* Floating surfaces: sheet, source label, video buttons. */
+/* Floating surfaces: sheet, source label, scrub time. */
 .surface {
   background: var(--surface);
   border: 0.5px solid var(--surface-edge);
@@ -334,6 +334,41 @@ html {
   height: 36px;
 }
 
+/* A video's sound and fullscreen, one at each end of the dock (Dock.jsx).
+   For anything else an end folds to nothing: its track shrinks to 0fr and
+   the -1px margins take back the row gap it would leave. Both ends are the
+   same size and the sheet is centered along the dock, so the dock grows
+   and shrinks at both ends at once and the icons between them stay put
+   (Sheet.jsx follows the row's size as it changes). */
+.dock-end {
+  flex: none;
+  display: grid;
+  grid-template-columns: 0fr;
+  margin-inline: -1px;
+  opacity: 0;
+  transition:
+    grid-template-columns 260ms cubic-bezier(0.32, 0.72, 0, 1),
+    grid-template-rows 260ms cubic-bezier(0.32, 0.72, 0, 1),
+    margin 260ms cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 180ms;
+}
+.dock-end.open {
+  grid-template-columns: 1fr;
+  margin-inline: 0;
+  opacity: 1;
+}
+.dock-end > div {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dock-end {
+    transition: none;
+  }
+}
+
 /* A video's progress: the sheet's surface fills behind the icon row
    (VideoProgress.jsx sets --p). It belongs to the sheet's dock edge, not to
    the row, so when the sheet grows into a panel it runs edge to edge and
@@ -373,10 +408,10 @@ html {
    the tide brightens, and the time floats just outside the sheet, where
    VideoControls places it. The paused play mark stays hidden; scrubbing
    pauses only to hold the frame. */
-.dock-row > button {
+.dock-row button {
   transition: opacity 150ms;
 }
-[data-scrubbing] .dock-row > button {
+[data-scrubbing] .dock-row button {
   opacity: 0.15;
 }
 [data-scrubbing] .dock-tide > i {
@@ -446,6 +481,20 @@ html {
     width: 36px;
     height: 28px;
   }
+  .dock-end,
+  .dock-end.open {
+    grid-template-columns: auto;
+    grid-template-rows: 0fr;
+    margin: -1px 0;
+  }
+  .dock-end.open {
+    grid-template-rows: 1fr;
+    margin: 0;
+  }
+  .dock-end > div {
+    flex-direction: column;
+    min-height: 0;
+  }
   /* The tide runs down the left-hand column, fading out rightward; the
      time sits to the sheet's right. */
   .dock-tide {
@@ -467,29 +516,85 @@ html {
   }
 }
 
-/* Chrome that sits in a screen corner: the source badge top left, the video
-   buttons top right. Each keeps clear of its own two edges' insets, and
-   where an edge has none, of the screen's rounded corner, which no inset
-   describes. The status bar is not always along the top (on iPhone Duo it
-   is a column down one side), so neither edge can be assumed free. */
-.corner-tl,
-.corner-tr {
+/* Chrome that sits in a screen corner: the source badge top left. It keeps
+   clear of its own two edges' insets, and where an edge has none, of the
+   screen's rounded corner, which no inset describes. The status bar is not
+   always along the top (on iPhone Duo it is a column down one side), so
+   neither edge can be assumed free. */
+.corner-tl {
   --corner: 16px;
   position: absolute;
   top: max(var(--corner), env(safe-area-inset-top, 0px));
-}
-.corner-tl {
   left: max(var(--corner), env(safe-area-inset-left, 0px));
 }
-.corner-tr {
-  right: max(var(--corner), env(safe-area-inset-right, 0px));
+
+/* The source badge (MediaSourceBadge.jsx) is plain text until a filter is
+   on; then the surface fades in behind it and it is a pill. The box is the
+   same either way, so the text never moves. Plain, it reads over a bright
+   photo thanks to the corner shade it sits on (MediaSourceBadge.jsx). */
+.badge {
+  isolation: isolate;
+}
+.badge::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  transition: opacity 200ms;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--surface);
+  border: 0.5px solid var(--surface-edge);
+  box-shadow: var(--surface-shadow);
+  opacity: 0;
+}
+.badge-pill::before {
+  opacity: 1;
+}
+/* Plain, the letters carry a tight shadow, and the shade behind the
+   badge is wide and faint, fading out on an eased curve, so it never reads
+   as a dark patch: just enough to keep the text up on a bright photo. */
+.badge:not(.badge-pill) {
+  text-shadow:
+    0 1px 2px rgb(0 0 0 / 0.5),
+    0 0 10px rgb(0 0 0 / 0.45);
+}
+.badge-shade {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 34rem;
+  max-width: 100%;
+  height: 16rem;
+  pointer-events: none;
+  background: radial-gradient(
+    100% 100% at 0 0,
+    rgb(0 0 0 / 0.22) 0%,
+    rgb(0 0 0 / 0.162) 19%,
+    rgb(0 0 0 / 0.119) 34%,
+    rgb(0 0 0 / 0.084) 47%,
+    rgb(0 0 0 / 0.061) 56.5%,
+    rgb(0 0 0 / 0.043) 65%,
+    rgb(0 0 0 / 0.028) 73%,
+    rgb(0 0 0 / 0.017) 80.2%,
+    rgb(0 0 0 / 0.009) 86.1%,
+    rgb(0 0 0 / 0.004) 91%,
+    rgb(0 0 0 / 0.002) 95.2%,
+    rgb(0 0 0 / 0.001) 98.2%,
+    rgb(0 0 0 / 0) 100%
+  );
+  transition: opacity 200ms;
 }
 
-/* Previous/next arrows are for mice; touch swipes. */
+/* Previous/next arrows are for mice; touch swipes. They also need room: a
+   video's dock with them is about 380px along, so a window too narrow (a
+   tall one) or too short (a wide one) for that and a 16px margin each side
+   drops them; the arrow keys still step. The test is the longest
+   dock, so the arrows never come and go between photos and videos. */
 .mouse-only {
   display: none;
 }
-@media (hover: hover) and (pointer: fine) {
+@media (hover: hover) and (pointer: fine) and (orientation: portrait) and (min-width: 420px),
+  (hover: hover) and (pointer: fine) and (orientation: landscape) and (min-height: 420px) {
   .mouse-only {
     display: flex;
   }

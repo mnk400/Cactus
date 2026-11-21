@@ -240,8 +240,11 @@ function Sheet({ panel, onPanel, panels }) {
     sheet.addEventListener("pointerup", onUp);
     sheet.addEventListener("pointercancel", onUp);
     document.addEventListener("keydown", onKeyDown);
+    // Paint straight away too, so the sheet keeps step with a dock that is
+    // growing (a video's buttons opening at its ends) instead of a frame behind.
     const observer = new ResizeObserver(() => {
       measure();
+      paint();
       run();
     });
     [shell, inner, dock].forEach((el) => observer.observe(el));

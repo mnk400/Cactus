@@ -4,9 +4,11 @@ import { filterParts, sortLabel } from "../utils/filters";
 import { Icon } from "./Dock";
 
 // Top left always says what you are looking at.
-// - Unfiltered: the item's folder in the feed (tap to filter by it), the
-//   item count in the gallery.
-// - Filtered: the filters on top, with × to clear them; tap to change them.
+// - Unfiltered: plain text, the item's folder in the feed (tap to filter by
+//   it), the item count in the gallery.
+// - Filtered: a pill (index.css, .badge), so a pill up there always means
+//   you are not seeing everything. The filters on top, with × to clear
+//   them; tap to change them.
 //   The folder or count moves to a quieter line under them, unless it only
 //   repeats a filter (the folder you filtered by from here): then the badge
 //   stays one line.
@@ -46,18 +48,18 @@ const MediaSourceBadge = memo(function MediaSourceBadge({ onOpenFilters }) {
 
   return (
     <div className="pointer-events-none absolute left-0 right-0 top-0 z-20">
-      {/* Tiles scroll under the badge, so give it a soft shade to sit on:
-          around the badge only, so it has no edge of its own. */}
-      {galleryView && (
-        <div
-          aria-hidden="true"
-          className="absolute left-0 top-0 h-24 w-72 bg-[radial-gradient(100%_100%_at_0_0,rgb(0_0_0/0.7),transparent_70%)]"
-        />
-      )}
+      {/* The badge needs a soft shade to sit on wherever something bright
+          can pass under it: tiles in the gallery, a photo under the plain
+          text (index.css, .badge-shade). It has no edge of its own; the
+          pill brings its own surface, so the feed drops the shade for it. */}
       <div
-        className={`surface corner-tl pointer-events-auto flex items-center rounded-full ${
-          bottom ? "h-10 max-w-[70%]" : "h-7 max-w-[60%]"
-        }`}
+        aria-hidden="true"
+        className={`badge-shade ${galleryView || !filtered ? "" : "opacity-0"}`}
+      />
+      <div
+        className={`badge corner-tl pointer-events-auto flex items-center rounded-full ${
+          filtered ? "badge-pill" : ""
+        } ${bottom ? "h-10 max-w-[70%]" : "h-7 max-w-[60%]"}`}
       >
         <button
           type="button"
