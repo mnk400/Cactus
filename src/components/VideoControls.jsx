@@ -46,7 +46,12 @@ function useScrub(videoElement, seekVideo, timeRef) {
       if (wasPlaying) videoElement.play().catch(() => {});
     };
     const onDown = (e) => {
-      // One scrub at a time: a second finger does not take it over.
+      // One scrub at a time: a second finger does not take it over. Before
+      // the scrub has started, a second finger makes it a pinch (usePinch).
+      if (g && !g.on) {
+        g = null;
+        return;
+      }
       if (e.button || g?.on) return;
       const onVideo = e.target === videoElement;
       const onDock = portrait.matches && !!e.target.closest(".dock-row");

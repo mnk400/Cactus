@@ -101,9 +101,8 @@ const Tile = memo(function Tile({
     <button
       type="button"
       data-gallery-index={index}
-      className={`absolute top-0 left-0 cursor-pointer rounded-[12px] border-0 bg-transparent text-left text-inherit outline-offset-[-2px] ${
-        selected ? "outline outline-2 outline-white/90" : ""
-      }`}
+      data-current={selected ? "" : undefined}
+      className="gallery-tile absolute top-0 left-0 cursor-pointer rounded-[12px] border-0 bg-transparent text-left text-inherit"
       style={{
         padding: CELL,
         width: w,

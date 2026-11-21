@@ -10,6 +10,7 @@ import { flushSync } from "react-dom";
 import MediaItem from "./MediaItem";
 import Gallery, { TILE_RADIUS } from "./Gallery";
 import { useCurrentMedia, useMediaData } from "../context/MediaContext";
+import { usePinch } from "../hooks/usePinch";
 
 const ZOOM_STIFFNESS = 340; // critically damped, settles in about 0.4s
 const GRID_GROW = 0.06; // the grid starts this much larger as it zooms out
@@ -34,7 +35,8 @@ const applyFit = (feed) => {
 
 const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
   const { currentIndex } = useCurrentMedia();
-  const { mediaFiles, selectMedia, setCurrentIndex, settings } = useMediaData();
+  const { mediaFiles, selectMedia, setCurrentIndex, settings, toggleGallery } =
+    useMediaData();
   const isGalleryView = settings.galleryView;
   const rootRef = useRef(null);
   const feedLayerRef = useRef(null);
@@ -325,6 +327,25 @@ const UnifiedMediaBrowser = memo(function UnifiedMediaBrowser() {
     shownViewRef.current = isGalleryView;
     zoomRef.current.to(isGalleryView ? 1 : 0, currentIndexRef.current);
   }, [isGalleryView]);
+
+  // Pinch in on the feed for the gallery; pinch out on a tile to open it.
+  // The same calls as the dock button and a tap, so the zoom is the same.
+  usePinch(rootRef, {
+    onPinchIn() {
+      // A scrub keeps the fingers it started with.
+      if (isGalleryView || "scrubbing" in document.documentElement.dataset) {
+        return;
+      }
+      toggleGallery();
+    },
+    onPinchOut({ x, y }) {
+      if (!isGalleryView) return;
+      const tile = document
+        .elementFromPoint(x, y)
+        ?.closest("[data-gallery-index]");
+      if (tile) selectMedia(Number(tile.dataset.galleryIndex));
+    },
+  });
 
   const handleFeedScroll = useCallback(() => {
     if (isGalleryView || scrollFrameRef.current) return;

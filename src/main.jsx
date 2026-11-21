@@ -12,6 +12,18 @@ import { MediaProvider } from "./context/MediaContext";
 initPrefs();
 // iOS only applies :active styles on touch when a touch listener exists.
 document.addEventListener("touchstart", () => {}, { passive: true });
+// data-keys on <html> while the keyboard is in use: from a key press (not
+// typing in a field, not a shortcut) until the next tap or click. Marks
+// that only help find your place with the keys show only then.
+document.addEventListener("keydown", (e) => {
+  const typing = e.target.closest?.("input, textarea, select");
+  if (!typing && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    document.documentElement.dataset.keys = "";
+  }
+});
+document.addEventListener("pointerdown", () => {
+  delete document.documentElement.dataset.keys;
+});
 
 function Root() {
   const [authState, setAuthState] = useState({
